@@ -9,5 +9,8 @@ class Init {
 
         require_once plugin_dir_path( __FILE__ ) . 'includes/class-text.php';
         \AMFM_Text::init();
+
+        require_once plugin_dir_path( __FILE__ ) . 'includes/class-optimization.php';
+        \AMFM_Optimization::init();
     }
 }

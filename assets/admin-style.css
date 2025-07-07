@@ -1,0 +1,830 @@
+/* AMFM Admin Page Styles - Elementor-inspired Design */
+
+.amfm-admin-page {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: #f1f3f4;
+    margin: 0 20px 0 0;
+}
+
+.amfm-page-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    font-size: 24px;
+    font-weight: 700;
+    color: #23282d;
+    background: #ffffff;
+    padding: 24px 32px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e2e4e7;
+}
+
+.amfm-icon {
+    font-size: 28px;
+}
+
+.amfm-container {
+    max-width: 1200px;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e2e4e7;
+    overflow: hidden;
+}
+
+/* Elementor-style Tabs Navigation */
+.amfm-tabs-nav {
+    display: flex;
+    background: #ffffff;
+    border-bottom: 1px solid #e2e4e7;
+    padding: 0;
+    margin: 0;
+}
+
+.amfm-tab-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 20px 24px;
+    text-decoration: none;
+    color: #71717a;
+    font-weight: 500;
+    font-size: 14px;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s ease;
+    position: relative;
+    background: transparent;
+    min-width: 120px;
+    justify-content: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.amfm-tab-link:hover {
+    color: #6366f1;
+    text-decoration: none;
+    background: #f8fafc;
+}
+
+.amfm-tab-link.active {
+    color: #6366f1;
+    border-bottom-color: #6366f1;
+    font-weight: 600;
+    background: #ffffff;
+}
+
+.amfm-tab-icon {
+    font-size: 16px;
+}
+
+.amfm-tab-content {
+    padding: 0;
+    background: #ffffff;
+    min-height: 600px;
+}
+
+/* General Tab Styles - Elementor Design */
+.amfm-general-section {
+    max-width: 100%;
+    padding: 32px;
+}
+
+.amfm-welcome-box {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+    padding: 40px;
+    border-radius: 8px;
+    margin-bottom: 32px;
+    text-align: center;
+    border: none;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.amfm-welcome-box h2 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.amfm-welcome-box p {
+    margin-bottom: 0;
+    font-size: 18px;
+    opacity: 0.9;
+    font-weight: 400;
+    line-height: 1.5;
+}
+
+.amfm-features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+}
+
+.amfm-feature-card {
+    background: #ffffff;
+    border: 1px solid #e2e4e7;
+    border-radius: 8px;
+    padding: 32px 24px;
+    text-align: left;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+.amfm-feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+}
+
+.amfm-feature-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-color: #6366f1;
+}
+
+.amfm-feature-card:hover::before {
+    transform: scaleX(1);
+}
+
+.amfm-feature-icon {
+    font-size: 40px;
+    margin-bottom: 20px;
+    display: block;
+    color: #6366f1;
+}
+
+.amfm-feature-card h3 {
+    margin: 0 0 12px 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #23282d;
+    line-height: 1.3;
+}
+
+.amfm-feature-card p {
+    color: #71717a;
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+.amfm-feature-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #6366f1;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 14px;
+    transition: color 0.2s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.amfm-feature-link:hover {
+    color: #4f46e5;
+    text-decoration: none;
+}
+
+.amfm-feature-link::after {
+    content: '→';
+    transition: transform 0.2s ease;
+}
+
+.amfm-feature-link:hover::after {
+    transform: translateX(3px);
+}
+
+.amfm-feature-status {
+    margin-top: 20px;
+}
+
+.amfm-status-active {
+    display: inline-flex;
+    align-items: center;
+    background: #10b981;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.amfm-status-active::before {
+    content: '●';
+    margin-right: 6px;
+    font-size: 8px;
+}
+
+.amfm-info-section {
+    background: #f8fafc;
+    border: 1px solid #e2e4e7;
+    border-radius: 8px;
+    padding: 32px;
+}
+
+.amfm-info-section h3 {
+    margin-top: 0;
+    margin-bottom: 24px;
+    color: #23282d;
+    font-size: 20px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.amfm-info-section h3::before {
+    content: 'ℹ️';
+    font-size: 18px;
+}
+
+.amfm-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.amfm-info-item {
+    background: #ffffff;
+    padding: 20px;
+    border-radius: 6px;
+    border: 1px solid #e2e4e7;
+    color: #71717a;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.amfm-info-item strong {
+    display: block;
+    color: #23282d;
+    font-weight: 600;
+    margin-bottom: 4px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.amfm-info-item a {
+    color: #6366f1;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.amfm-info-item a:hover {
+    text-decoration: underline;
+}
+
+/* SEO Tab Styles - Elementor Design */
+.amfm-seo-header {
+    text-align: center;
+    margin-bottom: 32px;
+    padding: 0 32px 32px 32px;
+    border-bottom: 1px solid #e2e4e7;
+}
+
+.amfm-seo-header h2 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    font-size: 28px;
+    font-weight: 700;
+    color: #23282d;
+}
+
+.amfm-seo-icon {
+    font-size: 32px;
+}
+
+.amfm-seo-header p {
+    color: #71717a;
+    font-size: 16px;
+    margin: 0;
+    font-weight: 400;
+}
+
+/* Upload Section */
+.amfm-upload-section {
+    padding: 32px;
+}
+
+.amfm-info-box {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+    padding: 32px;
+    border-radius: 8px;
+    margin-bottom: 32px;
+    border: none;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.amfm-info-box h3 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 24px;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.amfm-info-box p {
+    margin-bottom: 16px;
+    opacity: 0.95;
+    line-height: 1.6;
+    font-size: 15px;
+}
+
+.amfm-info-box ul {
+    margin: 16px 0;
+    padding-left: 24px;
+}
+
+.amfm-info-box li {
+    margin-bottom: 8px;
+    opacity: 0.95;
+    line-height: 1.6;
+    font-size: 14px;
+}
+
+.amfm-info-box strong {
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.amfm-info-box pre {
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 16px;
+    border-radius: 6px;
+    margin: 16px 0;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Upload Form - Elementor Style */
+.amfm-upload-form {
+    text-align: center;
+    background: #f8fafc;
+    padding: 40px;
+    border-radius: 8px;
+    border: 1px solid #e2e4e7;
+}
+
+.amfm-file-input-wrapper {
+    margin-bottom: 32px;
+}
+
+.amfm-file-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 32px;
+    background: #ffffff;
+    color: #23282d;
+    border: 2px dashed #cbd5e1;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 15px;
+    font-weight: 500;
+    min-height: 120px;
+    min-width: 300px;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+}
+
+.amfm-file-label:hover {
+    border-color: #6366f1;
+    background: #f8fafc;
+    color: #6366f1;
+}
+
+.amfm-file-input {
+    position: absolute;
+    left: -9999px;
+    opacity: 0;
+}
+
+.amfm-file-icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+    color: #71717a;
+}
+
+.amfm-file-label:hover .amfm-file-icon {
+    color: #6366f1;
+}
+
+.amfm-file-text {
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.amfm-file-info {
+    margin-top: 12px;
+    color: #71717a;
+    font-size: 13px;
+}
+
+.amfm-submit-wrapper {
+    margin-top: 24px;
+}
+
+.amfm-submit-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 14px 28px !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    background: #6366f1 !important;
+    border: none !important;
+    border-radius: 6px !important;
+    color: white !important;
+    cursor: pointer;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3) !important;
+    text-decoration: none !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.amfm-submit-btn:hover {
+    background: #5b5bd6 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 8px rgba(99, 102, 241, 0.4) !important;
+    color: white !important;
+}
+
+.amfm-submit-btn:active {
+    transform: translateY(0) !important;
+}
+
+.amfm-submit-icon {
+    font-size: 14px;
+}
+
+/* Results Section - Elementor Style */
+.amfm-results-section {
+    padding: 32px;
+}
+
+.amfm-results-section h2 {
+    margin-top: 0;
+    margin-bottom: 32px;
+    font-size: 28px;
+    font-weight: 700;
+    color: #23282d;
+    text-align: center;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e2e4e7;
+}
+
+.amfm-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+}
+
+.amfm-stat {
+    text-align: center;
+    padding: 32px 24px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e2e4e7;
+    background: #ffffff;
+}
+
+.amfm-stat-success {
+    border-left: 4px solid #10b981;
+}
+
+.amfm-stat-success .amfm-stat-number {
+    color: #10b981;
+}
+
+.amfm-stat-error {
+    border-left: 4px solid #ef4444;
+}
+
+.amfm-stat-error .amfm-stat-number {
+    color: #ef4444;
+}
+
+.amfm-stat-number {
+    font-size: 48px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    line-height: 1;
+}
+
+.amfm-stat-label {
+    font-size: 14px;
+    color: #71717a;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Details Section */
+.amfm-details {
+    margin-bottom: 32px;
+}
+
+.amfm-details h3 {
+    margin-bottom: 20px;
+    font-size: 20px;
+    font-weight: 600;
+    color: #23282d;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.amfm-details h3::before {
+    content: '📋';
+    font-size: 18px;
+}
+
+.amfm-log {
+    background: #f8fafc;
+    border: 1px solid #e2e4e7;
+    border-radius: 8px;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 0;
+}
+
+.amfm-log-item {
+    padding: 12px 16px;
+    border-bottom: 1px solid #e2e4e7;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #23282d;
+    background: #ffffff;
+    margin: 0;
+}
+
+.amfm-log-item:nth-child(even) {
+    background: #f8fafc;
+}
+
+.amfm-log-item:last-child {
+    border-bottom: none;
+}
+
+.amfm-log-item:hover {
+    background: #f1f5f9;
+}
+
+/* Actions */
+.amfm-actions {
+    text-align: center;
+    padding-top: 24px;
+    border-top: 1px solid #e2e4e7;
+}
+
+.amfm-actions .button {
+    padding: 12px 24px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    border-radius: 6px !important;
+    text-decoration: none !important;
+    transition: all 0.2s ease !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+.amfm-actions .button-primary {
+    background: #6366f1 !important;
+    border: 1px solid #6366f1 !important;
+    color: white !important;
+    box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3) !important;
+}
+
+.amfm-actions .button-primary:hover {
+    background: #5b5bd6 !important;
+    border-color: #5b5bd6 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 8px rgba(99, 102, 241, 0.4) !important;
+    color: white !important;
+}
+
+/* Responsive Design - Elementor Style */
+@media (max-width: 768px) {
+    .amfm-admin-page {
+        margin: 0 10px 0 0;
+    }
+    
+    .amfm-page-title {
+        padding: 20px 24px;
+        font-size: 20px;
+        margin-bottom: 16px;
+    }
+    
+    .amfm-container {
+        border-radius: 6px;
+    }
+    
+    .amfm-tabs-nav {
+        flex-direction: column;
+    }
+    
+    .amfm-tab-link {
+        padding: 16px 24px;
+        border-bottom: 1px solid #e2e4e7;
+        border-radius: 0;
+        min-width: auto;
+        justify-content: flex-start;
+        text-align: left;
+    }
+    
+    .amfm-tab-link.active {
+        border-bottom: 1px solid #e2e4e7;
+        border-left: 3px solid #6366f1;
+        background: #f8fafc;
+    }
+    
+    .amfm-general-section {
+        padding: 24px 20px;
+    }
+    
+    .amfm-welcome-box {
+        padding: 32px 24px;
+        margin-bottom: 24px;
+    }
+    
+    .amfm-welcome-box h2 {
+        font-size: 24px;
+    }
+    
+    .amfm-welcome-box p {
+        font-size: 16px;
+    }
+    
+    .amfm-features-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+        margin-bottom: 24px;
+    }
+    
+    .amfm-feature-card {
+        padding: 24px 20px;
+    }
+    
+    .amfm-info-section {
+        padding: 24px 20px;
+    }
+    
+    .amfm-info-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    
+    .amfm-seo-header {
+        padding: 0 20px 24px 20px;
+    }
+    
+    .amfm-seo-header h2 {
+        font-size: 24px;
+    }
+    
+    .amfm-upload-section,
+    .amfm-results-section {
+        padding: 24px 20px;
+    }
+    
+    .amfm-info-box {
+        padding: 24px 20px;
+        margin-bottom: 24px;
+    }
+    
+    .amfm-upload-form {
+        padding: 32px 20px;
+    }
+    
+    .amfm-file-label {
+        min-width: 250px;
+        min-height: 100px;
+        padding: 12px 24px;
+    }
+    
+    .amfm-file-icon {
+        font-size: 28px;
+    }
+    
+    .amfm-file-text {
+        font-size: 14px;
+    }
+    
+    .amfm-submit-btn {
+        padding: 12px 24px !important;
+        font-size: 14px !important;
+    }
+    
+    .amfm-stats {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .amfm-stat {
+        padding: 24px 20px;
+    }
+    
+    .amfm-stat-number {
+        font-size: 36px;
+    }
+}
+
+/* Animations and Transitions - Elementor Style */
+.amfm-container {
+    animation: fadeInUp 0.4s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Loading States */
+.amfm-submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+    background: #94a3b8 !important;
+}
+
+.amfm-submit-btn:disabled:hover {
+    transform: none !important;
+    background: #94a3b8 !important;
+}
+
+/* Focus States for Accessibility */
+.amfm-file-input:focus + .amfm-file-label {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+    border-color: #6366f1;
+}
+
+.amfm-submit-btn:focus {
+    outline: 2px solid #6366f1 !important;
+    outline-offset: 2px !important;
+}
+
+.amfm-tab-link:focus {
+    outline: 2px solid #6366f1;
+    outline-offset: -2px;
+}
+
+/* Scrollbar Styling */
+.amfm-log::-webkit-scrollbar {
+    width: 8px;
+}
+
+.amfm-log::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.amfm-log::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.amfm-log::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Additional Hover Effects */
+.amfm-info-item:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}

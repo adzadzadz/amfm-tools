@@ -141,11 +141,19 @@ class AMFM_Admin_Menu {
                 continue;
             }
 
-            // Update the amfm_keywords ACF field
+            // Update the amfm_keywords ACF field - force overwrite
+            $existing_value = get_field( 'amfm_keywords', $post_id );
             $field_updated = update_field( 'amfm_keywords', $keywords, $post_id );
             
-            if ( $field_updated !== false ) {
-                $results['details'][] = "Row {$row_number}: Updated post ID {$post_id} ('{$post->post_title}') amfm_keywords field with: {$keywords}";
+            // Check if the field was actually updated by comparing values
+            $new_value = get_field( 'amfm_keywords', $post_id );
+            
+            if ( $new_value === $keywords ) {
+                if ( $existing_value && $existing_value !== $keywords ) {
+                    $results['details'][] = "Row {$row_number}: Overwritten post ID {$post_id} ('{$post->post_title}') amfm_keywords field from '{$existing_value}' to: {$keywords}";
+                } else {
+                    $results['details'][] = "Row {$row_number}: Updated post ID {$post_id} ('{$post->post_title}') amfm_keywords field with: {$keywords}";
+                }
                 $results['success']++;
             } else {
                 $results['details'][] = "Row {$row_number}: Failed to update post ID {$post_id} - amfm_keywords ACF field not found or update failed";

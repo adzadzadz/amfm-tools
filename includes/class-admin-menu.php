@@ -197,8 +197,13 @@ class AMFM_Admin_Menu {
                     </a>
                     <a href="<?php echo admin_url( 'tools.php?page=amfm-csv-import&tab=seo' ); ?>" 
                        class="amfm-tab-link <?php echo $active_tab === 'seo' ? 'active' : ''; ?>">
-                        <span class="amfm-tab-icon">�</span>
+                        <span class="amfm-tab-icon">📊</span>
                         SEO
+                    </a>
+                    <a href="<?php echo admin_url( 'tools.php?page=amfm-csv-import&tab=shortcodes' ); ?>" 
+                       class="amfm-tab-link <?php echo $active_tab === 'shortcodes' ? 'active' : ''; ?>">
+                        <span class="amfm-tab-icon">📄</span>
+                        Shortcodes
                     </a>
                 </div>
 
@@ -355,6 +360,107 @@ class AMFM_Admin_Menu {
                                 </form>
                             </div>
                         <?php endif; ?>
+                    </div>
+
+                <?php elseif ( $active_tab === 'shortcodes' ) : ?>
+                    <!-- Shortcodes Tab Content -->
+                    <div class="amfm-tab-content">
+                        <div class="amfm-shortcodes-section">
+                            <div class="amfm-shortcodes-header">
+                                <h2>
+                                    <span class="amfm-shortcodes-icon">📄</span>
+                                    Available Shortcodes
+                                </h2>
+                                <p>Use these shortcodes in your posts, pages, and widgets to display dynamic content from your keyword cookies.</p>
+                            </div>
+
+                            <div class="amfm-shortcode-docs">
+                                <div class="amfm-shortcode-card">
+                                    <h3>DKV Shortcode</h3>
+                                    <p>Displays a random keyword from your stored keywords with customizable formatting.</p>
+                                    
+                                    <div class="amfm-shortcode-usage">
+                                        <h4>Basic Usage:</h4>
+                                        <div class="amfm-code-block">
+                                            <code>[dkv]</code>
+                                        </div>
+                                        <p>Returns a random keyword from the regular keywords.</p>
+                                    </div>
+
+                                    <div class="amfm-shortcode-attributes">
+                                        <h4>Available Attributes:</h4>
+                                        <ul>
+                                            <li><strong>pre</strong> - Text to display before the keyword (default: empty)</li>
+                                            <li><strong>post</strong> - Text to display after the keyword (default: empty)</li>
+                                            <li><strong>fallback</strong> - Text to display if no keyword is available (default: empty)</li>
+                                            <li><strong>other_keywords</strong> - Use other keywords instead of regular keywords (default: false)</li>
+                                        </ul>
+                                    </div>
+
+                                    <div class="amfm-shortcode-examples">
+                                        <h4>Examples:</h4>
+                                        
+                                        <div class="amfm-example">
+                                            <div class="amfm-example-code">
+                                                <code>[dkv pre="Best " post=" services"]</code>
+                                            </div>
+                                            <div class="amfm-example-result">
+                                                → "Best web design services" (if "web design" is a keyword)
+                                            </div>
+                                        </div>
+
+                                        <div class="amfm-example">
+                                            <div class="amfm-example-code">
+                                                <code>[dkv other_keywords="true" pre="Learn " post=" today"]</code>
+                                            </div>
+                                            <div class="amfm-example-result">
+                                                → "Learn WordPress today" (using other keywords)
+                                            </div>
+                                        </div>
+
+                                        <div class="amfm-example">
+                                            <div class="amfm-example-code">
+                                                <code>[dkv fallback="digital marketing"]</code>
+                                            </div>
+                                            <div class="amfm-example-result">
+                                                → Shows a random keyword, or "digital marketing" if none available
+                                            </div>
+                                        </div>
+
+                                        <div class="amfm-example">
+                                            <div class="amfm-example-code">
+                                                <code>[dkv pre="Top " post=" company" other_keywords="true" fallback="SEO"]</code>
+                                            </div>
+                                            <div class="amfm-example-result">
+                                                → "Top marketing company" (from other keywords) or "SEO" if none available
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="amfm-shortcode-note">
+                                        <h4>How It Works:</h4>
+                                        <ul>
+                                            <li>Keywords are stored in browser cookies when visiting pages with ACF keyword fields</li>
+                                            <li>Regular keywords come from the "amfm_keywords" field</li>
+                                            <li>Other keywords come from the "amfm_other_keywords" field</li>
+                                            <li>A random keyword is selected each time the shortcode is displayed</li>
+                                            <li>If no keywords are available and no fallback is set, nothing is displayed</li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <div class="amfm-shortcode-card">
+                                    <h3>Usage Tips</h3>
+                                    <ul>
+                                        <li>Use the shortcode in posts, pages, widgets, and theme files</li>
+                                        <li>Keywords are updated automatically when users visit pages</li>
+                                        <li>Set meaningful fallback text for better user experience</li>
+                                        <li>Use pre/post attributes to create natural sentences</li>
+                                        <li>The other_keywords attribute gives you access to alternative keyword sets</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 <?php endif; ?>
             </div>

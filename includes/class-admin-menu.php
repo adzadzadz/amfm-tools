@@ -9,6 +9,7 @@ class AMFM_Admin_Menu {
         add_action( 'admin_menu', array( $instance, 'add_admin_menu' ) );
         add_action( 'admin_init', array( $instance, 'handle_csv_upload' ) );
         add_action( 'admin_init', array( $instance, 'handle_excluded_keywords_update' ) );
+        add_action( 'admin_init', array( $instance, 'handle_elementor_widgets_update' ) );
         add_action( 'admin_enqueue_scripts', array( $instance, 'enqueue_admin_styles' ) );
     }
 
@@ -229,6 +230,32 @@ class AMFM_Admin_Menu {
     }
 
     /**
+     * Handle Elementor widgets update
+     */
+    public function handle_elementor_widgets_update() {
+        if ( ! isset( $_POST['amfm_elementor_widgets_nonce'] ) || 
+             ! wp_verify_nonce( $_POST['amfm_elementor_widgets_nonce'], 'amfm_elementor_widgets_update' ) ) {
+            return;
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        $enabled_widgets = isset( $_POST['enabled_widgets'] ) ? array_map( 'sanitize_text_field', $_POST['enabled_widgets'] ) : array();
+        
+        // Update the option
+        update_option( 'amfm_elementor_enabled_widgets', $enabled_widgets );
+        
+        add_action( 'admin_notices', function() {
+            echo '<div class="notice notice-success"><p>Elementor widget settings updated successfully!</p></div>';
+        });
+        
+        wp_redirect( admin_url( 'admin.php?page=amfm-tools&tab=elementor&updated=1' ) );
+        exit;
+    }
+
+    /**
      * Admin page callback
      */
     public function admin_page_callback() {
@@ -267,6 +294,11 @@ class AMFM_Admin_Menu {
                        class="amfm-tab-link <?php echo $active_tab === 'shortcodes' ? 'active' : ''; ?>">
                         <span class="amfm-tab-icon">📄</span>
                         Shortcodes
+                    </a>
+                    <a href="<?php echo admin_url( 'admin.php?page=amfm-tools&tab=elementor' ); ?>" 
+                       class="amfm-tab-link <?php echo $active_tab === 'elementor' ? 'active' : ''; ?>">
+                        <span class="amfm-tab-icon">🎨</span>
+                        Elementor
                     </a>
                 </div>
 
@@ -586,6 +618,107 @@ class AMFM_Admin_Menu {
                             </div>
                         </div>
                     </div>
+                
+                <?php elseif ( $active_tab === 'elementor' ) : ?>
+                    <!-- Elementor Tab Content -->
+                    <div class="amfm-tab-content">
+                        <div class="amfm-elementor-section">
+                            <div class="amfm-elementor-header">
+                                <h2>
+                                    <span class="amfm-elementor-icon">🎨</span>
+                                    Elementor Widget Management
+                                </h2>
+                                <p>Enable or disable individual Elementor widgets provided by this plugin. Disabled widgets will not be loaded in the Elementor editor.</p>
+                            </div>
+
+                            <?php
+                            // Get available widgets
+                            $available_widgets = array(
+                                'amfm_related_posts' => array(
+                                    'name' => 'AMFM Related Posts',
+                                    'description' => 'Display related posts based on ACF keywords with customizable layouts and styling options.',
+                                    'icon' => '📰'
+                                )
+                            );
+                            
+                            // Get currently enabled widgets
+                            $enabled_widgets = get_option( 'amfm_elementor_enabled_widgets', array_keys( $available_widgets ) );
+                            ?>
+
+                            <form method="post" class="amfm-elementor-widgets-form">
+                                <?php wp_nonce_field( 'amfm_elementor_widgets_update', 'amfm_elementor_widgets_nonce' ); ?>
+                                
+                                <div class="amfm-widgets-grid">
+                                    <?php foreach ( $available_widgets as $widget_key => $widget_info ) : ?>
+                                        <div class="amfm-widget-card <?php echo in_array( $widget_key, $enabled_widgets ) ? 'amfm-widget-enabled' : 'amfm-widget-disabled'; ?>">
+                                            <div class="amfm-widget-header">
+                                                <div class="amfm-widget-icon"><?php echo esc_html( $widget_info['icon'] ); ?></div>
+                                                <div class="amfm-widget-toggle">
+                                                    <label class="amfm-toggle-switch">
+                                                        <input type="checkbox" 
+                                                               name="enabled_widgets[]" 
+                                                               value="<?php echo esc_attr( $widget_key ); ?>"
+                                                               <?php checked( in_array( $widget_key, $enabled_widgets ) ); ?>
+                                                               class="amfm-widget-checkbox">
+                                                        <span class="amfm-toggle-slider"></span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="amfm-widget-body">
+                                                <h3 class="amfm-widget-title"><?php echo esc_html( $widget_info['name'] ); ?></h3>
+                                                <p class="amfm-widget-description"><?php echo esc_html( $widget_info['description'] ); ?></p>
+                                                <div class="amfm-widget-status">
+                                                    <span class="amfm-status-indicator"></span>
+                                                    <span class="amfm-status-text">
+                                                        <?php echo in_array( $widget_key, $enabled_widgets ) ? 'Enabled' : 'Disabled'; ?>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+
+                                <div class="amfm-form-actions">
+                                    <button type="submit" class="button button-primary amfm-save-widgets">
+                                        Save Widget Settings
+                                    </button>
+                                </div>
+                            </form>
+
+                            <div class="amfm-elementor-info">
+                                <h3>💡 Tips</h3>
+                                <ul>
+                                    <li>Disabling widgets can improve Elementor editor performance by reducing loaded components</li>
+                                    <li>Disabled widgets will not appear in the Elementor widget panel</li>
+                                    <li>Changes take effect immediately after saving</li>
+                                    <li>Re-enabling a widget restores all its functionality without data loss</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        // Handle widget toggle changes
+                        const widgetCheckboxes = document.querySelectorAll('.amfm-widget-checkbox');
+                        widgetCheckboxes.forEach(function(checkbox) {
+                            checkbox.addEventListener('change', function() {
+                                const card = this.closest('.amfm-widget-card');
+                                const statusText = card.querySelector('.amfm-status-text');
+                                
+                                if (this.checked) {
+                                    card.classList.remove('amfm-widget-disabled');
+                                    card.classList.add('amfm-widget-enabled');
+                                    statusText.textContent = 'Enabled';
+                                } else {
+                                    card.classList.remove('amfm-widget-enabled');
+                                    card.classList.add('amfm-widget-disabled');
+                                    statusText.textContent = 'Disabled';
+                                }
+                            });
+                        });
+                    });
+                    </script>
                 <?php endif; ?>
             </div>
         </div>

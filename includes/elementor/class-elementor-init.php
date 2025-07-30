@@ -32,10 +32,29 @@ class AMFM_Elementor_Init {
     }
 
     public static function register_widgets( $widgets_manager ) {
-        // Load widget files
-        require_once plugin_dir_path( __FILE__ ) . 'widgets/class-related-posts-widget.php';
+        // Get enabled widgets from settings
+        $enabled_widgets = get_option( 'amfm_elementor_enabled_widgets', array( 'amfm_related_posts' ) );
         
-        // Register widgets
-        $widgets_manager->register( new \AMFM_Related_Posts_Widget() );
+        // Widget registry
+        $available_widgets = array(
+            'amfm_related_posts' => array(
+                'file' => 'widgets/class-related-posts-widget.php',
+                'class' => 'AMFM_Related_Posts_Widget'
+            )
+        );
+        
+        // Register only enabled widgets
+        foreach ( $available_widgets as $widget_key => $widget_info ) {
+            if ( in_array( $widget_key, $enabled_widgets ) ) {
+                // Load widget file
+                require_once plugin_dir_path( __FILE__ ) . $widget_info['file'];
+                
+                // Register widget
+                $class_name = '\\' . $widget_info['class'];
+                if ( class_exists( $class_name ) ) {
+                    $widgets_manager->register( new $class_name() );
+                }
+            }
+        }
     }
 }

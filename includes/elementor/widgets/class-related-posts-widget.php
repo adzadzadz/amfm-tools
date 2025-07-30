@@ -160,6 +160,22 @@ class AMFM_Related_Posts_Widget extends \Elementor\Widget_Base {
             ]
         );
 
+        $this->add_control(
+            'mobile_layout',
+            [
+                'label' => __( 'Mobile Layout', 'amfm-tools' ),
+                'type' => \Elementor\Controls_Manager::SELECT,
+                'default' => '1',
+                'options' => [
+                    '1' => __( 'Full Width (1 Column)', 'amfm-tools' ),
+                    '2' => __( '2 Columns', 'amfm-tools' ),
+                    'inherit' => __( 'Same as Desktop', 'amfm-tools' ),
+                ],
+                'prefix_class' => 'amfm-mobile-cols-',
+                'description' => __( 'Choose how cards display on mobile devices.', 'amfm-tools' ),
+            ]
+        );
+
         $this->end_controls_section();
 
         // Grid Layout Controls
@@ -818,22 +834,52 @@ class AMFM_Related_Posts_Widget extends \Elementor\Widget_Base {
                 display: none;
             }
             
-            .amfm-layout-grid .amfm-related-posts-grid {
-                grid-template-columns: 1fr;
+            /* Default: Full width single column on mobile */
+            .amfm-mobile-cols-1 .amfm-related-posts-grid {
+                grid-template-columns: 1fr !important;
+                width: 100%;
             }
             
-            .amfm-layout-horizontal .amfm-related-posts-grid {
-                grid-template-columns: 1fr;
+            /* 2 columns on mobile */
+            .amfm-mobile-cols-2 .amfm-related-posts-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                width: 100%;
             }
             
-            .amfm-layout-horizontal .amfm-related-post-card {
+            /* Inherit desktop layout - no override */
+            .amfm-mobile-cols-inherit .amfm-related-posts-grid {
+                /* Desktop settings will apply */
+            }
+            
+            /* Ensure cards fill available width */
+            .amfm-related-post-card {
+                width: 100%;
+            }
+            
+            /* Horizontal layout adjustments for mobile */
+            .amfm-mobile-cols-1 .amfm-layout-horizontal .amfm-related-post-card,
+            .amfm-mobile-cols-2 .amfm-layout-horizontal .amfm-related-post-card {
                 flex-direction: column;
                 text-align: center;
             }
             
-            .amfm-layout-horizontal .amfm-post-image {
+            .amfm-mobile-cols-1 .amfm-layout-horizontal .amfm-post-image,
+            .amfm-mobile-cols-2 .amfm-layout-horizontal .amfm-post-image {
                 width: 100%;
                 height: 120px;
+            }
+            
+            /* For 2 column mobile layout, keep horizontal cards side-by-side if there's room */
+            @media (min-width: 480px) {
+                .amfm-mobile-cols-2 .amfm-layout-horizontal .amfm-related-post-card {
+                    flex-direction: row;
+                    text-align: left;
+                }
+                
+                .amfm-mobile-cols-2 .amfm-layout-horizontal .amfm-post-image {
+                    width: 60px;
+                    height: 60px;
+                }
             }
         }
         </style>

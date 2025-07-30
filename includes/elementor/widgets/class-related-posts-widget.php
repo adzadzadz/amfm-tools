@@ -685,6 +685,64 @@ class AMFM_Related_Posts_Widget extends \Elementor\Widget_Base {
             ]
         );
 
+        $this->add_control(
+            'mobile_horizontal_image_width',
+            [
+                'label' => __( 'Mobile Image Width (Horizontal Layout)', 'amfm-tools' ),
+                'type' => \Elementor\Controls_Manager::SLIDER,
+                'size_units' => [ 'px', '%' ],
+                'range' => [
+                    'px' => [
+                        'min' => 40,
+                        'max' => 150,
+                    ],
+                    '%' => [
+                        'min' => 10,
+                        'max' => 50,
+                    ],
+                ],
+                'default' => [
+                    'size' => 60,
+                    'unit' => 'px',
+                ],
+                'condition' => [
+                    'layout' => 'horizontal',
+                ],
+                'selectors' => [
+                    '(mobile){{WRAPPER}} .amfm-layout-horizontal .amfm-post-image' => 'width: {{SIZE}}{{UNIT}};',
+                ],
+            ]
+        );
+
+        $this->add_control(
+            'mobile_horizontal_image_height',
+            [
+                'label' => __( 'Mobile Image Height (Horizontal Layout)', 'amfm-tools' ),
+                'type' => \Elementor\Controls_Manager::SLIDER,
+                'size_units' => [ 'px', '%' ],
+                'range' => [
+                    'px' => [
+                        'min' => 40,
+                        'max' => 150,
+                    ],
+                    '%' => [
+                        'min' => 50,
+                        'max' => 150,
+                    ],
+                ],
+                'default' => [
+                    'size' => 60,
+                    'unit' => 'px',
+                ],
+                'condition' => [
+                    'layout' => 'horizontal',
+                ],
+                'selectors' => [
+                    '(mobile){{WRAPPER}} .amfm-layout-horizontal .amfm-post-image' => 'height: {{SIZE}}{{UNIT}};',
+                ],
+            ]
+        );
+
         $this->end_controls_section();
     }
 
@@ -864,8 +922,6 @@ class AMFM_Related_Posts_Widget extends \Elementor\Widget_Base {
             
             /* Adjust image size for mobile but keep horizontal layout */
             .amfm-layout-horizontal .amfm-post-image {
-                width: 60px;
-                height: 60px;
                 flex-shrink: 0;
             }
             

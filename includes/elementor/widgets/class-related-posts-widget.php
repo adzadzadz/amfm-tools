@@ -993,9 +993,10 @@ class AMFM_Related_Posts_Widget extends \Elementor\Widget_Base {
                 $post_id = get_the_ID();
                 $post_title = get_the_title();
                 $post_type = get_post_type();
+                $post_slug = get_post_field( 'post_name', $post_id );
                 
-                // Format: "Post Title (Post Type)"
-                $label = $post_title . ' (' . ucfirst( $post_type ) . ')';
+                // Format: "Post Title | slug-name (Post Type)"
+                $label = $post_title . ' | ' . $post_slug . ' (' . ucfirst( $post_type ) . ')';
                 $options[ $post_id ] = $label;
             }
             wp_reset_postdata();

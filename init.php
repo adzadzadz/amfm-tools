@@ -18,5 +18,8 @@ class Init {
 
         require_once plugin_dir_path( __FILE__ ) . 'includes/class-shortcode-loader.php';
         \AMFM_Shortcode_Loader::init();
+
+        require_once plugin_dir_path( __FILE__ ) . 'includes/elementor/class-elementor-init.php';
+        \AMFM_Elementor_Init::init();
     }
 }

@@ -149,6 +149,17 @@ class AMFM_Related_Posts_Widget extends \Elementor\Widget_Base {
             ]
         );
 
+        $this->add_control(
+            'excluded_pages',
+            [
+                'label' => __( 'Exclude Pages/Posts', 'amfm-tools' ),
+                'type' => \Elementor\Controls_Manager::SELECT2,
+                'multiple' => true,
+                'options' => $this->get_all_posts_and_pages(),
+                'description' => __( 'Select specific pages or posts to exclude from related posts results.', 'amfm-tools' ),
+            ]
+        );
+
         $this->end_controls_section();
 
         // Grid Layout Controls
@@ -846,14 +857,14 @@ class AMFM_Related_Posts_Widget extends \Elementor\Widget_Base {
         $posts_count = intval( $settings['posts_count'] );
 
         // Priority 1: Posts with exact same keyword values
-        $exact_match_posts = $this->query_posts_by_keywords( $current_keywords, 'exact', $posts_count );
+        $exact_match_posts = $this->query_posts_by_keywords( $current_keywords, 'exact', $posts_count, [], $settings );
         $related_posts = array_merge( $related_posts, $exact_match_posts );
 
         // Priority 2: Posts with at least one matching keyword
         if ( count( $related_posts ) < $posts_count ) {
             $remaining = $posts_count - count( $related_posts );
             $existing_ids = wp_list_pluck( $related_posts, 'ID' );
-            $partial_match_posts = $this->query_posts_by_keywords( $current_keywords, 'partial', $remaining, $existing_ids );
+            $partial_match_posts = $this->query_posts_by_keywords( $current_keywords, 'partial', $remaining, $existing_ids, $settings );
             $related_posts = array_merge( $related_posts, $partial_match_posts );
         }
 
@@ -861,7 +872,7 @@ class AMFM_Related_Posts_Widget extends \Elementor\Widget_Base {
         if ( count( $related_posts ) < $posts_count && $post->post_parent ) {
             $remaining = $posts_count - count( $related_posts );
             $existing_ids = wp_list_pluck( $related_posts, 'ID' );
-            $sibling_posts = $this->query_posts_by_parent( $post->post_parent, $remaining, $existing_ids );
+            $sibling_posts = $this->query_posts_by_parent( $post->post_parent, $remaining, $existing_ids, $settings );
             $related_posts = array_merge( $related_posts, $sibling_posts );
         }
 
@@ -890,7 +901,7 @@ class AMFM_Related_Posts_Widget extends \Elementor\Widget_Base {
         return array_filter( array_unique( $keywords ) );
     }
 
-    private function query_posts_by_keywords( $keywords, $match_type = 'partial', $limit = 6, $exclude_ids = [] ) {
+    private function query_posts_by_keywords( $keywords, $match_type = 'partial', $limit = 6, $exclude_ids = [], $settings = [] ) {
         global $post;
         
         $meta_query = [ 'relation' => 'OR' ];
@@ -922,6 +933,11 @@ class AMFM_Related_Posts_Widget extends \Elementor\Widget_Base {
         }
 
         $exclude_ids[] = $post->ID;
+        
+        // Add excluded pages from settings
+        if ( ! empty( $settings['excluded_pages'] ) && is_array( $settings['excluded_pages'] ) ) {
+            $exclude_ids = array_merge( $exclude_ids, $settings['excluded_pages'] );
+        }
 
         $query = new WP_Query([
             'post_type' => [ 'post', 'page' ],
@@ -936,10 +952,15 @@ class AMFM_Related_Posts_Widget extends \Elementor\Widget_Base {
         return $query->posts;
     }
 
-    private function query_posts_by_parent( $parent_id, $limit = 6, $exclude_ids = [] ) {
+    private function query_posts_by_parent( $parent_id, $limit = 6, $exclude_ids = [], $settings = [] ) {
         global $post;
         
         $exclude_ids[] = $post->ID;
+        
+        // Add excluded pages from settings
+        if ( ! empty( $settings['excluded_pages'] ) && is_array( $settings['excluded_pages'] ) ) {
+            $exclude_ids = array_merge( $exclude_ids, $settings['excluded_pages'] );
+        }
 
         $query = new WP_Query([
             'post_type' => [ 'post', 'page' ],
@@ -952,5 +973,34 @@ class AMFM_Related_Posts_Widget extends \Elementor\Widget_Base {
         ]);
 
         return $query->posts;
+    }
+
+    private function get_all_posts_and_pages() {
+        $options = [];
+        
+        // Get all published posts and pages
+        $query = new WP_Query([
+            'post_type' => [ 'post', 'page' ],
+            'post_status' => 'publish',
+            'posts_per_page' => -1,
+            'orderby' => 'title',
+            'order' => 'ASC'
+        ]);
+
+        if ( $query->have_posts() ) {
+            while ( $query->have_posts() ) {
+                $query->the_post();
+                $post_id = get_the_ID();
+                $post_title = get_the_title();
+                $post_type = get_post_type();
+                
+                // Format: "Post Title (Post Type)"
+                $label = $post_title . ' (' . ucfirst( $post_type ) . ')';
+                $options[ $post_id ] = $label;
+            }
+            wp_reset_postdata();
+        }
+
+        return $options;
     }
 }

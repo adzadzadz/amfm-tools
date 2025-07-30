@@ -856,30 +856,34 @@ class AMFM_Related_Posts_Widget extends \Elementor\Widget_Base {
                 width: 100%;
             }
             
-            /* Horizontal layout adjustments for mobile */
-            .amfm-mobile-cols-1 .amfm-layout-horizontal .amfm-related-post-card,
-            .amfm-mobile-cols-2 .amfm-layout-horizontal .amfm-related-post-card {
-                flex-direction: column;
-                text-align: center;
+            /* Horizontal layout maintains horizontal card design on mobile */
+            .amfm-layout-horizontal .amfm-related-post-card {
+                flex-direction: row;
+                align-items: center;
             }
             
-            .amfm-mobile-cols-1 .amfm-layout-horizontal .amfm-post-image,
-            .amfm-mobile-cols-2 .amfm-layout-horizontal .amfm-post-image {
+            /* Adjust image size for mobile but keep horizontal layout */
+            .amfm-layout-horizontal .amfm-post-image {
+                width: 60px;
+                height: 60px;
+                flex-shrink: 0;
+            }
+            
+            .amfm-layout-horizontal .amfm-post-image img {
                 width: 100%;
-                height: 120px;
+                height: 100%;
+                object-fit: cover;
             }
             
-            /* For 2 column mobile layout, keep horizontal cards side-by-side if there's room */
-            @media (min-width: 480px) {
-                .amfm-mobile-cols-2 .amfm-layout-horizontal .amfm-related-post-card {
-                    flex-direction: row;
-                    text-align: left;
-                }
-                
-                .amfm-mobile-cols-2 .amfm-layout-horizontal .amfm-post-image {
-                    width: 60px;
-                    height: 60px;
-                }
+            /* Ensure text content takes remaining space */
+            .amfm-layout-horizontal .amfm-post-content {
+                flex-grow: 1;
+                padding: 10px;
+            }
+            
+            /* Smaller font size for mobile */
+            .amfm-layout-horizontal .amfm-post-title {
+                font-size: 0.9em;
             }
         }
         </style>

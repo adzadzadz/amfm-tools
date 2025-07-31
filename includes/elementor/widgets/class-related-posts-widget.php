@@ -557,6 +557,15 @@ class AMFM_Related_Posts_Widget extends \Elementor\Widget_Base {
         );
 
         $this->add_control(
+            'fallback_image',
+            [
+                'label' => __( 'Fallback Image', 'amfm-tools' ),
+                'type' => \Elementor\Controls_Manager::MEDIA,
+                'description' => __( 'Image to display when posts don\'t have featured images.', 'amfm-tools' ),
+            ]
+        );
+
+        $this->add_control(
             'image_border_radius',
             [
                 'label' => __( 'Image Border Radius', 'amfm-tools' ),
@@ -781,6 +790,14 @@ class AMFM_Related_Posts_Widget extends \Elementor\Widget_Base {
                                     <?php echo get_the_post_thumbnail( $post->ID, $settings['layout'] === 'horizontal' ? 'thumbnail' : 'medium', [ 'loading' => 'lazy' ] ); ?>
                                 </a>
                             </div>
+                        <?php elseif ( ! empty( $settings['fallback_image']['url'] ) ) : ?>
+                            <div class="amfm-post-image amfm-fallback-image">
+                                <a href="<?php echo get_permalink( $post->ID ); ?>">
+                                    <img src="<?php echo esc_url( $settings['fallback_image']['url'] ); ?>" 
+                                         alt="<?php echo esc_attr( get_the_title( $post->ID ) ); ?>" 
+                                         loading="lazy" />
+                                </a>
+                            </div>
                         <?php endif; ?>
                         
                         <div class="amfm-post-content">
@@ -879,6 +896,23 @@ class AMFM_Related_Posts_Widget extends \Elementor\Widget_Base {
         .amfm-layout-horizontal .amfm-post-content {
             padding: 15px;
             flex-grow: 1;
+        }
+        
+        /* Fallback Image Styles */
+        .amfm-fallback-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.8;
+        }
+        
+        .amfm-layout-grid .amfm-fallback-image img {
+            height: 150px;
+        }
+        
+        .amfm-layout-horizontal .amfm-fallback-image img {
+            width: 100%;
+            height: 100%;
         }
         
         /* Common Styles */

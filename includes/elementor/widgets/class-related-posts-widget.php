@@ -161,6 +161,17 @@ class AMFM_Related_Posts_Widget extends \Elementor\Widget_Base {
         );
 
         $this->add_control(
+            'excluded_with_children',
+            [
+                'label' => __( 'Exclude Pages/Posts with Children', 'amfm-tools' ),
+                'type' => \Elementor\Controls_Manager::SELECT2,
+                'multiple' => true,
+                'options' => $this->get_all_posts_and_pages(),
+                'description' => __( 'Select pages or posts to exclude along with all their children from related posts results.', 'amfm-tools' ),
+            ]
+        );
+
+        $this->add_control(
             'mobile_layout',
             [
                 'label' => __( 'Mobile Layout', 'amfm-tools' ),
@@ -1044,6 +1055,13 @@ class AMFM_Related_Posts_Widget extends \Elementor\Widget_Base {
         if ( ! empty( $settings['excluded_pages'] ) && is_array( $settings['excluded_pages'] ) ) {
             $exclude_ids = array_merge( $exclude_ids, $settings['excluded_pages'] );
         }
+        
+        // Add excluded pages with children from settings
+        if ( ! empty( $settings['excluded_with_children'] ) && is_array( $settings['excluded_with_children'] ) ) {
+            $exclude_ids = array_merge( $exclude_ids, $settings['excluded_with_children'] );
+            $children_ids = $this->get_all_children_ids( $settings['excluded_with_children'] );
+            $exclude_ids = array_merge( $exclude_ids, $children_ids );
+        }
 
         $query = new WP_Query([
             'post_type' => [ 'post', 'page' ],
@@ -1066,6 +1084,13 @@ class AMFM_Related_Posts_Widget extends \Elementor\Widget_Base {
         // Add excluded pages from settings
         if ( ! empty( $settings['excluded_pages'] ) && is_array( $settings['excluded_pages'] ) ) {
             $exclude_ids = array_merge( $exclude_ids, $settings['excluded_pages'] );
+        }
+        
+        // Add excluded pages with children from settings
+        if ( ! empty( $settings['excluded_with_children'] ) && is_array( $settings['excluded_with_children'] ) ) {
+            $exclude_ids = array_merge( $exclude_ids, $settings['excluded_with_children'] );
+            $children_ids = $this->get_all_children_ids( $settings['excluded_with_children'] );
+            $exclude_ids = array_merge( $exclude_ids, $children_ids );
         }
 
         $query = new WP_Query([
@@ -1109,5 +1134,33 @@ class AMFM_Related_Posts_Widget extends \Elementor\Widget_Base {
         }
 
         return $options;
+    }
+
+    private function get_all_children_ids( $parent_ids ) {
+        if ( empty( $parent_ids ) || ! is_array( $parent_ids ) ) {
+            return [];
+        }
+
+        $all_children = [];
+        
+        foreach ( $parent_ids as $parent_id ) {
+            $children = get_children([
+                'post_parent' => $parent_id,
+                'post_type' => [ 'post', 'page' ],
+                'post_status' => 'publish',
+                'numberposts' => -1
+            ]);
+            
+            if ( $children ) {
+                $child_ids = array_keys( $children );
+                $all_children = array_merge( $all_children, $child_ids );
+                
+                // Recursively get children of children
+                $grandchildren = $this->get_all_children_ids( $child_ids );
+                $all_children = array_merge( $all_children, $grandchildren );
+            }
+        }
+        
+        return array_unique( $all_children );
     }
 }

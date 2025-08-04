@@ -8,6 +8,7 @@ class AMFM_Admin_Menu {
         $instance = new self();
         add_action( 'admin_menu', array( $instance, 'add_admin_menu' ) );
         add_action( 'admin_init', array( $instance, 'handle_csv_upload' ) );
+        add_action( 'admin_init', array( $instance, 'handle_category_csv_upload' ) );
         add_action( 'admin_init', array( $instance, 'handle_excluded_keywords_update' ) );
         add_action( 'admin_init', array( $instance, 'handle_elementor_widgets_update' ) );
         add_action( 'admin_enqueue_scripts', array( $instance, 'enqueue_admin_styles' ) );
@@ -201,6 +202,155 @@ class AMFM_Admin_Menu {
     }
 
     /**
+     * Handle CSV category file upload and processing
+     */
+    public function handle_category_csv_upload() {
+        if ( ! isset( $_POST['amfm_category_csv_import_nonce'] ) || 
+             ! wp_verify_nonce( $_POST['amfm_category_csv_import_nonce'], 'amfm_category_csv_import' ) ) {
+            return;
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        if ( ! isset( $_FILES['category_csv_file'] ) || $_FILES['category_csv_file']['error'] !== UPLOAD_ERR_OK ) {
+            add_action( 'admin_notices', function() {
+                echo '<div class="notice notice-error"><p>Error uploading file. Please try again.</p></div>';
+            });
+            return;
+        }
+
+        $file = $_FILES['category_csv_file'];
+        $file_type = wp_check_filetype( $file['name'] );
+        
+        if ( $file_type['ext'] !== 'csv' ) {
+            add_action( 'admin_notices', function() {
+                echo '<div class="notice notice-error"><p>Please upload a valid CSV file.</p></div>';
+            });
+            return;
+        }
+
+        $results = $this->process_category_csv_file( $file['tmp_name'] );
+        
+        // Store results in transient for display
+        set_transient( 'amfm_category_csv_import_results', $results, 300 );
+        
+        wp_redirect( admin_url( 'admin.php?page=amfm-tools&tab=categories&imported=1' ) );
+        exit;
+    }
+
+    /**
+     * Process the category CSV file
+     */
+    private function process_category_csv_file( $file_path ) {
+        $results = array(
+            'success' => 0,
+            'errors' => 0,
+            'details' => array()
+        );
+
+        if ( ! file_exists( $file_path ) ) {
+            $results['details'][] = 'File does not exist';
+            $results['errors']++;
+            return $results;
+        }
+
+        $handle = fopen( $file_path, 'r' );
+        if ( ! $handle ) {
+            $results['details'][] = 'Could not open file for reading';
+            $results['errors']++;
+            return $results;
+        }
+
+        $headers = fgetcsv( $handle );
+        
+        // Validate headers (case-insensitive)
+        if ( ! $headers ) {
+            $results['details'][] = 'Invalid CSV format. Could not read headers';
+            $results['errors']++;
+            fclose( $handle );
+            return $results;
+        }
+
+        // Convert headers to lowercase for comparison
+        $headers_lower = array_map( 'strtolower', $headers );
+        $id_index = array_search( 'id', $headers_lower );
+        $categories_index = array_search( 'categories', $headers_lower );
+
+        if ( $id_index === false || $categories_index === false ) {
+            $results['details'][] = 'Invalid CSV format. Required headers: id, Categories (case-insensitive)';
+            $results['errors']++;
+            fclose( $handle );
+            return $results;
+        }
+
+        $row_number = 1; // Start at 1 since we already read headers
+
+        while ( ( $row = fgetcsv( $handle ) ) !== FALSE ) {
+            $row_number++;
+            
+            if ( count( $row ) <= max( $id_index, $categories_index ) ) {
+                $results['details'][] = "Row {$row_number}: Invalid row format";
+                $results['errors']++;
+                continue;
+            }
+
+            $post_id = intval( $row[$id_index] );
+            $category_name = trim( $row[$categories_index] );
+
+            if ( ! $post_id ) {
+                $results['details'][] = "Row {$row_number}: Invalid post ID";
+                $results['errors']++;
+                continue;
+            }
+
+            if ( empty( $category_name ) ) {
+                $results['details'][] = "Row {$row_number}: Empty category name";
+                $results['errors']++;
+                continue;
+            }
+
+            $post = get_post( $post_id );
+            if ( ! $post ) {
+                $results['details'][] = "Row {$row_number}: Post ID {$post_id} not found";
+                $results['errors']++;
+                continue;
+            }
+
+            // Find or create the category
+            $category = get_term_by( 'name', $category_name, 'category' );
+            if ( ! $category ) {
+                // Create new category
+                $new_category = wp_insert_term( $category_name, 'category' );
+                if ( is_wp_error( $new_category ) ) {
+                    $results['details'][] = "Row {$row_number}: Failed to create category '{$category_name}': " . $new_category->get_error_message();
+                    $results['errors']++;
+                    continue;
+                }
+                $category_id = $new_category['term_id'];
+                $results['details'][] = "Row {$row_number}: Created new category '{$category_name}' (ID: {$category_id})";
+            } else {
+                $category_id = $category->term_id;
+            }
+
+            // Assign category to post
+            $result = wp_set_post_categories( $post_id, array( $category_id ), false );
+            if ( is_wp_error( $result ) ) {
+                $results['details'][] = "Row {$row_number}: Failed to assign category to post ID {$post_id}: " . $result->get_error_message();
+                $results['errors']++;
+                continue;
+            }
+
+            $results['details'][] = "Row {$row_number}: Successfully assigned category '{$category_name}' to post ID {$post_id} ('{$post->post_title}')";
+            $results['success']++;
+        }
+
+        fclose( $handle );
+        return $results;
+    }
+
+    /**
      * Handle excluded keywords update
      */
     public function handle_excluded_keywords_update() {
@@ -260,14 +410,22 @@ class AMFM_Admin_Menu {
      */
     public function admin_page_callback() {
         $results = null;
+        $category_results = null;
         $show_results = false;
+        $show_category_results = false;
         $active_tab = isset( $_GET['tab'] ) ? sanitize_text_field( $_GET['tab'] ) : 'general';
 
         if ( isset( $_GET['imported'] ) && $_GET['imported'] == '1' ) {
-            $results = get_transient( 'amfm_csv_import_results' );
-            $show_results = true;
-            $active_tab = 'seo'; // Switch to SEO tab when showing results
-            delete_transient( 'amfm_csv_import_results' );
+            if ( $active_tab === 'categories' ) {
+                $category_results = get_transient( 'amfm_category_csv_import_results' );
+                $show_category_results = true;
+                delete_transient( 'amfm_category_csv_import_results' );
+            } else {
+                $results = get_transient( 'amfm_csv_import_results' );
+                $show_results = true;
+                $active_tab = 'seo'; // Switch to SEO tab when showing results
+                delete_transient( 'amfm_csv_import_results' );
+            }
         }
 
         ?>
@@ -295,6 +453,11 @@ class AMFM_Admin_Menu {
                         <span class="amfm-tab-icon">📄</span>
                         Shortcodes
                     </a>
+                    <a href="<?php echo admin_url( 'admin.php?page=amfm-tools&tab=categories' ); ?>" 
+                       class="amfm-tab-link <?php echo $active_tab === 'categories' ? 'active' : ''; ?>">
+                        <span class="amfm-tab-icon">📂</span>
+                        Categories
+                    </a>
                     <a href="<?php echo admin_url( 'admin.php?page=amfm-tools&tab=elementor' ); ?>" 
                        class="amfm-tab-link <?php echo $active_tab === 'elementor' ? 'active' : ''; ?>">
                         <span class="amfm-tab-icon">🎨</span>
@@ -319,6 +482,15 @@ class AMFM_Admin_Menu {
                                     <p>Import and manage SEO keywords using CSV files. Update ACF fields in bulk for better search engine optimization.</p>
                                     <a href="<?php echo admin_url( 'admin.php?page=amfm-tools&tab=seo' ); ?>" class="amfm-feature-link">
                                         Go to SEO Tools →
+                                    </a>
+                                </div>
+
+                                <div class="amfm-feature-card">
+                                    <div class="amfm-feature-icon">📂</div>
+                                    <h3>Category Import</h3>
+                                    <p>Bulk assign categories to posts using CSV files. Automatically creates categories if they don't exist.</p>
+                                    <a href="<?php echo admin_url( 'admin.php?page=amfm-tools&tab=categories' ); ?>" class="amfm-feature-link">
+                                        Go to Category Import →
                                     </a>
                                 </div>
 
@@ -619,6 +791,98 @@ class AMFM_Admin_Menu {
                         </div>
                     </div>
                 
+                <?php elseif ( $active_tab === 'categories' ) : ?>
+                    <!-- Categories Tab Content -->
+                    <div class="amfm-tab-content">
+                        <?php if ( $show_category_results && $category_results ) : ?>
+                            <div class="amfm-results-section">
+                                <h2>Category Import Results</h2>
+                                
+                                <div class="amfm-stats">
+                                    <div class="amfm-stat amfm-stat-success">
+                                        <div class="amfm-stat-number"><?php echo esc_html( $category_results['success'] ); ?></div>
+                                        <div class="amfm-stat-label">Successful Assignments</div>
+                                    </div>
+                                    <div class="amfm-stat amfm-stat-error">
+                                        <div class="amfm-stat-number"><?php echo esc_html( $category_results['errors'] ); ?></div>
+                                        <div class="amfm-stat-label">Errors</div>
+                                    </div>
+                                </div>
+
+                                <?php if ( ! empty( $category_results['details'] ) ) : ?>
+                                    <div class="amfm-details">
+                                        <h3>Detailed Log</h3>
+                                        <div class="amfm-log">
+                                            <?php foreach ( $category_results['details'] as $detail ) : ?>
+                                                <div class="amfm-log-item">
+                                                    <?php echo esc_html( $detail ); ?>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                <?php endif; ?>
+                                
+                                <div class="amfm-actions">
+                                    <a href="<?php echo admin_url( 'admin.php?page=amfm-tools&tab=categories' ); ?>" class="button button-primary">
+                                        Import Another File
+                                    </a>
+                                </div>
+                            </div>
+                        <?php else : ?>
+                            <div class="amfm-upload-section">
+                                <div class="amfm-seo-header">
+                                    <h2>
+                                        <span class="amfm-seo-icon">📂</span>
+                                        CSV Category Import
+                                    </h2>
+                                    <p>Import categories to assign to posts in bulk using CSV files.</p>
+                                </div>
+
+                                <div class="amfm-info-box">
+                                    <h3>CSV Import Instructions</h3>
+                                    <p>Upload a CSV file with the following format:</p>
+                                    <ul>
+                                        <li><strong>id</strong> - Post ID to assign category to</li>
+                                        <li><strong>Categories</strong> - Category name to assign to the post</li>
+                                    </ul>
+                                    <p><strong>Requirements:</strong></p>
+                                    <ul>
+                                        <li>CSV file must contain headers in the first row (case-insensitive)</li>
+                                        <li>Post IDs must exist in your WordPress database</li>
+                                        <li>Categories will be created automatically if they don't exist</li>
+                                        <li>Each row assigns one category to one post</li>
+                                        <li>Existing categories on posts will be preserved (categories are added, not replaced)</li>
+                                    </ul>
+                                    <p><strong>Example CSV content:</strong></p>
+                                    <pre style="background: rgba(255,255,255,0.2); padding: 10px; border-radius: 4px; margin: 10px 0;">id,Categories
+2518,"Bipolar Disorder & Mania"
+2650,"News, Advocacy & Thought Leadership"
+2708,"Bipolar Disorder & Mania"</pre>
+                                </div>
+
+                                <form method="post" enctype="multipart/form-data" class="amfm-upload-form">
+                                    <?php wp_nonce_field( 'amfm_category_csv_import', 'amfm_category_csv_import_nonce' ); ?>
+                                    
+                                    <div class="amfm-file-input-wrapper">
+                                        <label for="category_csv_file" class="amfm-file-label">
+                                            <span class="amfm-file-icon">📁</span>
+                                            <span class="amfm-file-text">Choose CSV File</span>
+                                            <input type="file" id="category_csv_file" name="category_csv_file" accept=".csv" required class="amfm-file-input">
+                                        </label>
+                                        <div class="amfm-file-info"></div>
+                                    </div>
+
+                                    <div class="amfm-submit-wrapper">
+                                        <button type="submit" class="button button-primary amfm-submit-btn">
+                                            <span class="amfm-submit-icon">⬆️</span>
+                                            Import CSV File
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
                 <?php elseif ( $active_tab === 'elementor' ) : ?>
                     <!-- Elementor Tab Content -->
                     <div class="amfm-tab-content">
@@ -725,6 +989,7 @@ class AMFM_Admin_Menu {
 
         <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Handle CSV file input (SEO tab)
             const fileInput = document.getElementById('csv_file');
             const fileInfo = document.querySelector('.amfm-file-info');
             const fileText = document.querySelector('.amfm-file-text');
@@ -738,6 +1003,24 @@ class AMFM_Admin_Menu {
                     } else {
                         fileText.textContent = 'Choose CSV File';
                         fileInfo.innerHTML = '';
+                    }
+                });
+            }
+
+            // Handle Category CSV file input (Categories tab)
+            const categoryFileInput = document.getElementById('category_csv_file');
+            const categoryFileInfo = document.querySelector('#category_csv_file').closest('.amfm-file-input-wrapper').querySelector('.amfm-file-info');
+            const categoryFileText = document.querySelector('#category_csv_file').closest('.amfm-file-input-wrapper').querySelector('.amfm-file-text');
+
+            if (categoryFileInput) {
+                categoryFileInput.addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        categoryFileText.textContent = file.name;
+                        categoryFileInfo.innerHTML = `<small>File size: ${(file.size / 1024).toFixed(2)} KB</small>`;
+                    } else {
+                        categoryFileText.textContent = 'Choose CSV File';
+                        categoryFileInfo.innerHTML = '';
                     }
                 });
             }

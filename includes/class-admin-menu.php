@@ -658,7 +658,7 @@ class AMFM_Admin_Menu {
                                             </div>
 
                                             <div class="amfm-shortcode-attributes">
-                                                <h4>Available Attributes:</h4>
+                                                <h4>Available Attributes: (Updated 2025-01-08)</h4>
                                                 <ul>
                                                     <li><strong>pre</strong> - Text to display before the keyword (default: empty)</li>
                                                     <li><strong>post</strong> - Text to display after the keyword (default: empty)</li>

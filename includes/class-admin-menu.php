@@ -664,6 +664,9 @@ class AMFM_Admin_Menu {
                                                     <li><strong>post</strong> - Text to display after the keyword (default: empty)</li>
                                                     <li><strong>fallback</strong> - Text to display if no keyword is available (default: empty)</li>
                                                     <li><strong>other_keywords</strong> - Use other keywords instead of regular keywords (default: false)</li>
+                                                    <li><strong>include</strong> - Only show keywords from specified categories (comma-separated)</li>
+                                                    <li><strong>exclude</strong> - Hide keywords from specified categories (comma-separated)</li>
+                                                    <li><strong>text</strong> - Transform keyword case: lowercase, uppercase, capitalize</li>
                                                 </ul>
                                             </div>
 
@@ -705,6 +708,40 @@ class AMFM_Admin_Menu {
                                                         → "Top marketing company" (from other keywords) or "SEO" if none available
                                                     </div>
                                                 </div>
+                                                
+                                                <h4>Category Filtering Examples:</h4>
+                                                <div class="amfm-example">
+                                                    <div class="amfm-example-code">
+                                                        <code>[dkv include="i"]</code>
+                                                    </div>
+                                                    <div class="amfm-example-result">
+                                                        → "BCBS" (only shows insurance keywords, strips "i:" prefix)
+                                                    </div>
+                                                </div>
+                                                <div class="amfm-example">
+                                                    <div class="amfm-example-code">
+                                                        <code>[dkv include="i,c,v" text="lowercase"]</code>
+                                                    </div>
+                                                    <div class="amfm-example-result">
+                                                        → "depression" (insurance, condition, or vendor keywords in lowercase)
+                                                    </div>
+                                                </div>
+                                                <div class="amfm-example">
+                                                    <div class="amfm-example-code">
+                                                        <code>[dkv exclude="c" text="capitalize"]</code>
+                                                    </div>
+                                                    <div class="amfm-example-result">
+                                                        → "Web Design" (all keywords except conditions, in Title Case)
+                                                    </div>
+                                                </div>
+                                                <div class="amfm-example">
+                                                    <div class="amfm-example-code">
+                                                        <code>[dkv pre="Best " include="i" text="uppercase"]</code>
+                                                    </div>
+                                                    <div class="amfm-example-result">
+                                                        → "Best BCBS" (only insurance keywords in UPPERCASE)
+                                                    </div>
+                                                </div>
                                             </div>
 
                                             <div class="amfm-shortcode-note">
@@ -713,6 +750,9 @@ class AMFM_Admin_Menu {
                                                     <li>Keywords are stored in browser cookies when visiting pages with ACF keyword fields</li>
                                                     <li>Regular keywords come from the "amfm_keywords" field</li>
                                                     <li>Other keywords come from the "amfm_other_keywords" field</li>
+                                                    <li><strong>Category Format:</strong> Keywords can be categorized using "category:keyword" format (e.g., "i:BCBS", "c:Depression")</li>
+                                                    <li><strong>Category Filtering:</strong> Use include/exclude to filter by categories; prefixes are automatically stripped for display</li>
+                                                    <li><strong>Text Transformation:</strong> Apply CSS-like text transformations (lowercase, uppercase, capitalize)</li>
                                                     <li>Keywords are automatically filtered using the global exclusion list</li>
                                                     <li>A random keyword is selected each time the shortcode is displayed</li>
                                                     <li>Spaces in pre/post attributes are preserved (e.g., pre=" " will add a space)</li>
@@ -729,6 +769,9 @@ class AMFM_Admin_Menu {
                                                 <li>Set meaningful fallback text for better user experience</li>
                                                 <li>Use pre/post attributes to create natural sentences</li>
                                                 <li>The other_keywords attribute gives you access to alternative keyword sets</li>
+                                                <li><strong>Category Organization:</strong> Store keywords with prefixes like "i:Insurance" or "c:Condition" for better organization</li>
+                                                <li><strong>Smart Filtering:</strong> Combine include/exclude with other attributes for targeted content</li>
+                                                <li><strong>Case Consistency:</strong> Use text attribute to maintain consistent formatting across your site</li>
                                                 <li>Keywords are automatically filtered using the exclusion list</li>
                                             </ul>
                                         </div>

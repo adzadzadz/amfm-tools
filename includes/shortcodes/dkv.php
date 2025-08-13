@@ -47,16 +47,8 @@ class AMFM_Shortcode_Dkv extends AMFM_Shortcode_Base {
     }
     
     private function get_random_keyword( $use_other_keywords = false, $include = '', $exclude = '' ) {
-        $keywords = array();
-        $cookie_name = $use_other_keywords ? 'amfm_other_keywords' : 'amfm_keywords';
-        
-        // Get keywords from the specified cookie
-        if ( isset( $_COOKIE[ $cookie_name ] ) ) {
-            $cookie_keywords = json_decode( stripslashes( $_COOKIE[ $cookie_name ] ), true );
-            if ( is_array( $cookie_keywords ) ) {
-                $keywords = $cookie_keywords;
-            }
-        }
+        // Get keywords using hybrid approach (fresh ACF data first, then cookies fallback)
+        $keywords = $this->get_keywords_from_source( $use_other_keywords );
         
         // Clean up keywords (remove empty values and trim whitespace)
         $keywords = array_filter( array_map( 'trim', $keywords ) );
@@ -73,6 +65,29 @@ class AMFM_Shortcode_Dkv extends AMFM_Shortcode_Base {
         
         // Return a random keyword
         return $keywords[ array_rand( $keywords ) ];
+    }
+    
+    private function get_keywords_from_source( $use_other_keywords = false ) {
+        // Try to get fresh data from ACF first (current page)
+        if ( class_exists( 'ACF_Helper' ) ) {
+            $fresh_keywords = ACF_Helper::get_keywords();
+            $fresh_array = $use_other_keywords ? $fresh_keywords['other_keywords'] : $fresh_keywords['keywords'];
+            
+            if ( ! empty( $fresh_array ) ) {
+                return $fresh_array;
+            }
+        }
+        
+        // Fall back to cookies if no ACF data (for non-ACF pages)
+        $cookie_name = $use_other_keywords ? 'amfm_other_keywords' : 'amfm_keywords';
+        if ( isset( $_COOKIE[ $cookie_name ] ) ) {
+            $cookie_keywords = json_decode( stripslashes( $_COOKIE[ $cookie_name ] ), true );
+            if ( is_array( $cookie_keywords ) ) {
+                return $cookie_keywords;
+            }
+        }
+        
+        return array();
     }
     
     private function filter_excluded_keywords( $keywords ) {

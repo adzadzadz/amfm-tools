@@ -35,9 +35,16 @@ class ACF_Helper {
     }
 
     public static function get_keywords() {
+        // Get the current post ID to ensure we're reading from the correct page
+        $post_id = get_queried_object_id();
+        if ( ! $post_id ) {
+            global $post;
+            $post_id = $post ? $post->ID : 0;
+        }
+        
         // Get the keywords from the ACF field
-        $keywords = get_field( 'amfm_keywords' );
-        $otherKeywords = get_field( 'amfm_other_keywords' );
+        $keywords = get_field( 'amfm_keywords', $post_id );
+        $otherKeywords = get_field( 'amfm_other_keywords', $post_id );
 
         // Return the keywords as an array
         return [

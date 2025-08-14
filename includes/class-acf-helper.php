@@ -21,6 +21,21 @@ class ACF_Helper {
     }
     
     public static function set_keywords_to_cookies() {
+        // Skip cookie setting for AJAX, iframe, and admin requests
+        if ( wp_doing_ajax() || is_admin() || ( defined( 'IFRAME_REQUEST' ) && IFRAME_REQUEST ) ) {
+            return;
+        }
+        
+        // Skip for Gravity Forms AJAX requests
+        if ( isset( $_POST['gform_ajax'] ) || isset( $_GET['gf_page'] ) ) {
+            return;
+        }
+        
+        // Skip if this appears to be an embedded/iframe request
+        if ( isset( $_SERVER['HTTP_SEC_FETCH_DEST'] ) && $_SERVER['HTTP_SEC_FETCH_DEST'] === 'iframe' ) {
+            return;
+        }
+        
         // Get the keywords from the ACF field
         $keywords = self::get_keywords();
 

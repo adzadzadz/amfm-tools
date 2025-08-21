@@ -1615,3 +1615,630 @@
         justify-content: center !important;
     }
 }
+
+/* Accordion Styles for Import/Export Tab */
+.amfm-accordion-container {
+    background: #ffffff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.amfm-accordion-section {
+    border-bottom: 1px solid #e2e4e7;
+}
+
+.amfm-accordion-section:last-child {
+    border-bottom: none;
+}
+
+.amfm-accordion-header {
+    padding: 24px 32px;
+    cursor: pointer;
+    background: #f8fafc;
+    border: none;
+    transition: all 0.3s ease;
+    display: block;
+    width: 100%;
+    text-align: left;
+    position: relative;
+    user-select: none;
+}
+
+.amfm-accordion-header:hover {
+    background: #f1f5f9;
+    transform: translateY(-1px);
+}
+
+.amfm-accordion-header.active {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+}
+
+.amfm-accordion-header.active h2,
+.amfm-accordion-header.active p {
+    color: white;
+}
+
+.amfm-accordion-header.active .amfm-seo-icon {
+    color: white;
+}
+
+.amfm-accordion-header h2 {
+    margin: 0 0 8px 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: #23282d;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    transition: color 0.3s ease;
+}
+
+.amfm-accordion-header p {
+    margin: 0;
+    color: #71717a;
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 1.5;
+    transition: color 0.3s ease;
+}
+
+.amfm-accordion-toggle {
+    font-size: 18px;
+    font-weight: bold;
+    transition: transform 0.3s ease;
+    color: #6366f1;
+    margin-left: auto;
+}
+
+.amfm-accordion-header.active .amfm-accordion-toggle {
+    color: white;
+    transform: rotate(180deg);
+}
+
+.amfm-accordion-content {
+    background: #ffffff;
+    border-top: 1px solid #e2e4e7;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.amfm-accordion-content .amfm-upload-section {
+    padding: 32px;
+    margin: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+/* Export Section Specific Styling */
+.amfm-accordion-content form {
+    margin: 0;
+    padding: 0;
+}
+
+.export-section {
+    padding: 32px;
+    background: #ffffff;
+}
+
+.export-section h3 {
+    margin: 0 0 16px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1e293b;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 8px;
+}
+
+.export-section select {
+    width: 100% !important;
+    padding: 12px 16px !important;
+    margin-bottom: 24px !important;
+    border: 2px solid #e2e8f0 !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+    background: #ffffff !important;
+    transition: all 0.2s ease !important;
+}
+
+.export-section select:focus {
+    border-color: #6366f1 !important;
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+}
+
+.export-options {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 24px;
+    margin-top: 16px;
+}
+
+.option-section {
+    margin-bottom: 24px !important;
+    padding: 16px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.option-section:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.option-section > label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: #374151;
+    font-size: 15px;
+    cursor: pointer;
+    margin-bottom: 0;
+}
+
+.option-section input[type="checkbox"],
+.option-section input[type="radio"] {
+    margin: 0 !important;
+    transform: scale(1.1);
+}
+
+.sub-options {
+    margin-left: 24px !important;
+    margin-top: 16px !important;
+    padding: 16px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+}
+
+.sub-options label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #64748b;
+    cursor: pointer;
+    padding: 4px 0;
+}
+
+.taxonomy-list,
+.acf-list {
+    margin: 16px 0 16px 24px !important;
+    padding: 16px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.taxonomy-list label,
+.acf-list label {
+    display: flex !important;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px !important;
+    padding: 6px 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+    font-size: 13px;
+    color: #475569;
+}
+
+.taxonomy-list label:hover,
+.acf-list label:hover {
+    background-color: #f1f5f9;
+}
+
+.export-section p.submit {
+    margin: 32px 0 0 0 !important;
+    padding: 24px 0 0 0;
+    border-top: 1px solid #e2e8f0;
+}
+
+#amfm_export_btn {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+    border: none !important;
+    color: white !important;
+    padding: 12px 24px !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    min-width: 140px !important;
+    justify-content: center !important;
+}
+
+#amfm_export_btn:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4) !important;
+}
+
+#amfm_export_btn:active {
+    transform: translateY(0) !important;
+}
+
+#amfm_export_btn:disabled {
+    opacity: 0.7 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+}
+
+#amfm_export_btn .spinner {
+    width: 16px !important;
+    height: 16px !important;
+    margin: 0 !important;
+    background-size: 16px 16px !important;
+}
+
+/* Enhanced visual feedback for form interactions */
+.export-section input[type="checkbox"]:checked + span,
+.export-section input[type="radio"]:checked + span {
+    color: #6366f1;
+    font-weight: 600;
+}
+
+/* Post columns grid styling */
+.post-columns-options {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 16px;
+    margin-left: 24px !important;
+    margin-top: 16px !important;
+}
+
+.post-columns-options > div:first-child {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
+    gap: 8px !important;
+    margin-bottom: 12px;
+}
+
+.post-columns-options label {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    margin-bottom: 6px !important;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+    font-size: 13px !important;
+    color: #475569 !important;
+    cursor: pointer;
+}
+
+.post-columns-options label:hover {
+    background-color: #f8fafc;
+}
+
+.post-columns-options input[type="checkbox"] {
+    margin: 0 !important;
+    transform: scale(1.05);
+}
+
+.post-columns-options input[type="checkbox"]:checked + span {
+    color: #6366f1 !important;
+    font-weight: 500 !important;
+}
+
+/* Select all/none buttons */
+.post-columns-select-all,
+.post-columns-select-none {
+    color: #6366f1 !important;
+    text-decoration: none !important;
+    font-size: 12px !important;
+    padding: 4px 8px !important;
+    border-radius: 3px !important;
+    transition: all 0.2s ease !important;
+    cursor: pointer !important;
+    border: 1px solid transparent !important;
+    background: none !important;
+    box-shadow: none !important;
+    font-weight: 500 !important;
+}
+
+.post-columns-select-all:hover,
+.post-columns-select-none:hover {
+    background: #f0f9ff !important;
+    border-color: #e0f2fe !important;
+    color: #0369a1 !important;
+}
+
+/* Import Section Styling */
+.amfm-import-section {
+    padding: 32px;
+    background: #ffffff;
+}
+
+/* Instructions Header & Help Button */
+.amfm-instructions-header {
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.amfm-help-button {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #64748b !important;
+    padding: 8px 16px !important;
+    border-radius: 4px !important;
+    font-size: 13px !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    text-decoration: none !important;
+    font-weight: 500 !important;
+}
+
+.amfm-help-button:hover {
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    color: #475569 !important;
+}
+
+.amfm-help-button.active {
+    background: #6366f1 !important;
+    border-color: #6366f1 !important;
+    color: white !important;
+}
+
+/* Instructions Content */
+.amfm-instructions-content {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.amfm-info-box {
+    padding: 24px;
+    background: #ffffff;
+    margin: 0;
+    border: none;
+    box-shadow: none;
+}
+
+.amfm-instructions-section {
+    margin-bottom: 20px;
+}
+
+.amfm-instructions-section:last-child {
+    margin-bottom: 0;
+}
+
+.amfm-instructions-section h4 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e293b;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 6px;
+}
+
+.amfm-instructions-section p {
+    margin: 0 0 8px 0;
+    color: #475569;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.amfm-instructions-section ul {
+    margin: 0;
+    padding-left: 20px;
+    color: #475569;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.amfm-instructions-section li {
+    margin-bottom: 4px;
+}
+
+.amfm-code-block {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 16px;
+    margin: 12px 0;
+    overflow-x: auto;
+}
+
+.amfm-code-block pre {
+    margin: 0;
+    padding: 0;
+    background: none !important;
+    border: none;
+    color: #e2e8f0;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    white-space: pre;
+    overflow: visible;
+}
+
+/* Upload Form Styling */
+.amfm-upload-form {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 24px;
+    margin: 0;
+}
+
+.amfm-file-input-wrapper {
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.amfm-file-label {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    padding: 16px 20px !important;
+    background: #ffffff !important;
+    border: 2px dashed #cbd5e1 !important;
+    border-radius: 8px !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    font-size: 14px !important;
+    color: #475569 !important;
+    font-weight: 500 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    justify-content: center !important;
+}
+
+.amfm-file-label:hover {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: #334155 !important;
+}
+
+.amfm-file-label.has-file {
+    border-color: #6366f1 !important;
+    background: #f0f9ff !important;
+    color: #6366f1 !important;
+}
+
+.amfm-file-icon {
+    font-size: 18px;
+}
+
+.amfm-file-input {
+    position: absolute !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    width: 1px !important;
+    height: 1px !important;
+}
+
+.amfm-file-info {
+    margin-top: 8px;
+    color: #64748b;
+    font-size: 12px;
+    text-align: center;
+}
+
+.amfm-submit-wrapper {
+    display: flex;
+    justify-content: center;
+    margin-top: 24px;
+}
+
+.amfm-submit-btn {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+    border: none !important;
+    color: white !important;
+    padding: 12px 24px !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    text-decoration: none !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+}
+
+.amfm-submit-btn:hover,
+.amfm-submit-btn:focus {
+    background: linear-gradient(135deg, #5855eb 0%, #7c3aed 100%) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4) !important;
+}
+
+.amfm-submit-btn:active {
+    transform: translateY(0) !important;
+}
+
+.amfm-submit-icon {
+    font-size: 14px;
+}
+
+/* Responsive Styles for Accordion */
+@media (max-width: 768px) {
+    .amfm-accordion-header {
+        padding: 20px 24px;
+    }
+    
+    .amfm-accordion-header h2 {
+        font-size: 20px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .amfm-accordion-toggle {
+        position: absolute;
+        right: 24px;
+        top: 24px;
+        font-size: 16px;
+    }
+    
+    .amfm-accordion-content .amfm-upload-section {
+        padding: 24px 20px;
+    }
+    
+    .export-section {
+        padding: 20px;
+    }
+    
+    .option-section {
+        padding: 12px;
+    }
+    
+    .sub-options {
+        margin-left: 16px !important;
+        padding: 12px;
+    }
+    
+    .taxonomy-list,
+    .acf-list {
+        margin-left: 16px !important;
+        padding: 12px;
+    }
+    
+    .amfm-import-section {
+        padding: 20px;
+    }
+    
+    .amfm-upload-form {
+        padding: 16px;
+    }
+    
+    .amfm-file-label {
+        padding: 12px 16px !important;
+        font-size: 13px !important;
+    }
+    
+    .amfm-instructions-content {
+        margin-bottom: 16px;
+    }
+    
+    .amfm-info-box {
+        padding: 16px;
+    }
+    
+    .amfm-code-block {
+        padding: 12px;
+        font-size: 12px;
+    }
+}

@@ -13,8 +13,8 @@ class Init {
         require_once plugin_dir_path( __FILE__ ) . 'includes/class-optimization.php';
         \AMFM_Optimization::init();
 
-        require_once plugin_dir_path( __FILE__ ) . 'includes/class-admin-menu.php';
-        \AMFM_Admin_Menu::init();
+        require_once plugin_dir_path( __FILE__ ) . 'includes/class-admin.php';
+        \AMFM_Admin::init();
 
         require_once plugin_dir_path( __FILE__ ) . 'includes/class-shortcode-loader.php';
         \AMFM_Shortcode_Loader::init();

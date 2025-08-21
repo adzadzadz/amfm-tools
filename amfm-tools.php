@@ -3,7 +3,7 @@
 Plugin Name: AMFM Tools
 Plugin URI: https://adzbyte.com/
 Description: A plugin for AMFM custom functionalities.
-Version: 2.2.0
+Version: 2.2.1
 Author: Adrian T. Saycon
 Author URI: https://adzbyte.com/adz
 License: GPL2
@@ -11,7 +11,7 @@ License: GPL2
 
 // Define version constant for consistent use across the plugin
 if ( ! defined( 'AMFM_TOOLS_VERSION' ) ) {
-    define( 'AMFM_TOOLS_VERSION', '2.2.0' );
+    define( 'AMFM_TOOLS_VERSION', '2.2.1' );
 }
 
 // Load the plugin initializer

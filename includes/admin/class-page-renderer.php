@@ -959,11 +959,6 @@ class AMFM_Page_Renderer {
                         <?php endforeach; ?>
                     </div>
 
-                    <div class="amfm-form-actions">
-                        <button type="submit" class="button button-primary amfm-save-widgets">
-                            Save Widget Settings
-                        </button>
-                    </div>
                 </form>
 
                 <div class="amfm-elementor-info">
@@ -971,7 +966,7 @@ class AMFM_Page_Renderer {
                     <ul>
                         <li>Disabling widgets can improve Elementor editor performance by reducing loaded components</li>
                         <li>Disabled widgets will not appear in the Elementor widget panel</li>
-                        <li>Changes take effect immediately after saving</li>
+                        <li>Changes are saved automatically when toggled</li>
                         <li>Re-enabling a widget restores all its functionality without data loss</li>
                     </ul>
                 </div>

@@ -60,9 +60,12 @@ class AMFM_Admin {
         // Settings hooks
         add_action( 'admin_init', array( $this->settings_manager, 'handle_excluded_keywords_update' ) );
         add_action( 'admin_init', array( $this->settings_manager, 'handle_elementor_widgets_update' ) );
+        add_action( 'admin_init', array( $this->settings_manager, 'handle_component_settings_update' ) );
         
         // AJAX hooks
         add_action( 'wp_ajax_amfm_get_post_type_taxonomies', array( $this->ajax_handler, 'ajax_get_post_type_taxonomies' ) );
         add_action( 'wp_ajax_amfm_export_data', array( $this->ajax_handler, 'ajax_export_data' ) );
+        add_action( 'wp_ajax_amfm_component_settings_update', array( $this->settings_manager, 'ajax_component_settings_update' ) );
+        add_action( 'wp_ajax_amfm_elementor_widgets_update', array( $this->settings_manager, 'ajax_elementor_widgets_update' ) );
     }
 }

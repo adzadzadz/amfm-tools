@@ -316,4 +316,132 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
+
+    // Handle component toggle switches (Dashboard and Elementor tabs)
+    const componentCheckboxes = document.querySelectorAll('.amfm-component-checkbox, .amfm-widget-checkbox');
+    
+    componentCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const card = this.closest('.amfm-component-card, .amfm-widget-card');
+            const statusText = card.querySelector('.amfm-status-text');
+            const statusIndicator = card.querySelector('.amfm-status-indicator');
+            
+            // Update visual state immediately
+            if (this.checked) {
+                // Enable component/widget
+                card.classList.remove('amfm-component-disabled', 'amfm-widget-disabled');
+                card.classList.add('amfm-component-enabled', 'amfm-widget-enabled');
+                if (statusText) statusText.textContent = 'Enabled';
+            } else {
+                // Disable component/widget
+                card.classList.remove('amfm-component-enabled', 'amfm-widget-enabled');
+                card.classList.add('amfm-component-disabled', 'amfm-widget-disabled');
+                if (statusText) statusText.textContent = 'Disabled';
+            }
+            
+            // Auto-save the settings
+            if (this.classList.contains('amfm-component-checkbox')) {
+                autoSaveComponentSettings();
+            } else if (this.classList.contains('amfm-widget-checkbox')) {
+                autoSaveWidgetSettings();
+            }
+        });
+    });
+    
+    // Auto-save component settings function
+    function autoSaveComponentSettings() {
+        const form = document.querySelector('.amfm-component-settings-form');
+        if (!form) return;
+        
+        const formData = new FormData(form);
+        formData.append('action', 'amfm_component_settings_update');
+        
+        // Show subtle saving indicator
+        showSavingIndicator('components');
+        
+        fetch(amfmAdmin.ajaxUrl, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.text())
+        .then(data => {
+            hideSavingIndicator('components');
+            // Silently saved - no need for intrusive notifications
+        })
+        .catch(error => {
+            console.error('Error saving component settings:', error);
+            hideSavingIndicator('components');
+            showNotice('Failed to save component settings. Please try again.', 'error');
+        });
+    }
+    
+    // Auto-save widget settings function  
+    function autoSaveWidgetSettings() {
+        const form = document.querySelector('.amfm-elementor-widgets-form');
+        if (!form) return;
+        
+        const formData = new FormData(form);
+        formData.append('action', 'amfm_elementor_widgets_update');
+        
+        // Show subtle saving indicator
+        showSavingIndicator('widgets');
+        
+        fetch(amfmAdmin.ajaxUrl, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.text())
+        .then(data => {
+            hideSavingIndicator('widgets');
+            // Silently saved - no need for intrusive notifications
+        })
+        .catch(error => {
+            console.error('Error saving widget settings:', error);
+            hideSavingIndicator('widgets');
+            showNotice('Failed to save widget settings. Please try again.', 'error');
+        });
+    }
+    
+    // Show subtle saving indicator
+    function showSavingIndicator(type) {
+        let indicator = document.querySelector('.amfm-saving-indicator-' + type);
+        if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.className = 'amfm-saving-indicator-' + type;
+            indicator.style.cssText = `
+                position: fixed;
+                top: 32px;
+                right: 20px;
+                background: #667eea;
+                color: white;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-size: 12px;
+                font-weight: 600;
+                z-index: 100000;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            `;
+            indicator.textContent = 'Saving...';
+            document.body.appendChild(indicator);
+        }
+        
+        // Fade in
+        setTimeout(() => {
+            indicator.style.opacity = '1';
+        }, 10);
+    }
+    
+    // Hide saving indicator
+    function hideSavingIndicator(type) {
+        const indicator = document.querySelector('.amfm-saving-indicator-' + type);
+        if (indicator) {
+            indicator.style.opacity = '0';
+            setTimeout(() => {
+                if (indicator.parentNode) {
+                    indicator.parentNode.removeChild(indicator);
+                }
+            }, 300);
+        }
+    }
 });

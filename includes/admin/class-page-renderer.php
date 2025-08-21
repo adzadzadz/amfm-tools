@@ -12,7 +12,7 @@ class AMFM_Page_Renderer {
         $category_results = null;
         $show_results = false;
         $show_category_results = false;
-        $active_tab = isset( $_GET['tab'] ) ? sanitize_text_field( $_GET['tab'] ) : 'general';
+        $active_tab = isset( $_GET['tab'] ) ? sanitize_text_field( $_GET['tab'] ) : 'dashboard';
 
         if ( isset( $_GET['imported'] ) ) {
             if ( $_GET['imported'] === 'categories' ) {
@@ -28,22 +28,13 @@ class AMFM_Page_Renderer {
 
         ?>
         <div class="wrap amfm-admin-page">
-            <div class="amfm-header-container">
-                <h1 class="amfm-page-title">
-                    <span class="amfm-icon">🛠️</span>
-                    <span class="amfm-title-text">AMFM Tools</span>
-                    <span class="amfm-version-badge">v<?php echo esc_html( AMFM_Admin::get_version() ); ?></span>
-                </h1>
-                <p class="amfm-subtitle">Comprehensive tools and utilities for AMFM website management</p>
-            </div>
-            
             <div class="amfm-container">
                 <!-- Tabs Navigation -->
                 <div class="amfm-tabs-nav">
-                    <a href="<?php echo admin_url( 'admin.php?page=amfm-tools&tab=general' ); ?>" 
-                       class="amfm-tab-link <?php echo $active_tab === 'general' ? 'active' : ''; ?>">
-                        <span class="amfm-tab-icon">🏠</span>
-                        General
+                    <a href="<?php echo admin_url( 'admin.php?page=amfm-tools&tab=dashboard' ); ?>" 
+                       class="amfm-tab-link <?php echo $active_tab === 'dashboard' ? 'active' : ''; ?>">
+                        <span class="amfm-tab-icon">🎛️</span>
+                        Dashboard
                     </a>
                     <a href="<?php echo admin_url( 'admin.php?page=amfm-tools&tab=import-export' ); ?>" 
                        class="amfm-tab-link <?php echo $active_tab === 'import-export' ? 'active' : ''; ?>">
@@ -63,8 +54,8 @@ class AMFM_Page_Renderer {
                 </div>
 
                 <!-- Tab Content -->
-                <?php if ( $active_tab === 'general' ) : ?>
-                    <?php $this->render_general_tab(); ?>
+                <?php if ( $active_tab === 'dashboard' ) : ?>
+                    <?php $this->render_dashboard_tab(); ?>
                 <?php elseif ( $active_tab === 'import-export' ) : ?>
                     <?php $this->render_import_export_tab( $show_results, $show_category_results, $results, $category_results ); ?>
                 <?php elseif ( $active_tab === 'shortcodes' ) : ?>
@@ -79,67 +70,132 @@ class AMFM_Page_Renderer {
     }
 
     /**
-     * Render General tab content
+     * Render Dashboard tab content
      */
-    private function render_general_tab() {
+    private function render_dashboard_tab() {
+        // Get available components
+        $available_components = array(
+            'acf_helper' => array(
+                'name' => 'ACF Helper',
+                'description' => 'Manages ACF keyword cookies and enhances ACF functionality for dynamic content delivery.',
+                'icon' => '🔧',
+                'status' => 'Core Feature'
+            ),
+            'text_utilities' => array(
+                'name' => 'Text Utilities',
+                'description' => 'Provides text processing shortcodes like [limit_words] for content formatting.',
+                'icon' => '📝',
+                'status' => 'Available'
+            ),
+            'optimization' => array(
+                'name' => 'Performance Optimization',
+                'description' => 'Gravity Forms optimization and performance enhancements for faster page loading.',
+                'icon' => '⚡',
+                'status' => 'Available'
+            ),
+            'shortcodes' => array(
+                'name' => 'Shortcode System',
+                'description' => 'DKV shortcode and other dynamic content shortcodes with advanced filtering options.',
+                'icon' => '📄',
+                'status' => 'Available'
+            ),
+            'elementor_widgets' => array(
+                'name' => 'Elementor Widgets',
+                'description' => 'Custom Elementor widgets including Related Posts widget with keyword-based matching.',
+                'icon' => '🎨',
+                'status' => 'Available'
+            ),
+            'import_export' => array(
+                'name' => 'Import/Export Tools',
+                'description' => 'Comprehensive data management for importing keywords, categories, and exporting posts with ACF fields.',
+                'icon' => '📊',
+                'status' => 'Core Feature'
+            )
+        );
+        
+        // Get currently enabled components (default to all enabled)
+        $enabled_components = get_option( 'amfm_enabled_components', array_keys( $available_components ) );
         ?>
-        <!-- General Tab Content -->
+        <!-- Dashboard Tab Content -->
         <div class="amfm-tab-content">
-            <div class="amfm-general-section">
-                <div class="amfm-welcome-box">
-                    <h2>Welcome to AMFM Tools</h2>
-                    <p>This plugin provides various tools and utilities for the AMFM website management.</p>
+            <div class="amfm-dashboard-section">
+                <div class="amfm-dashboard-header">
+                    <h2>
+                        <span class="amfm-dashboard-icon">🎛️</span>
+                        Component Management Dashboard
+                    </h2>
+                    <p>Enable or disable individual plugin components. Disabled components will not be loaded, improving performance and reducing resource usage.</p>
                 </div>
 
-                <div class="amfm-features-grid">
-                    <div class="amfm-feature-card">
-                        <div class="amfm-feature-icon">📊</div>
-                        <h3>Import/Export Tools</h3>
-                        <p>Comprehensive data management tools for importing keywords, categories and exporting posts with ACF fields, taxonomies, and metadata to CSV.</p>
-                        <a href="<?php echo admin_url( 'admin.php?page=amfm-tools&tab=import-export' ); ?>" class="amfm-feature-link">
-                            Go to Import/Export →
-                        </a>
+                <form method="post" class="amfm-component-settings-form">
+                    <?php wp_nonce_field( 'amfm_component_settings_update', 'amfm_component_settings_nonce' ); ?>
+                    
+                    <div class="amfm-components-grid">
+                        <?php foreach ( $available_components as $component_key => $component_info ) : ?>
+                            <?php $is_core = $component_info['status'] === 'Core Feature'; ?>
+                            <div class="amfm-component-card <?php echo in_array( $component_key, $enabled_components ) ? 'amfm-component-enabled' : 'amfm-component-disabled'; ?> <?php echo $is_core ? 'amfm-component-core' : ''; ?>">
+                                <div class="amfm-component-header">
+                                    <div class="amfm-component-icon"><?php echo esc_html( $component_info['icon'] ); ?></div>
+                                    <div class="amfm-component-toggle">
+                                        <?php if ( $is_core ) : ?>
+                                            <span class="amfm-core-label">Core</span>
+                                            <input type="hidden" name="enabled_components[]" value="<?php echo esc_attr( $component_key ); ?>">
+                                        <?php else : ?>
+                                            <label class="amfm-toggle-switch">
+                                                <input type="checkbox" 
+                                                       name="enabled_components[]" 
+                                                       value="<?php echo esc_attr( $component_key ); ?>"
+                                                       <?php checked( in_array( $component_key, $enabled_components ) ); ?>
+                                                       class="amfm-component-checkbox">
+                                                <span class="amfm-toggle-slider"></span>
+                                            </label>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                                <div class="amfm-component-body">
+                                    <h3 class="amfm-component-title"><?php echo esc_html( $component_info['name'] ); ?></h3>
+                                    <p class="amfm-component-description"><?php echo esc_html( $component_info['description'] ); ?></p>
+                                    <div class="amfm-component-status">
+                                        <span class="amfm-status-indicator"></span>
+                                        <span class="amfm-status-text">
+                                            <?php if ( $is_core ) : ?>
+                                                Always Active
+                                            <?php else : ?>
+                                                <?php echo in_array( $component_key, $enabled_components ) ? 'Enabled' : 'Disabled'; ?>
+                                            <?php endif; ?>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
                     </div>
 
-                    <div class="amfm-feature-card">
-                        <div class="amfm-feature-icon">⚡</div>
-                        <h3>Performance Optimization</h3>
-                        <p>Various performance optimizations and enhancements are automatically applied to improve site speed.</p>
-                        <div class="amfm-feature-status">
-                            <span class="amfm-status-active">Active</span>
-                        </div>
-                    </div>
+                </form>
 
-                    <div class="amfm-feature-card">
-                        <div class="amfm-feature-icon">📝</div>
-                        <h3>Text Utilities</h3>
-                        <p>Enhanced text processing and formatting utilities for better content management.</p>
-                        <div class="amfm-feature-status">
-                            <span class="amfm-status-active">Active</span>
-                        </div>
-                    </div>
-
-                    <div class="amfm-feature-card">
-                        <div class="amfm-feature-icon">🔧</div>
-                        <h3>ACF Helpers</h3>
-                        <p>Advanced Custom Fields integration and helper functions for enhanced functionality.</p>
-                        <div class="amfm-feature-status">
-                            <span class="amfm-status-active">Active</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="amfm-info-section">
-                    <h3>Plugin Information</h3>
+                <div class="amfm-dashboard-info">
                     <div class="amfm-info-grid">
-                        <div class="amfm-info-item">
-                            <strong>Version:</strong> <?php echo esc_html( AMFM_Admin::get_version() ); ?>
+                        <div class="amfm-info-card">
+                            <h3>💡 Component Management Tips</h3>
+                            <ul>
+                                <li>Core features cannot be disabled as they're essential for plugin functionality</li>
+                                <li>Disabling unused components can improve site performance</li>
+                                <li>Changes take effect immediately after saving</li>
+                                <li>Re-enabling components restores full functionality without data loss</li>
+                            </ul>
                         </div>
-                        <div class="amfm-info-item">
-                            <strong>Author:</strong> Adrian T. Saycon
-                        </div>
-                        <div class="amfm-info-item">
-                            <strong>Website:</strong> <a href="https://adzbyte.com/" target="_blank">adzbyte.com</a>
+                        <div class="amfm-info-card">
+                            <h3>📋 Plugin Information</h3>
+                            <div class="amfm-plugin-details">
+                                <div class="amfm-detail-item">
+                                    <strong>Version:</strong> <?php echo esc_html( AMFM_Admin::get_version() ); ?>
+                                </div>
+                                <div class="amfm-detail-item">
+                                    <strong>Author:</strong> Adrian T. Saycon
+                                </div>
+                                <div class="amfm-detail-item">
+                                    <strong>Website:</strong> <a href="https://adzbyte.com/" target="_blank">adzbyte.com</a>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

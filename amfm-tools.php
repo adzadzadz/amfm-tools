@@ -1,23 +1,28 @@
-<?php
-/*
-Plugin Name: AMFM Tools
-Plugin URI: https://adzbyte.com/
-Description: A plugin for AMFM custom functionalities.
-Version: 2.2.1
-Author: Adrian T. Saycon
-Author URI: https://adzbyte.com/adz
-License: GPL2
-*/
+<?php 
+/**
+ * Plugin Name: AMFM Tools
+ * Plugin URI: https://adzbyte.com/wp-plugins/amfm-tools
+ * Description: A plugin for AMFM custom functionalities.
+ * Version: 2.2.1
+ * Author: Adrian T. Saycon
+ * Text Domain: amfm-tools
+ * Author URI: https://adzbyte.com/adz
+ * Requires at least: 5.0
+ * Tested up to: 6.6
+ * Requires PHP: 7.4
+ */
 
-// Define version constant for consistent use across the plugin
-if ( ! defined( 'AMFM_TOOLS_VERSION' ) ) {
-    define( 'AMFM_TOOLS_VERSION', '2.2.1' );
+if ( !defined( 'ABSPATH' ) ) {
+    die( 'Do not open this file directly.' );
 }
 
-// Load the plugin initializer
-require_once plugin_dir_path( __FILE__ ) . 'init.php';
+require_once 'vendor/autoload.php';
 
-// Run the Init class
-if ( class_exists( 'Init' ) ) {
-    Init::run();
-}
+( \ADZ::pluginize( __FILE__, $env = 'default' ) )->load([
+    'Admin',
+    'ACF',
+    'Shortcode',
+    'Elementor',
+    'Optimization',
+    'Frontend'
+]);

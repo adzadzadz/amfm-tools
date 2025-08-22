@@ -76,14 +76,14 @@ class AdminController extends Controller
         if (strpos($hook_suffix, 'amfm') !== false) {
             \wp_enqueue_style(
                 'amfm-admin-style',
-                AMFM_TOOLS_URL . 'assets/css/main.css',
+                AMFM_TOOLS_URL . 'assets/css/admin-style.css',
                 [],
                 AMFM_TOOLS_VERSION
             );
             
             \wp_enqueue_script(
                 'amfm-admin-script',
-                AMFM_TOOLS_URL . 'assets/js/main.js',
+                AMFM_TOOLS_URL . 'assets/js/admin-script.js',
                 ['jquery'],
                 AMFM_TOOLS_VERSION,
                 true

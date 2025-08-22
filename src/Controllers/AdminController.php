@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use AdzWP\Core\Controller;
+use AdzWP\Core\View;
 
 class AdminController extends Controller
 {
@@ -24,9 +25,9 @@ class AdminController extends Controller
     {
         // Check if main AMFM menu exists, if not create it
         if (!$this->mainMenuExists()) {
-            add_menu_page(
-                __('AMFM', 'amfm-tools'), // Page title
-                __('AMFM', 'amfm-tools'), // Menu title
+            \add_menu_page(
+                \__('AMFM', 'amfm-tools'), // Page title
+                \__('AMFM', 'amfm-tools'), // Menu title
                 'manage_options', // Capability
                 'amfm', // Menu slug
                 [$this, 'renderAdminPage'], // Callback function
@@ -36,10 +37,10 @@ class AdminController extends Controller
         }
         
         // Add Tools submenu
-        add_submenu_page(
+        \add_submenu_page(
             'amfm',
-            __('Tools', 'amfm-tools'),
-            __('Tools', 'amfm-tools'),
+            \__('Tools', 'amfm-tools'),
+            \__('Tools', 'amfm-tools'),
             'manage_options',
             'amfm-tools',
             [$this, 'renderAdminPage']
@@ -63,20 +64,24 @@ class AdminController extends Controller
 
     public function renderAdminPage()
     {
-        include AMFM_TOOLS_PATH . 'views/admin/main.php';
+        echo View::render('admin/main', [
+            'plugin_url' => AMFM_TOOLS_URL,
+            'plugin_version' => AMFM_TOOLS_VERSION,
+            'enabled_components' => \get_option('amfm_enabled_components', [])
+        ]);
     }
 
     public function enqueueAdminAssets($hook_suffix)
     {
         if (strpos($hook_suffix, 'amfm') !== false) {
-            wp_enqueue_style(
+            \wp_enqueue_style(
                 'amfm-admin-style',
                 AMFM_TOOLS_URL . 'assets/css/main.css',
                 [],
                 AMFM_TOOLS_VERSION
             );
             
-            wp_enqueue_script(
+            \wp_enqueue_script(
                 'amfm-admin-script',
                 AMFM_TOOLS_URL . 'assets/js/main.js',
                 ['jquery'],
@@ -85,9 +90,9 @@ class AdminController extends Controller
             );
 
             // Localize script for AJAX
-            wp_localize_script('amfm-admin-script', 'amfm_ajax', [
-                'ajax_url' => admin_url('admin-ajax.php'),
-                'nonce' => wp_create_nonce('amfm_ajax_nonce')
+            \wp_localize_script('amfm-admin-script', 'amfm_ajax', [
+                'ajax_url' => \admin_url('admin-ajax.php'),
+                'nonce' => \wp_create_nonce('amfm_ajax_nonce')
             ]);
         }
     }
@@ -95,17 +100,17 @@ class AdminController extends Controller
     public function handleFormSubmissions()
     {
         // Handle component settings form submission
-        if (isset($_POST['save_components']) && check_admin_referer('amfm_component_settings', 'amfm_nonce')) {
-            $components = isset($_POST['amfm_components']) ? array_map('sanitize_text_field', $_POST['amfm_components']) : [];
+        if (isset($_POST['save_components']) && \check_admin_referer('amfm_component_settings', 'amfm_nonce')) {
+            $components = isset($_POST['amfm_components']) ? \array_map('sanitize_text_field', $_POST['amfm_components']) : [];
             
             // Always ensure core components are included
             $core_components = ['acf_helper', 'import_export'];
-            $components = array_merge($components, $core_components);
-            $components = array_unique($components);
+            $components = \array_merge($components, $core_components);
+            $components = \array_unique($components);
             
-            update_option('amfm_enabled_components', $components);
+            \update_option('amfm_enabled_components', $components);
             
-            add_action('admin_notices', function() {
+            \add_action('admin_notices', function() {
                 echo '<div class="notice notice-success is-dismissible"><p>Component settings saved successfully!</p></div>';
             });
         }

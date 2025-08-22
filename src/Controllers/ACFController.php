@@ -37,7 +37,7 @@ class ACFController extends Controller
     public function setKeywordsToCookies()
     {
         // Skip cookie setting for AJAX, iframe, and admin requests
-        if (wp_doing_ajax() || is_admin() || (defined('IFRAME_REQUEST') && IFRAME_REQUEST)) {
+        if (\wp_doing_ajax() || \is_admin() || (defined('IFRAME_REQUEST') && \IFRAME_REQUEST)) {
             return;
         }
         
@@ -56,26 +56,26 @@ class ACFController extends Controller
 
         // Set the keywords in cookies
         if (!empty($keywords['keywords'])) {
-            setcookie('amfm_keywords', json_encode($keywords['keywords']), time() + 3600, COOKIEPATH, COOKIE_DOMAIN);
+            \setcookie('amfm_keywords', \json_encode($keywords['keywords']), \time() + 3600, \COOKIEPATH, \COOKIE_DOMAIN);
         }
 
         if (!empty($keywords['other_keywords'])) {
-            setcookie('amfm_other_keywords', json_encode($keywords['other_keywords']), time() + 3600, COOKIEPATH, COOKIE_DOMAIN);
+            \setcookie('amfm_other_keywords', \json_encode($keywords['other_keywords']), \time() + 3600, \COOKIEPATH, \COOKIE_DOMAIN);
         }
     }
 
     public function getKeywords()
     {
         // Get the current post ID to ensure we're reading from the correct page
-        $post_id = get_queried_object_id();
+        $post_id = \get_queried_object_id();
         if (!$post_id) {
             global $post;
             $post_id = $post ? $post->ID : 0;
         }
         
         // Get the keywords from the ACF field
-        $keywords = get_field('amfm_keywords', $post_id);
-        $otherKeywords = get_field('amfm_other_keywords', $post_id);
+        $keywords = \get_field('amfm_keywords', $post_id);
+        $otherKeywords = \get_field('amfm_other_keywords', $post_id);
 
         // Return the keywords as an array
         return [

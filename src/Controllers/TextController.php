@@ -20,7 +20,7 @@ class TextController extends Controller
     public function initialize()
     {
         // Add shortcode to limit text length
-        add_shortcode('limit_words', [$this, 'limitWords']);
+        \add_shortcode('limit_words', [$this, 'limitWords']);
         
         if ($this->isAdmin()) {
             // Admin-specific initialization
@@ -40,7 +40,7 @@ class TextController extends Controller
 
         // Get the ACF text value
         if (!empty($atts['text'])) {
-            $content = get_field($atts['text']);
+            $content = \get_field($atts['text']);
         } else {
             $content = $content;
         }

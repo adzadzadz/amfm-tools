@@ -33,6 +33,9 @@ add_action('plugins_loaded', function() {
     $framework->set('plugin.path', AMFM_TOOLS_PATH);
     $framework->set('plugin.url', AMFM_TOOLS_URL);
     $framework->set('plugin.version', AMFM_TOOLS_VERSION);
+    
+    // Set up view template paths
+    \AdzWP\Core\View::addTemplatePath(AMFM_TOOLS_PATH . 'src/Views/');
 
     // Initialize plugin manager with lifecycle hooks
     $pluginManager = \AdzWP\Core\PluginManager::getInstance(__FILE__);

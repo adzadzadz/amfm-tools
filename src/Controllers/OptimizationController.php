@@ -47,7 +47,7 @@ class OptimizationController extends Controller
     {
         // Only load on pages with Gravity Forms shortcode or block
         global $post;
-        if (!is_a($post, 'WP_Post') || !has_shortcode($post->post_content, 'gravityform')) {
+        if (!\is_a($post, 'WP_Post') || !\has_shortcode($post->post_content, 'gravityform')) {
             wp_dequeue_style('gforms_css');
             wp_dequeue_script('gforms_conditional_logic');
             wp_dequeue_script('gform_gravityforms');

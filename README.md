@@ -49,7 +49,7 @@ amfm-tools-v2/
 │       ├── OptimizationController.php
 │       ├── ShortcodeController.php
 │       └── ElementorController.php
-├── views/
+├── src/Views/
 │   └── admin/               # Admin interface templates
 ├── assets/                  # CSS, JS, images
 ├── vendor/                  # Composer dependencies

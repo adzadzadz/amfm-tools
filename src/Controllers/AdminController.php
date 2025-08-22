@@ -2,7 +2,7 @@
 
 namespace App\Controllers;
 
-use Adz\WordPress\WordPressController as Controller;
+use AdzWP\Core\Controller;
 
 class AdminController extends Controller
 {
@@ -71,14 +71,14 @@ class AdminController extends Controller
         if (strpos($hook_suffix, 'amfm') !== false) {
             wp_enqueue_style(
                 'amfm-admin-style',
-                AMFM_TOOLS_URL . 'assets/admin-style.css',
+                AMFM_TOOLS_URL . 'assets/css/main.css',
                 [],
                 AMFM_TOOLS_VERSION
             );
             
             wp_enqueue_script(
                 'amfm-admin-script',
-                AMFM_TOOLS_URL . 'assets/admin-script.js',
+                AMFM_TOOLS_URL . 'assets/js/main.js',
                 ['jquery'],
                 AMFM_TOOLS_VERSION,
                 true

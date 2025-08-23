@@ -161,7 +161,7 @@ class RelatedPostsWidget extends Widget_Base {
         $settings = $this->get_settings_for_display();
         
         // Get keywords from ACF or cookies
-        $keywords = $this->get_keywords($settings['keyword_source']);
+        $keywords = $this->get_amfm_keywords($settings['keyword_source']);
         
         if (empty($keywords)) {
             echo '<p>' . __('No keywords found to display related posts.', 'amfm-tools') . '</p>';
@@ -280,7 +280,7 @@ class RelatedPostsWidget extends Widget_Base {
     /**
      * Get keywords from ACF or cookies
      */
-    private function get_keywords($source) {
+    private function get_amfm_keywords($source) {
         $keywords = [];
         
         // Get current post ID

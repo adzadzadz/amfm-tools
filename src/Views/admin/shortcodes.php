@@ -9,10 +9,34 @@ $keywords_text = $keywords_text ?? '';
 
 <div class="wrap amfm-admin-page">
     <div class="amfm-container">
-        <!-- Header -->
+        <!-- Enhanced Header -->
         <div class="amfm-header">
-            <h1><span class="amfm-icon">🛠️</span> AMFM Tools</h1>
-            <p class="amfm-subtitle">Advanced Custom Field Management & Performance Optimization Tools</p>
+            <div class="amfm-header-content">
+                <div class="amfm-header-main">
+                    <div class="amfm-header-logo">
+                        <span class="amfm-icon">🛠️</span>
+                    </div>
+                    <div class="amfm-header-text">
+                        <h1>AMFM Tools</h1>
+                        <p class="amfm-subtitle">Advanced Custom Field Management & Performance Optimization Tools</p>
+                    </div>
+                </div>
+                <div class="amfm-header-actions">
+                    <div class="amfm-header-stats">
+                        <div class="amfm-header-stat">
+                            <span class="amfm-header-stat-number"><?php echo count($excluded_keywords); ?></span>
+                            <span class="amfm-header-stat-label">Excluded</span>
+                        </div>
+                        <div class="amfm-header-stat">
+                            <span class="amfm-header-stat-number">1</span>
+                            <span class="amfm-header-stat-label">Shortcodes</span>
+                        </div>
+                    </div>
+                    <div class="amfm-version-badge">
+                        v<?php echo esc_html(AMFM_TOOLS_VERSION); ?>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Tabs Navigation -->

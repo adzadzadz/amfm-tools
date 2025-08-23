@@ -6,45 +6,105 @@
     margin: 0 20px 0 0;
 }
 
-/* Enhanced Header Container */
-.amfm-header-container {
+/* Professional Header Layout */
+.amfm-header {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
-    padding: 32px;
-    border-radius: 12px;
-    margin-bottom: 24px;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+    padding: 0;
+    margin: 0 0 0 0;
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.15);
     position: relative;
     overflow: hidden;
+    border-radius: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.amfm-header-container::before {
+/* Header decorative background */
+.amfm-header::before {
     content: '';
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="30" cy="25" r="1.5" fill="rgba(255,255,255,0.08)"/><circle cx="70" cy="15" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="85" cy="35" r="1.2" fill="rgba(255,255,255,0.06)"/></svg>');
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.08)"/><circle cx="30" cy="25" r="1.5" fill="rgba(255,255,255,0.05)"/><circle cx="70" cy="15" r="1" fill="rgba(255,255,255,0.08)"/><circle cx="85" cy="35" r="1.2" fill="rgba(255,255,255,0.04)"/><circle cx="50" cy="50" r="2" fill="rgba(255,255,255,0.03)"/><circle cx="20" cy="70" r="1.5" fill="rgba(255,255,255,0.06)"/></svg>');
     pointer-events: none;
+    opacity: 0.6;
 }
 
-.amfm-page-title {
+/* Header Content Container */
+.amfm-header-content {
+    position: relative;
+    z-index: 2;
+    padding: 40px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Main Title Area */
+.amfm-header-main {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex: 1;
+}
+
+/* Logo/Icon Container */
+.amfm-header-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+/* Title Text Section */
+.amfm-header-text {
+    flex: 1;
+}
+
+/* Header Actions */
+.amfm-header-actions {
     display: flex;
     align-items: center;
     gap: 16px;
-    margin: 0 0 12px 0;
-    font-size: 32px;
-    font-weight: 700;
-    color: white;
-    position: relative;
-    z-index: 1;
 }
 
-.amfm-icon {
+/* Updated Title Styling */
+.amfm-header h1 {
+    margin: 0 0 8px 0;
     font-size: 36px;
+    font-weight: 800;
+    color: white;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.amfm-header h1 .amfm-icon {
+    display: none;
+}
+
+/* Logo Icon Styling */
+.amfm-header-logo .amfm-icon {
+    font-size: 32px;
     filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
-    animation: pulse 2s infinite;
+    animation: subtle-pulse 3s ease-in-out infinite;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Animations */
+@keyframes subtle-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.9; }
+    50% { transform: scale(1.02); opacity: 1; }
 }
 
 @keyframes pulse {
@@ -59,27 +119,69 @@
     text-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
+/* Version Badge */
 .amfm-version-badge {
     background: rgba(255, 255, 255, 0.2);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.3);
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 12px;
+    padding: 8px 16px;
+    border-radius: 24px;
+    font-size: 13px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-left: auto;
+    color: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
 }
 
+.amfm-version-badge:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* Header Stats */
+.amfm-header-stats {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.amfm-header-stat {
+    text-align: center;
+    padding: 12px 0;
+}
+
+.amfm-header-stat-number {
+    display: block;
+    font-size: 24px;
+    font-weight: 700;
+    color: white;
+    line-height: 1;
+    margin-bottom: 4px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.amfm-header-stat-label {
+    display: block;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Subtitle Styling */
 .amfm-subtitle {
     margin: 0;
-    font-size: 16px;
-    opacity: 0.9;
+    font-size: 18px;
+    opacity: 0.85;
     font-weight: 400;
-    position: relative;
-    z-index: 1;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.85);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    max-width: 500px;
 }
 
 .amfm-container {
@@ -689,16 +791,59 @@
     color: white !important;
 }
 
-/* Responsive Design - Elementor Style */
+/* Responsive Design - Header */
 @media (max-width: 768px) {
     .amfm-admin-page {
         margin: 0 10px 0 0;
     }
     
-    .amfm-page-title {
-        padding: 20px 24px;
+    .amfm-header-content {
+        padding: 24px 20px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+    }
+    
+    .amfm-header-main {
+        gap: 16px;
+        width: 100%;
+    }
+    
+    .amfm-header-logo {
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+    }
+    
+    .amfm-header-logo .amfm-icon {
+        font-size: 28px;
+    }
+    
+    .amfm-header h1 {
+        font-size: 28px;
+    }
+    
+    .amfm-subtitle {
+        font-size: 16px;
+        max-width: none;
+    }
+    
+    .amfm-header-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .amfm-header-stats {
+        gap: 16px;
+    }
+    
+    .amfm-header-stat-number {
         font-size: 20px;
-        margin-bottom: 16px;
+    }
+    
+    .amfm-version-badge {
+        padding: 6px 12px;
+        font-size: 11px;
     }
     
     .amfm-container {

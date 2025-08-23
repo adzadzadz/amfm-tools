@@ -7,25 +7,75 @@ use AdzWP\Core\Controller;
 class ElementorController extends Controller
 {
     public $actions = [
-        'init' => 'initialize'
+        'elementor/loaded' => 'initializeElementor',
+        'elementor/elements/categories_registered' => 'registerWidgetCategory',
+        'elementor/widgets/register' => 'registerWidgets'
     ];
 
     public $filters = [];
 
     protected function bootstrap()
     {
-        // Additional initialization if needed
+        // Check if Elementor is active
+        if (!did_action('elementor/loaded')) {
+            return;
+        }
     }
 
-    public function initialize()
+    /**
+     * Initialize Elementor integration
+     */
+    public function initializeElementor()
     {
-        // WordPress initialization logic
-        if ($this->isAdmin()) {
-            // Admin-specific initialization
-        }
+        // Additional Elementor initialization if needed
+    }
+
+    /**
+     * Register AMFM widget category
+     */
+    public function registerWidgetCategory($elements_manager)
+    {
+        $elements_manager->add_category(
+            'amfm-widgets',
+            [
+                'title' => __('AMFM Widgets', 'amfm-tools'),
+                'icon' => 'fa fa-plug',
+            ]
+        );
+    }
+
+    /**
+     * Register Elementor widgets
+     */
+    public function registerWidgets($widgets_manager)
+    {
+        // Get enabled widgets from settings
+        $enabled_widgets = \get_option('amfm_elementor_enabled_widgets', ['amfm_related_posts']);
         
-        if ($this->isFrontend()) {
-            // Frontend-specific initialization
+        // Widget registry
+        $available_widgets = [
+            'amfm_related_posts' => [
+                'file' => 'Widgets/RelatedPostsWidget.php',
+                'class' => 'App\\Widgets\\RelatedPostsWidget'
+            ]
+        ];
+        
+        // Register only enabled widgets
+        foreach ($available_widgets as $widget_key => $widget_info) {
+            if (in_array($widget_key, $enabled_widgets)) {
+                // Load widget file if it exists
+                $widget_file = AMFM_TOOLS_PATH . 'src/' . $widget_info['file'];
+                
+                if (file_exists($widget_file)) {
+                    require_once $widget_file;
+                    
+                    // Register widget
+                    $class_name = $widget_info['class'];
+                    if (class_exists($class_name)) {
+                        $widgets_manager->register(new $class_name());
+                    }
+                }
+            }
         }
     }
 }

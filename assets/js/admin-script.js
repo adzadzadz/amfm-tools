@@ -111,9 +111,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const formData = new FormData();
         formData.append('action', 'amfm_get_post_type_taxonomies');
         formData.append('post_type', postType);
-        formData.append('nonce', amfmAdmin.exportNonce);
+        formData.append('nonce', amfm_ajax.export_nonce);
         
-        fetch(amfmAdmin.ajaxUrl, {
+        fetch(amfm_ajax.ajax_url, {
             method: 'POST',
             body: formData
         })
@@ -156,10 +156,10 @@ document.addEventListener('DOMContentLoaded', function() {
             // Collect form data
             const formData = new FormData(this);
             formData.append('action', 'amfm_export_data');
-            formData.append('nonce', amfmAdmin.exportNonce);
+            formData.append('nonce', amfm_ajax.export_nonce);
             
             // Make AJAX request
-            fetch(amfmAdmin.ajaxUrl, {
+            fetch(amfm_ajax.ajax_url, {
                 method: 'POST',
                 body: formData
             })
@@ -355,11 +355,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const formData = new FormData(form);
         formData.append('action', 'amfm_component_settings_update');
+        formData.append('nonce', amfm_ajax.component_nonce);
         
         // Show subtle saving indicator
         showSavingIndicator('components');
         
-        fetch(amfmAdmin.ajaxUrl, {
+        fetch(amfm_ajax.ajax_url, {
             method: 'POST',
             body: formData
         })
@@ -382,11 +383,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const formData = new FormData(form);
         formData.append('action', 'amfm_elementor_widgets_update');
+        formData.append('nonce', amfm_ajax.elementor_nonce);
         
         // Show subtle saving indicator
         showSavingIndicator('widgets');
         
-        fetch(amfmAdmin.ajaxUrl, {
+        fetch(amfm_ajax.ajax_url, {
             method: 'POST',
             body: formData
         })

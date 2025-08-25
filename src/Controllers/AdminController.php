@@ -53,6 +53,7 @@ class AdminController extends Controller
         // Handle settings updates
         if ($settingsService) {
             $settingsService->handleExcludedKeywordsUpdate();
+            $settingsService->handleDkvConfigUpdate();
             $settingsService->handleElementorWidgetsUpdate();
             $settingsService->handleComponentSettingsUpdate();
         }
@@ -63,53 +64,76 @@ class AdminController extends Controller
      */
     public function actionAdminMenu()
     {
-        // Check if main AMFM menu exists, if not create it
-        if (!$this->mainMenuExists()) {
-            \add_menu_page(
-                \__('AMFM', 'amfm-tools'),
-                \__('AMFM', 'amfm-tools'),
-                'manage_options',
-                'amfm',
-                [$this, 'renderAdminPage'],
-                'dashicons-admin-tools',
-                2
-            );
-        }
+        // Add main AMFM Tools menu
+        \add_menu_page(
+            \__('AMFM Tools', 'amfm-tools'),
+            \__('AMFM Tools', 'amfm-tools'),
+            'manage_options',
+            'amfm-tools',
+            [$this, 'renderAdminPage'],
+            'dashicons-admin-tools',
+            2
+        );
         
-        // Add Tools submenu
+        // Add Dashboard submenu
         \add_submenu_page(
-            'amfm',
-            \__('Tools', 'amfm-tools'),
-            \__('Tools', 'amfm-tools'),
+            'amfm-tools',
+            \__('Dashboard', 'amfm-tools'),
+            \__('Dashboard', 'amfm-tools'),
             'manage_options',
             'amfm-tools',
             [$this, 'renderAdminPage']
         );
+        
+        // Add Shortcodes submenu
+        \add_submenu_page(
+            'amfm-tools',
+            \__('Shortcodes', 'amfm-tools'),
+            \__('Shortcodes', 'amfm-tools'),
+            'manage_options',
+            'amfm-tools-shortcodes',
+            [$this, 'renderAdminPage']
+        );
+        
+        // Add Utilities submenu
+        \add_submenu_page(
+            'amfm-tools',
+            \__('Utilities', 'amfm-tools'),
+            \__('Utilities', 'amfm-tools'),
+            'manage_options',
+            'amfm-tools-utilities',
+            [$this, 'renderAdminPage']
+        );
+        
+        // Add Import/Export submenu
+        \add_submenu_page(
+            'amfm-tools',
+            \__('Import/Export', 'amfm-tools'),
+            \__('Import/Export', 'amfm-tools'),
+            'manage_options',
+            'amfm-tools-import-export',
+            [$this, 'renderAdminPage']
+        );
+        
+        // Add Elementor submenu
+        \add_submenu_page(
+            'amfm-tools',
+            \__('Elementor', 'amfm-tools'),
+            \__('Elementor', 'amfm-tools'),
+            'manage_options',
+            'amfm-tools-elementor',
+            [$this, 'renderAdminPage']
+        );
     }
 
-    /**
-     * Check if main menu exists
-     */
-    private function mainMenuExists(): bool
-    {
-        global $menu;
-        if (!is_array($menu)) {
-            return false;
-        }
-        
-        foreach ($menu as $menu_item) {
-            if (isset($menu_item[2]) && $menu_item[2] === 'amfm') {
-                return true;
-            }
-        }
-        return false;
-    }
 
     /**
      * Render admin page
      */
     public function renderAdminPage()
     {
+        // Determine current page based on $_GET['page']
+        $current_page = isset($_GET['page']) ? $_GET['page'] : 'amfm-tools';
         $active_tab = isset($_GET['tab']) ? $this->sanitizeText($_GET['tab']) : 'dashboard';
         
         // Check for import results
@@ -141,22 +165,42 @@ class AdminController extends Controller
             'category_results' => $category_results
         ];
 
-        // Render the appropriate tab
-        switch ($active_tab) {
-            case 'dashboard':
+        // Render based on current page
+        switch ($current_page) {
+            case 'amfm-tools':
+                // Dashboard page (default)
                 echo View::render('admin/dashboard', $this->getDashboardData($view_data));
                 break;
-            case 'import-export':
-                echo View::render('admin/import-export', $this->getImportExportData($view_data));
-                break;
-            case 'shortcodes':
+            case 'amfm-tools-shortcodes':
                 echo View::render('admin/shortcodes', $this->getShortcodesData($view_data));
                 break;
-            case 'elementor':
+            case 'amfm-tools-utilities':
+                echo View::render('admin/utilities', $this->getUtilitiesData($view_data));
+                break;
+            case 'amfm-tools-import-export':
+                echo View::render('admin/import-export', $this->getImportExportData($view_data));
+                break;
+            case 'amfm-tools-elementor':
                 echo View::render('admin/elementor', $this->getElementorData($view_data));
                 break;
             default:
-                echo View::render('admin/main', $view_data);
+                // Handle legacy tab-based routing for backwards compatibility
+                switch ($active_tab) {
+                    case 'dashboard':
+                        echo View::render('admin/dashboard', $this->getDashboardData($view_data));
+                        break;
+                    case 'import-export':
+                        echo View::render('admin/import-export', $this->getImportExportData($view_data));
+                        break;
+                    case 'shortcodes':
+                        echo View::render('admin/shortcodes', $this->getShortcodesData($view_data));
+                        break;
+                    case 'elementor':
+                        echo View::render('admin/elementor', $this->getElementorData($view_data));
+                        break;
+                    default:
+                        echo View::render('admin/main', $view_data);
+                }
         }
     }
 
@@ -260,9 +304,32 @@ class AdminController extends Controller
      */
     private function getShortcodesData(array $base_data): array
     {
-        // Get current excluded keywords from service
+        $available_shortcodes = [
+            'dkv_shortcode' => [
+                'name' => 'DKV Shortcode',
+                'description' => 'Dynamic keyword-based content display with advanced filtering options.',
+                'icon' => '📄',
+                'status' => 'Available'
+            ],
+            'limit_words' => [
+                'name' => 'Limit Words',
+                'description' => 'Text processing shortcode for content formatting and word limiting.',
+                'icon' => '📝',
+                'status' => 'Available'
+            ],
+            'text_utilities' => [
+                'name' => 'Text Utilities',
+                'description' => 'Collection of text processing and formatting shortcodes.',
+                'icon' => '🔧',
+                'status' => 'Available'
+            ]
+        ];
+        
+        // Get current excluded keywords and enabled shortcodes from service
         $settingsService = new \App\Services\SettingsService();
         $excluded_keywords = $settingsService->getExcludedKeywords();
+        $enabled_shortcodes = $settingsService->getEnabledComponents(); // We'll use the same system
+        
         if (empty($excluded_keywords)) {
             // Initialize with defaults if not set
             $excluded_keywords = [
@@ -281,8 +348,57 @@ class AdminController extends Controller
         $keywords_text = is_array($excluded_keywords) ? implode("\n", $excluded_keywords) : '';
         
         return array_merge($base_data, [
+            'available_shortcodes' => $available_shortcodes,
+            'enabled_shortcodes' => $enabled_shortcodes,
             'excluded_keywords' => $excluded_keywords,
             'keywords_text' => $keywords_text
+        ]);
+    }
+
+    /**
+     * Get utilities tab data
+     */
+    private function getUtilitiesData(array $base_data): array
+    {
+        $available_utilities = [
+            'acf_helper' => [
+                'name' => 'ACF Helper',
+                'description' => 'Manages ACF keyword cookies and enhances ACF functionality for dynamic content delivery.',
+                'icon' => '🔧',
+                'status' => 'Core Feature'
+            ],
+            'optimization' => [
+                'name' => 'Performance Optimization',
+                'description' => 'Gravity Forms optimization and performance enhancements for faster page loading.',
+                'icon' => '⚡',
+                'status' => 'Available'
+            ],
+            'import_export' => [
+                'name' => 'Import/Export Tools',
+                'description' => 'Comprehensive data management for importing keywords, categories, and exporting posts with ACF fields.',
+                'icon' => '📊',
+                'status' => 'Core Feature'
+            ],
+            'csv_import' => [
+                'name' => 'CSV Import',
+                'description' => 'Advanced CSV import functionality for keywords and categories.',
+                'icon' => '📥',
+                'status' => 'Available'
+            ],
+            'data_export' => [
+                'name' => 'Data Export',
+                'description' => 'Export posts and data with custom field support.',
+                'icon' => '📤',
+                'status' => 'Available'
+            ]
+        ];
+        
+        $settingsService = new \App\Services\SettingsService();
+        $enabled_utilities = $settingsService->getEnabledComponents();
+        
+        return array_merge($base_data, [
+            'available_utilities' => $available_utilities,
+            'enabled_utilities' => $enabled_utilities
         ]);
     }
 
@@ -334,7 +450,8 @@ class AdminController extends Controller
                 'ajax_url' => \admin_url('admin-ajax.php'),
                 'export_nonce' => $this->createNonce('amfm_export_nonce'),
                 'component_nonce' => $this->createNonce('amfm_component_settings_nonce'),
-                'elementor_nonce' => $this->createNonce('amfm_elementor_widgets_nonce')
+                'elementor_nonce' => $this->createNonce('amfm_elementor_widgets_nonce'),
+                'dkv_config_nonce' => $this->createNonce('amfm_dkv_config_update')
             ]);
         }
     }
@@ -379,6 +496,15 @@ class AdminController extends Controller
     {
         $settingsService = new \App\Services\SettingsService();
         $settingsService->ajaxComponentSettingsUpdate();
+    }
+
+    /**
+     * AJAX: Update DKV configuration - framework auto-hook
+     */
+    public function actionWpAjaxAmfmDkvConfigUpdate()
+    {
+        $settingsService = new \App\Services\SettingsService();
+        $settingsService->ajaxDkvConfigUpdate();
     }
 
     /**

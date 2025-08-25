@@ -124,6 +124,43 @@ class SettingsService extends Service
     }
 
     /**
+     * Handle DKV configuration form submission
+     */
+    public function handleDkvConfigUpdate(): void
+    {
+        if (!$this->verifyNonce('amfm_dkv_config_nonce', 'amfm_dkv_config_update') || 
+            !current_user_can('manage_options')) {
+            return;
+        }
+
+        $excludedKeywords = $_POST['dkv_excluded_keywords'] ?? '';
+        $defaultFallback = sanitize_text_field($_POST['dkv_default_fallback'] ?? '');
+        $cacheDuration = absint($_POST['dkv_cache_duration'] ?? 24);
+        
+        $success = true;
+        
+        // Update excluded keywords
+        if (!$this->updateExcludedKeywords($excludedKeywords)) {
+            $success = false;
+        }
+        
+        // Update other DKV settings
+        if (!update_option('amfm_dkv_default_fallback', $defaultFallback)) {
+            $success = false;
+        }
+        
+        if (!update_option('amfm_dkv_cache_duration', $cacheDuration)) {
+            $success = false;
+        }
+        
+        if ($success) {
+            $this->addSuccessNotice('DKV configuration updated successfully!');
+        } else {
+            $this->addErrorNotice('Failed to update DKV configuration.');
+        }
+    }
+
+    /**
      * Handle Elementor widgets form submission
      */
     public function handleElementorWidgetsUpdate(): void
@@ -140,6 +177,75 @@ class SettingsService extends Service
             $this->addSuccessNotice('Elementor widget settings updated successfully!');
         } else {
             $this->addErrorNotice('Failed to update Elementor widget settings.');
+        }
+    }
+
+    /**
+     * Get DKV default fallback
+     */
+    public function getDkvDefaultFallback(): string
+    {
+        return get_option('amfm_dkv_default_fallback', '');
+    }
+
+    /**
+     * Get DKV cache duration
+     */
+    public function getDkvCacheDuration(): int
+    {
+        return get_option('amfm_dkv_cache_duration', 24);
+    }
+
+    /**
+     * AJAX handler for DKV configuration update
+     */
+    public function ajaxDkvConfigUpdate(): void
+    {
+        // Verify nonce and capabilities
+        if (!$this->verifyNonce('amfm_dkv_config_nonce', 'amfm_dkv_config_update') || 
+            !current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'Security check failed.'], 403);
+            return;
+        }
+
+        $excludedKeywords = $_POST['dkv_excluded_keywords'] ?? '';
+        $defaultFallback = sanitize_text_field($_POST['dkv_default_fallback'] ?? '');
+        $cacheDuration = absint($_POST['dkv_cache_duration'] ?? 24);
+        
+        $success = true;
+        $errors = [];
+        
+        // Update excluded keywords
+        if (!$this->updateExcludedKeywords($excludedKeywords)) {
+            $success = false;
+            $errors[] = 'Failed to update excluded keywords';
+        }
+        
+        // Update other DKV settings
+        if (!update_option('amfm_dkv_default_fallback', $defaultFallback)) {
+            $success = false;
+            $errors[] = 'Failed to update default fallback text';
+        }
+        
+        if (!update_option('amfm_dkv_cache_duration', $cacheDuration)) {
+            $success = false;
+            $errors[] = 'Failed to update cache duration';
+        }
+        
+        if ($success) {
+            wp_send_json_success([
+                'message' => 'DKV configuration updated successfully!',
+                'data' => [
+                    'excluded_keywords' => $excludedKeywords,
+                    'default_fallback' => $defaultFallback,
+                    'cache_duration' => $cacheDuration
+                ]
+            ]);
+        } else {
+            wp_send_json_error([
+                'message' => 'Failed to update DKV configuration.',
+                'errors' => $errors
+            ], 500);
         }
     }
 

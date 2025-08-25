@@ -58,7 +58,15 @@ class SettingsService extends Service
      */
     public function getEnabledComponents(): array
     {
-        $components = get_option('amfm_enabled_components', self::CORE_COMPONENTS);
+        // Default to all available components being enabled on first install
+        $default_enabled = ['acf_helper', 'import_export', 'text_utilities', 'optimization', 'shortcodes', 'elementor_widgets'];
+        $components = get_option('amfm_enabled_components');
+        
+        // If option doesn't exist, initialize it with all components enabled
+        if ($components === false) {
+            update_option('amfm_enabled_components', $default_enabled);
+            $components = $default_enabled;
+        }
         
         // Ensure core components are always included
         return array_unique(array_merge($components, self::CORE_COMPONENTS));
@@ -136,6 +144,26 @@ class SettingsService extends Service
     }
 
     /**
+     * AJAX handler for Elementor widgets form update
+     */
+    public function ajaxElementorWidgetsUpdate(): void
+    {
+        if (!check_ajax_referer('amfm_elementor_widgets_update', 'amfm_elementor_widgets_nonce', false) || 
+            !current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $enabledWidgets = $_POST['enabled_widgets'] ?? [];
+        $enabledWidgets = is_array($enabledWidgets) ? $enabledWidgets : [];
+        
+        if ($this->updateElementorWidgets($enabledWidgets)) {
+            wp_send_json_success('Elementor widget settings updated successfully');
+        } else {
+            wp_send_json_error('Failed to update Elementor widget settings');
+        }
+    }
+
+    /**
      * Handle component settings form submission
      */
     public function handleComponentSettingsUpdate(): void
@@ -152,6 +180,26 @@ class SettingsService extends Service
             $this->addSuccessNotice('Component settings updated successfully!');
         } else {
             $this->addErrorNotice('Failed to update component settings.');
+        }
+    }
+
+    /**
+     * AJAX handler for component settings form update
+     */
+    public function ajaxComponentSettingsUpdate(): void
+    {
+        if (!check_ajax_referer('amfm_component_settings_update', 'amfm_component_settings_nonce', false) || 
+            !current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $enabledComponents = $_POST['enabled_components'] ?? [];
+        $enabledComponents = is_array($enabledComponents) ? $enabledComponents : [];
+        
+        if ($this->updateComponentSettings($enabledComponents)) {
+            wp_send_json_success('Component settings updated successfully');
+        } else {
+            wp_send_json_error('Failed to update component settings');
         }
     }
 

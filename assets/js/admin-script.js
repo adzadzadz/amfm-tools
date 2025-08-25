@@ -417,7 +417,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const formData = new FormData(form);
         formData.append('action', 'amfm_component_settings_update');
-        formData.append('nonce', amfm_ajax.component_nonce);
         
         // Show subtle saving indicator
         showSavingIndicator('components');
@@ -426,10 +425,14 @@ document.addEventListener('DOMContentLoaded', function() {
             method: 'POST',
             body: formData
         })
-        .then(response => response.text())
+        .then(response => response.json())
         .then(data => {
             hideSavingIndicator('components');
-            // Silently saved - no need for intrusive notifications
+            if (data.success) {
+                // Silently saved - no need for intrusive notifications
+            } else {
+                showNotice('Failed to save component settings: ' + (data.data || 'Unknown error'), 'error');
+            }
         })
         .catch(error => {
             console.error('Error saving component settings:', error);
@@ -445,7 +448,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const formData = new FormData(form);
         formData.append('action', 'amfm_elementor_widgets_update');
-        formData.append('nonce', amfm_ajax.elementor_nonce);
         
         // Show subtle saving indicator
         showSavingIndicator('widgets');
@@ -454,10 +456,14 @@ document.addEventListener('DOMContentLoaded', function() {
             method: 'POST',
             body: formData
         })
-        .then(response => response.text())
+        .then(response => response.json())
         .then(data => {
             hideSavingIndicator('widgets');
-            // Silently saved - no need for intrusive notifications
+            if (data.success) {
+                // Silently saved - no need for intrusive notifications
+            } else {
+                showNotice('Failed to save widget settings: ' + (data.data || 'Unknown error'), 'error');
+            }
         })
         .catch(error => {
             console.error('Error saving widget settings:', error);

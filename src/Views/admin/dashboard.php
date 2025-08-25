@@ -80,8 +80,11 @@ $plugin_version = $plugin_version ?? '2.1.0';
                     
                     <div class="amfm-components-grid">
                         <?php foreach ($available_components as $component_key => $component_info) : ?>
-                            <?php $is_core = $component_info['status'] === 'Core Feature'; ?>
-                            <div class="amfm-component-card <?php echo in_array($component_key, $enabled_components) ? 'amfm-component-enabled' : 'amfm-component-disabled'; ?> <?php echo $is_core ? 'amfm-component-core' : ''; ?>">
+                            <?php 
+                            $is_core = $component_info['status'] === 'Core Feature';
+                            $is_enabled = in_array($component_key, $enabled_components);
+                            ?>
+                            <div class="amfm-component-card <?php echo $is_enabled ? 'amfm-component-enabled' : 'amfm-component-disabled'; ?> <?php echo $is_core ? 'amfm-component-core' : ''; ?>">
                                 <div class="amfm-component-header">
                                     <div class="amfm-component-icon"><?php echo esc_html($component_info['icon']); ?></div>
                                     <div class="amfm-component-toggle">
@@ -110,7 +113,7 @@ $plugin_version = $plugin_version ?? '2.1.0';
                                             <?php if ($is_core) : ?>
                                                 Always Active
                                             <?php else : ?>
-                                                <?php echo in_array($component_key, $enabled_components) ? 'Enabled' : 'Disabled'; ?>
+                                                <?php echo $is_enabled ? 'Enabled' : 'Disabled'; ?>
                                             <?php endif; ?>
                                         </span>
                                     </div>

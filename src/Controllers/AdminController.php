@@ -204,8 +204,9 @@ class AdminController extends Controller
             ]
         ];
         
-        $settingsService = $this->service('settings');
-        $enabled_components = $settingsService ? $settingsService->getEnabledComponents() : [];
+        // Direct instantiation to bypass service resolution issues
+        $settingsService = new \App\Services\SettingsService();
+        $enabled_components = $settingsService->getEnabledComponents();
         
         return array_merge($base_data, [
             'available_components' => $available_components,
@@ -260,8 +261,8 @@ class AdminController extends Controller
     private function getShortcodesData(array $base_data): array
     {
         // Get current excluded keywords from service
-        $settingsService = $this->service('settings');
-        $excluded_keywords = $settingsService ? $settingsService->getExcludedKeywords() : [];
+        $settingsService = new \App\Services\SettingsService();
+        $excluded_keywords = $settingsService->getExcludedKeywords();
         if (empty($excluded_keywords)) {
             // Initialize with defaults if not set
             $excluded_keywords = [
@@ -298,8 +299,8 @@ class AdminController extends Controller
             ]
         ];
         
-        $settingsService = $this->service('settings');
-        $enabled_widgets = $settingsService ? $settingsService->getEnabledElementorWidgets() : [];
+        $settingsService = new \App\Services\SettingsService();
+        $enabled_widgets = $settingsService->getEnabledElementorWidgets();
         
         return array_merge($base_data, [
             'available_widgets' => $available_widgets,
@@ -376,10 +377,8 @@ class AdminController extends Controller
      */
     public function actionWpAjaxAmfmComponentSettingsUpdate()
     {
-        $settingsService = $this->service('settings');
-        if ($settingsService) {
-            $settingsService->ajaxToggleComponent();
-        }
+        $settingsService = new \App\Services\SettingsService();
+        $settingsService->ajaxComponentSettingsUpdate();
     }
 
     /**
@@ -387,9 +386,7 @@ class AdminController extends Controller
      */
     public function actionWpAjaxAmfmElementorWidgetsUpdate()
     {
-        $settingsService = $this->service('settings');
-        if ($settingsService) {
-            $settingsService->ajaxToggleElementorWidget();
-        }
+        $settingsService = new \App\Services\SettingsService();
+        $settingsService->ajaxElementorWidgetsUpdate();
     }
 }

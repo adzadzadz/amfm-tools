@@ -109,10 +109,6 @@ add_action('plugins_loaded', function() {
         new \App\Controllers\ACFController();
     }
 
-    // Text Utilities - Optional
-    if (in_array('text_utilities', $enabled_components)) {
-        new \App\Controllers\TextController();
-    }
 
     // Performance Optimization - Optional
     if (in_array('optimization', $enabled_components)) {

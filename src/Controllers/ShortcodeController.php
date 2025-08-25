@@ -3,274 +3,166 @@
 namespace App\Controllers;
 
 use AdzWP\Core\Controller;
+use App\Services\SettingsService;
 
 class ShortcodeController extends Controller
 {
     public $actions = [
-        'init' => 'registerShortcodes'
+        'init' => 'initializeShortcodes'
     ];
 
     public $filters = [];
 
+    private $settingsService;
+    private $registeredShortcodes = [];
+
     protected function bootstrap()
     {
-        // Additional initialization if needed
+        $this->settingsService = new SettingsService();
+        
+        // Listen for component changes to re-register shortcodes
+        \add_action('update_option_amfm_enabled_components', [$this, 'onComponentsChanged'], 10, 2);
+        
+        // Clean up on plugin deactivation
+        \register_deactivation_hook(AMFM_TOOLS_PATH . 'amfm-tools.php', [$this, 'onPluginDeactivation']);
     }
 
     /**
-     * Register all shortcodes
+     * Initialize shortcode controllers based on enabled components
+     */
+    public function initializeShortcodes()
+    {
+        $this->registerShortcodes();
+    }
+
+    /**
+     * Register shortcodes based on enabled components
      */
     public function registerShortcodes()
     {
-        // Register DKV shortcode
-        \add_shortcode('dkv', [$this, 'renderDkvShortcode']);
+        // Unregister all existing shortcodes first
+        $this->unregisterAllShortcodes();
+
+        // Get enabled components
+        $enabledComponents = $this->settingsService->getEnabledComponents();
+
+        // Register shortcodes based on enabled components
+        if (in_array('shortcodes', $enabledComponents)) {
+            $this->registerShortcode('dkv', \App\Shortcodes\DkvShortcode::class);
+        }
+
+        if (in_array('text_utilities', $enabledComponents)) {
+            $this->registerShortcode('limit_words', \App\Shortcodes\LimitWordsShortcode::class);
+            $this->registerShortcode('text_util', \App\Shortcodes\TextUtilShortcode::class);
+        }
     }
 
     /**
-     * Render DKV shortcode
+     * Register a single shortcode
      */
-    public function renderDkvShortcode($atts = [], $content = null)
+    private function registerShortcode(string $tag, string $handlerClass)
     {
-        // Default attributes
-        $defaults = [
-            'pre' => '',
-            'post' => '',
-            'fallback' => '',
-            'other_keywords' => 'false',
-            'include' => '',
-            'exclude' => '',
-            'text' => ''
-        ];
-        
-        // Parse attributes
-        $atts = \shortcode_atts($defaults, $atts, 'dkv');
-        
-        // Sanitize attributes (preserve spaces in pre/post)
-        $sanitized_atts = [
-            'pre' => \wp_kses_post($atts['pre']), // Preserve spaces
-            'post' => \wp_kses_post($atts['post']), // Preserve spaces
-            'fallback' => \sanitize_text_field($atts['fallback']),
-            'other_keywords' => \sanitize_text_field($atts['other_keywords']),
-            'include' => \sanitize_text_field($atts['include']),
-            'exclude' => \sanitize_text_field($atts['exclude']),
-            'text' => \sanitize_text_field($atts['text'])
-        ];
-        
-        // Determine which keywords to use
-        $use_other_keywords = filter_var($sanitized_atts['other_keywords'], FILTER_VALIDATE_BOOLEAN);
-        
-        // Get a random keyword
-        $keyword = $this->getRandomKeyword($use_other_keywords, $sanitized_atts['include'], $sanitized_atts['exclude']);
-        
-        // Return fallback if no keyword found
-        if (empty($keyword)) {
-            return $sanitized_atts['fallback'];
+        if (class_exists($handlerClass)) {
+            $handler = new $handlerClass();
+            \add_shortcode($tag, [$handler, 'render']);
+            $this->registeredShortcodes[$tag] = $handler;
         }
-        
-        // Strip category prefix from keyword for display
-        $display_keyword = $this->stripCategoryPrefix($keyword);
-        
-        // Apply text transformation
-        $display_keyword = $this->applyTextTransform($display_keyword, $sanitized_atts['text']);
-        
-        // Return formatted keyword
-        return $sanitized_atts['pre'] . $display_keyword . $sanitized_atts['post'];
     }
-    
+
     /**
-     * Get a random keyword based on filters
+     * Unregister all managed shortcodes
      */
-    private function getRandomKeyword($use_other_keywords = false, $include = '', $exclude = '')
+    private function unregisterAllShortcodes()
     {
-        // Get keywords using hybrid approach (fresh ACF data first, then cookies fallback)
-        $keywords = $this->getKeywordsFromSource($use_other_keywords);
-        
-        // Clean up keywords (remove empty values and trim whitespace)
-        $keywords = array_filter(array_map('trim', $keywords));
-        
-        // Apply global keyword filters
-        $keywords = $this->filterExcludedKeywords($keywords);
-        
-        // Apply category include/exclude filters
-        $keywords = $this->filterByCategory($keywords, $include, $exclude);
-        
-        if (empty($keywords)) {
-            return '';
+        foreach (array_keys($this->registeredShortcodes) as $tag) {
+            \remove_shortcode($tag);
         }
-        
-        // Return a random keyword
-        return $keywords[array_rand($keywords)];
+        $this->registeredShortcodes = [];
     }
-    
+
     /**
-     * Get keywords from ACF or cookies
+     * Handle component settings changes
      */
-    private function getKeywordsFromSource($use_other_keywords = false)
+    public function onComponentsChanged($oldValue, $newValue)
     {
-        // Try to get fresh data from ACF first (current page)
-        $post_id = \get_queried_object_id();
-        if (!$post_id) {
-            global $post;
-            $post_id = $post ? $post->ID : 0;
-        }
-        
-        if ($post_id && function_exists('get_field')) {
-            $field_name = $use_other_keywords ? 'amfm_other_keywords' : 'amfm_keywords';
-            $acf_keywords = \get_field($field_name, $post_id);
-            
-            if (!empty($acf_keywords)) {
-                return explode(',', $acf_keywords);
-            }
-        }
-        
-        // Fall back to cookies if no ACF data (for non-ACF pages)
-        $cookie_name = $use_other_keywords ? 'amfm_other_keywords' : 'amfm_keywords';
-        if (isset($_COOKIE[$cookie_name])) {
-            $cookie_keywords = json_decode(stripslashes($_COOKIE[$cookie_name]), true);
-            if (is_array($cookie_keywords)) {
-                return $cookie_keywords;
-            }
-        }
-        
-        return [];
+        // Re-register shortcodes when components change
+        $this->registerShortcodes();
     }
-    
+
     /**
-     * Filter out excluded keywords
+     * Get list of all available shortcodes and their requirements
      */
-    private function filterExcludedKeywords($keywords)
-    {
-        // Get excluded keywords from option (includes defaults + custom)
-        $excluded_keywords = $this->getExcludedKeywords();
-        
-        // Convert to lowercase for case-insensitive matching
-        $excluded_keywords = array_map('strtolower', $excluded_keywords);
-        
-        // Filter out excluded keywords
-        $filtered_keywords = [];
-        foreach ($keywords as $keyword) {
-            $keyword_lower = strtolower(trim($keyword));
-            if (!in_array($keyword_lower, $excluded_keywords)) {
-                $filtered_keywords[] = $keyword;
-            }
-        }
-        
-        return $filtered_keywords;
-    }
-    
-    /**
-     * Get excluded keywords from option
-     */
-    private function getExcludedKeywords()
-    {
-        // Get excluded keywords from option
-        $excluded_keywords = \get_option('amfm_excluded_keywords', null);
-        
-        // If option doesn't exist, initialize with defaults
-        if ($excluded_keywords === null) {
-            $excluded_keywords = $this->getDefaultExcludedKeywords();
-            \update_option('amfm_excluded_keywords', $excluded_keywords);
-        }
-        
-        if (!is_array($excluded_keywords)) {
-            $excluded_keywords = [];
-        }
-        
-        return $excluded_keywords;
-    }
-    
-    /**
-     * Get default excluded keywords
-     */
-    private function getDefaultExcludedKeywords()
+    public function getAvailableShortcodes(): array
     {
         return [
-            'co-occurring',
-            'life adjustment transition',
-            'comorbidity',
-            'comorbid',
-            'co-morbidity',
-            'co-morbid'
+            'dkv' => [
+                'name' => 'Dynamic Keyword Value',
+                'description' => 'Display random keywords with filtering options',
+                'component' => 'shortcodes',
+                'handler' => \App\Shortcodes\DkvShortcode::class
+            ],
+            'limit_words' => [
+                'name' => 'Limit Words',
+                'description' => 'Limit text content to specified word count',
+                'component' => 'text_utilities',
+                'handler' => \App\Shortcodes\LimitWordsShortcode::class
+            ],
+            'text_util' => [
+                'name' => 'Text Utilities',
+                'description' => 'Various text transformation utilities',
+                'component' => 'text_utilities',
+                'handler' => \App\Shortcodes\TextUtilShortcode::class
+            ]
         ];
     }
-    
+
     /**
-     * Filter keywords by category
+     * Get currently registered shortcodes
      */
-    private function filterByCategory($keywords, $include = '', $exclude = '')
+    public function getRegisteredShortcodes(): array
     {
-        // Convert include/exclude to arrays
-        $include_categories = !empty($include) ? array_map('trim', explode(',', $include)) : [];
-        $exclude_categories = !empty($exclude) ? array_map('trim', explode(',', $exclude)) : [];
-        
-        $filtered_keywords = [];
-        
-        foreach ($keywords as $keyword) {
-            $keyword = trim($keyword);
-            
-            // Extract category from keyword (format: "category:keyword")
-            $category = $this->extractCategory($keyword);
-            
-            // Apply include filter
-            if (!empty($include_categories)) {
-                if (!in_array($category, $include_categories)) {
-                    continue; // Skip this keyword
-                }
-            }
-            
-            // Apply exclude filter
-            if (!empty($exclude_categories)) {
-                if (in_array($category, $exclude_categories)) {
-                    continue; // Skip this keyword
-                }
-            }
-            
-            $filtered_keywords[] = $keyword;
-        }
-        
-        return $filtered_keywords;
+        return array_keys($this->registeredShortcodes);
     }
-    
+
     /**
-     * Extract category from keyword
+     * Check if a specific shortcode is currently registered
      */
-    private function extractCategory($keyword)
+    public function isShortcodeRegistered(string $tag): bool
     {
-        // Extract category from "category:keyword" format
-        if (strpos($keyword, ':') !== false) {
-            $parts = explode(':', $keyword, 2);
-            return trim($parts[0]);
-        }
-        return ''; // No category
+        return isset($this->registeredShortcodes[$tag]);
     }
-    
+
     /**
-     * Strip category prefix from keyword
+     * Handle plugin deactivation - clean up all registered shortcodes
      */
-    private function stripCategoryPrefix($keyword)
+    public function onPluginDeactivation()
     {
-        // Remove "category:" prefix from keyword for display
-        if (strpos($keyword, ':') !== false) {
-            $parts = explode(':', $keyword, 2);
-            return trim($parts[1]);
-        }
-        return $keyword; // No prefix to strip
+        $this->unregisterAllShortcodes();
     }
-    
+
     /**
-     * Apply text transformation
+     * Get shortcode status for admin display
      */
-    private function applyTextTransform($text, $transform)
+    public function getShortcodeStatus(): array
     {
-        switch (strtolower($transform)) {
-            case 'lowercase':
-                return strtolower($text);
-            case 'uppercase':
-                return strtoupper($text);
-            case 'capitalize':
-                return ucwords(strtolower($text));
-            default:
-                return $text; // No transformation
+        $availableShortcodes = $this->getAvailableShortcodes();
+        $enabledComponents = $this->settingsService->getEnabledComponents();
+        $status = [];
+
+        foreach ($availableShortcodes as $tag => $info) {
+            $componentEnabled = in_array($info['component'], $enabledComponents);
+            $shortcodeRegistered = $this->isShortcodeRegistered($tag);
+            
+            $status[$tag] = [
+                'name' => $info['name'],
+                'description' => $info['description'],
+                'component' => $info['component'],
+                'component_enabled' => $componentEnabled,
+                'registered' => $shortcodeRegistered,
+                'active' => $componentEnabled && $shortcodeRegistered
+            ];
         }
+
+        return $status;
     }
 }

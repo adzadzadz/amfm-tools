@@ -202,7 +202,7 @@ class SettingsService extends Service
     public function ajaxDkvConfigUpdate(): void
     {
         // Verify nonce and capabilities
-        if (!$this->verifyNonce('amfm_dkv_config_nonce', 'amfm_dkv_config_update') || 
+        if (!check_ajax_referer('amfm_dkv_config_update', 'amfm_dkv_config_nonce', false) || 
             !current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Security check failed.'], 403);
             return;

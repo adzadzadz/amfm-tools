@@ -5,9 +5,14 @@ namespace App\Services;
 class DataExporter {
     
     /**
-     * Handle export functionality
+     * Handle export functionality (only for non-AJAX requests)
      */
     public function handleExport() {
+        // Skip if this is an AJAX request - AJAX is handled separately
+        if (wp_doing_ajax()) {
+            return;
+        }
+        
         // Check if export request was made
         if (!isset($_POST['amfm_export_nonce']) || 
             !wp_verify_nonce($_POST['amfm_export_nonce'], 'amfm_export_nonce')) {

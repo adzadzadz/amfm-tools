@@ -42,11 +42,53 @@ class AjaxHandler {
 
         wp_send_json_success($formatted_taxonomies);
     }
+    
+    /**
+     * AJAX handler to get ACF field groups
+     */
+    public function getACFFieldGroups() {
+        // Check nonce
+        if (!check_ajax_referer('amfm_export_nonce', 'nonce', false)) {
+            wp_send_json_error('Invalid nonce');
+            return;
+        }
+
+        // Check if ACF is available
+        if (!function_exists('acf_get_field_groups')) {
+            wp_send_json_error('ACF not available');
+            return;
+        }
+
+        // Get all ACF field groups
+        $field_groups = acf_get_field_groups();
+        
+        if (empty($field_groups)) {
+            wp_send_json_error('No ACF field groups found');
+            return;
+        }
+
+        // Format field groups for response
+        $formatted_groups = array();
+        foreach ($field_groups as $group) {
+            $formatted_groups[] = array(
+                'key' => $group['key'],
+                'title' => $group['title']
+            );
+        }
+
+        wp_send_json_success($formatted_groups);
+    }
 
     /**
      * AJAX handler for export functionality
      */
     public function exportData() {
+        // Ensure this is an AJAX request
+        if (!wp_doing_ajax()) {
+            wp_send_json_error('Not an AJAX request');
+            return;
+        }
+        
         // Verify nonce and user capabilities first
         if (!check_ajax_referer('amfm_export_nonce', 'nonce', false) || 
             !current_user_can('manage_options')) {

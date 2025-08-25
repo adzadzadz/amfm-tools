@@ -196,6 +196,21 @@ $all_field_groups = $all_field_groups ?? [];
                                                 <input type="checkbox" name="export_options[]" value="taxonomies" class="toggle-section" data-section="taxonomy-options" checked>
                                                 <?php esc_html_e('Include Taxonomies', 'amfm-tools'); ?>
                                             </label>
+                                            <div class="sub-options taxonomy-options" style="margin-left: 20px; margin-top: 10px; display: block;">
+                                                <div style="margin-bottom: 10px;">
+                                                    <label style="display: block; margin-bottom: 5px;">
+                                                        <input type="radio" name="taxonomy_selection" value="all" checked>
+                                                        <?php esc_html_e('Include all taxonomies', 'amfm-tools'); ?>
+                                                    </label>
+                                                    <label style="display: block;">
+                                                        <input type="radio" name="taxonomy_selection" value="selected">
+                                                        <?php esc_html_e('Select specific taxonomies', 'amfm-tools'); ?>
+                                                    </label>
+                                                </div>
+                                                <div class="taxonomy-list" style="display: none; margin-top: 10px; padding: 10px; background: #f9f9f9; border-radius: 4px;">
+                                                    <!-- Taxonomies will be loaded here dynamically -->
+                                                </div>
+                                            </div>
                                         </div>
 
                                         <!-- ACF Fields Options -->
@@ -204,6 +219,30 @@ $all_field_groups = $all_field_groups ?? [];
                                                 <input type="checkbox" name="export_options[]" value="acf_fields" class="toggle-section" data-section="acf-options" checked>
                                                 <?php esc_html_e('Include ACF Fields', 'amfm-tools'); ?>
                                             </label>
+                                            <div class="sub-options acf-options" style="margin-left: 20px; margin-top: 10px; display: block;">
+                                                <div style="margin-bottom: 10px;">
+                                                    <label style="display: block; margin-bottom: 5px;">
+                                                        <input type="radio" name="acf_selection" value="all" checked>
+                                                        <?php esc_html_e('Include all ACF fields', 'amfm-tools'); ?>
+                                                    </label>
+                                                    <label style="display: block;">
+                                                        <input type="radio" name="acf_selection" value="selected">
+                                                        <?php esc_html_e('Select specific field groups', 'amfm-tools'); ?>
+                                                    </label>
+                                                </div>
+                                                <div class="acf-list" style="display: none; margin-top: 10px; padding: 10px; background: #f9f9f9; border-radius: 4px;">
+                                                    <?php if (!empty($all_field_groups)) : ?>
+                                                        <?php foreach ($all_field_groups as $group) : ?>
+                                                        <label style="display: block; margin-bottom: 5px;">
+                                                            <input type="checkbox" name="specific_acf_groups[]" value="<?php echo esc_attr($group['key']); ?>">
+                                                            <?php echo esc_html($group['title']); ?>
+                                                        </label>
+                                                        <?php endforeach; ?>
+                                                    <?php else : ?>
+                                                        <p><?php esc_html_e('No ACF field groups found.', 'amfm-tools'); ?></p>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
                                         </div>
 
                                         <!-- Featured Image Option -->

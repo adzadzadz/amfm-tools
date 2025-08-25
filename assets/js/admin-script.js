@@ -77,11 +77,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 section.style.display = this.checked ? 'block' : 'none';
             }
         });
+        
+        // Initialize the visibility based on checkbox state
+        const sectionClass = checkbox.getAttribute('data-section');
+        const section = document.querySelector('.' + sectionClass);
+        if (section) {
+            section.style.display = checkbox.checked ? 'block' : 'none';
+        }
     });
 
     // Handle post type selection change to load taxonomies
     const postTypeSelect = document.getElementById('export_post_type');
     if (postTypeSelect) {
+        // Load taxonomies on page load if a post type is already selected
+        if (postTypeSelect.value) {
+            loadTaxonomies(postTypeSelect.value);
+            loadACFFields();
+        }
+        
         postTypeSelect.addEventListener('change', function() {
             const postType = this.value;
             const exportOptions = document.querySelector('.export-options');
@@ -92,8 +105,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     exportOptions.style.display = 'block';
                 }
                 
-                // Load taxonomies for this post type
+                // Load taxonomies and ACF fields for this post type
                 loadTaxonomies(postType);
+                loadACFFields();
             } else {
                 // Hide export options if no post type selected
                 if (exportOptions) {
@@ -137,6 +151,12 @@ document.addEventListener('DOMContentLoaded', function() {
             taxonomyList.innerHTML = '<p>Error loading taxonomies.</p>';
         });
     }
+    
+    // Function to load ACF fields (they are already loaded in the template but we may need to refresh)
+    function loadACFFields() {
+        // ACF fields are already loaded in the template, no need for AJAX
+        // This function is here for potential future enhancements
+    }
 
     // Handle export form submission via AJAX
     const exportForm = document.getElementById('amfm_export_form');
@@ -153,18 +173,60 @@ document.addEventListener('DOMContentLoaded', function() {
             exportText.textContent = 'Exporting...';
             spinner.style.display = 'inline-block';
             
+            // Validate form first
+            const postType = document.getElementById('export_post_type').value;
+            if (!postType) {
+                showNotice('Please select a post type to export.', 'error');
+                return;
+            }
+            
+            // Check if at least one export option is selected
+            const exportOptions = document.querySelectorAll('input[name="export_options[]"]');
+            let hasSelectedOption = false;
+            exportOptions.forEach(option => {
+                if (option.checked) {
+                    hasSelectedOption = true;
+                }
+            });
+            
+            if (!hasSelectedOption) {
+                showNotice('Please select at least one export option.', 'error');
+                return;
+            }
+            
             // Collect form data
             const formData = new FormData(this);
             formData.append('action', 'amfm_export_data');
             formData.append('nonce', amfm_ajax.export_nonce);
+            
+            console.log('Export form data:', Object.fromEntries(formData.entries()));
             
             // Make AJAX request
             fetch(amfm_ajax.ajax_url, {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log('Export response status:', response.status);
+                console.log('Export response headers:', response.headers);
+                if (!response.ok) {
+                    throw new Error('Network response was not ok: ' + response.statusText);
+                }
+                
+                // Check if the response is JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    // If not JSON, get the text to see what we actually received
+                    return response.text().then(text => {
+                        console.error('Expected JSON but got:', text);
+                        throw new Error('Server returned non-JSON response: ' + text.substring(0, 100));
+                    });
+                }
+                
+                return response.json();
+            })
             .then(data => {
+                console.log('Export response data:', data);
                 if (data.success) {
                     // Create and download CSV file
                     downloadCSV(data.data.data, data.data.filename);
@@ -172,7 +234,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Show success message
                     showNotice('Export completed successfully! ' + data.data.total + ' posts exported.', 'success');
                 } else {
-                    showNotice('Export failed: ' + data.data, 'error');
+                    showNotice('Export failed: ' + (data.data ? data.data : 'Unknown error'), 'error');
                 }
             })
             .catch(error => {

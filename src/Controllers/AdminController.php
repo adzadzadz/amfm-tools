@@ -22,6 +22,7 @@ class AdminController extends Controller
         'admin_init' => 'handleAdminInit',
         // AJAX actions
         'wp_ajax_amfm_get_post_type_taxonomies' => 'ajaxGetPostTypeTaxonomies',
+        'wp_ajax_amfm_get_acf_field_groups' => 'ajaxGetACFFieldGroups',
         'wp_ajax_amfm_export_data' => 'ajaxExportData',
         'wp_ajax_amfm_component_settings_update' => 'ajaxComponentSettingsUpdate',
         'wp_ajax_amfm_elementor_widgets_update' => 'ajaxElementorWidgetsUpdate',
@@ -337,6 +338,14 @@ class AdminController extends Controller
     public function ajaxGetPostTypeTaxonomies()
     {
         $this->ajaxHandler->getPostTypeTaxonomies();
+    }
+    
+    /**
+     * AJAX: Get ACF field groups
+     */
+    public function ajaxGetACFFieldGroups()
+    {
+        $this->ajaxHandler->getACFFieldGroups();
     }
 
     /**

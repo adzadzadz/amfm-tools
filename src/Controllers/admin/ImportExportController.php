@@ -138,6 +138,21 @@ class ImportExportController extends Controller
 
         // Add custom styles for import/export page
         wp_add_inline_style('amfm-admin-style', '
+            /* Import/Export page layout */
+            .amfm-admin-page.wrap {
+                padding: 0;
+            }
+            
+            .amfm-container {
+                padding: 20px 40px;
+                max-width: 1400px;
+                margin: 0 auto;
+            }
+            
+            .amfm-tab-content {
+                padding: 20px 0;
+            }
+            
             /* Import/Export specific styles */
             .amfm-import-export-grid {
                 display: grid;
@@ -234,6 +249,14 @@ class ImportExportController extends Controller
 
             /* Mobile responsiveness */
             @media (max-width: 768px) {
+                .amfm-container {
+                    padding: 15px 20px;
+                }
+                
+                .amfm-tab-content {
+                    padding: 15px 0;
+                }
+                
                 .amfm-import-export-grid {
                     grid-template-columns: 1fr;
                     gap: 20px;
@@ -252,6 +275,13 @@ class ImportExportController extends Controller
 
                 .amfm-card-title {
                     font-size: 1.25rem;
+                }
+            }
+            
+            /* Tablet responsiveness */
+            @media (max-width: 1024px) and (min-width: 769px) {
+                .amfm-container {
+                    padding: 20px 30px;
                 }
             }
 

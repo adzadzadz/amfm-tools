@@ -52,19 +52,11 @@ class ImportExportController extends Controller
             }
         }
 
-        // Handle keywords import
+        // Handle unified CSV import
         if (isset($_FILES['csv_file'])) {
             $importService = $this->getCsvImportService();
             if ($importService) {
-                $importService->handleKeywordsUpload();
-            }
-        }
-
-        // Handle categories import
-        if (isset($_FILES['category_csv_file'])) {
-            $importService = $this->getCsvImportService();
-            if ($importService) {
-                $importService->handleCategoriesUpload();
+                $importService->handleUnifiedCsvUpload();
             }
         }
     }
@@ -74,21 +66,12 @@ class ImportExportController extends Controller
      */
     private function displayImportResults(): void
     {
-        // Check for keywords import results
-        if (isset($_GET['imported']) && $_GET['imported'] === 'keywords') {
-            $results = get_transient('amfm_csv_import_results');
+        // Check for unified import results
+        if (isset($_GET['imported']) && $_GET['imported'] === 'data') {
+            $results = get_transient('amfm_unified_csv_import_results');
             if ($results) {
-                $this->showImportNotice($results, 'Keywords');
-                delete_transient('amfm_csv_import_results');
-            }
-        }
-
-        // Check for categories import results
-        if (isset($_GET['imported']) && $_GET['imported'] === 'categories') {
-            $results = get_transient('amfm_category_csv_import_results');
-            if ($results) {
-                $this->showImportNotice($results, 'Categories');
-                delete_transient('amfm_category_csv_import_results');
+                $this->showImportNotice($results, 'Data');
+                delete_transient('amfm_unified_csv_import_results');
             }
         }
     }
@@ -133,200 +116,316 @@ class ImportExportController extends Controller
             $version
         );
 
-        wp_enqueue_style(
-            'amfm-import-export-css',
-            $plugin_url . 'assets/css/import-export.css',
-            ['amfm-admin-style'],
-            $version
-        );
-
         ?>
-        <div class="wrap amfm-import-export-page">
-            <h1><?php echo esc_html__('Import/Export', 'amfm-tools'); ?></h1>
-            
-            <div class="amfm-cards-container">
-                <!-- Export Card -->
-                <div class="amfm-card">
-                    <h2><?php echo esc_html__('Export Data', 'amfm-tools'); ?></h2>
-                    <p><?php echo esc_html__('Export your posts, pages, and custom post types with their metadata to CSV format.', 'amfm-tools'); ?></p>
-                    
-                    <form method="post" action="" class="amfm-export-form">
-                        <?php wp_nonce_field('amfm_export_nonce', 'amfm_export_nonce'); ?>
-                        
-                        <div class="amfm-form-group">
-                            <label for="export_post_type"><?php echo esc_html__('Select Post Type:', 'amfm-tools'); ?></label>
-                            <select name="export_post_type" id="export_post_type" required>
-                                <option value=""><?php echo esc_html__('Select a post type', 'amfm-tools'); ?></option>
-                                <?php echo $this->getPostTypesOptions(); ?>
-                            </select>
+        <div class="wrap amfm-admin-page">
+            <div class="amfm-container">
+                <!-- Enhanced Header -->
+                <div class="amfm-header">
+                    <div class="amfm-header-content">
+                        <div class="amfm-header-main">
+                            <div class="amfm-header-logo">
+                                <span class="amfm-icon">📊</span>
+                            </div>
+                            <div class="amfm-header-text">
+                                <h1>Import/Export</h1>
+                                <p class="amfm-subtitle">Data Management Tools</p>
+                            </div>
                         </div>
-
-                        <div class="amfm-form-group">
-                            <label><?php echo esc_html__('Export Options:', 'amfm-tools'); ?></label>
-                            <label class="amfm-checkbox">
-                                <input type="checkbox" name="export_options[]" value="taxonomies" checked>
-                                <?php echo esc_html__('Include Taxonomies', 'amfm-tools'); ?>
-                            </label>
-                            <?php if (function_exists('acf_get_field_groups')): ?>
-                            <label class="amfm-checkbox">
-                                <input type="checkbox" name="export_options[]" value="acf_fields" checked>
-                                <?php echo esc_html__('Include ACF Fields', 'amfm-tools'); ?>
-                            </label>
-                            <?php endif; ?>
-                            <label class="amfm-checkbox">
-                                <input type="checkbox" name="export_options[]" value="featured_image">
-                                <?php echo esc_html__('Include Featured Image URL', 'amfm-tools'); ?>
-                            </label>
+                        <div class="amfm-header-actions">
+                            <div class="amfm-version-badge">
+                                v<?php echo esc_html(AMFM_TOOLS_VERSION); ?>
+                            </div>
                         </div>
+                    </div>
+                </div>
 
-                        <div class="amfm-form-group amfm-taxonomy-selection" style="display:none;">
-                            <label><?php echo esc_html__('Taxonomy Selection:', 'amfm-tools'); ?></label>
-                            <label class="amfm-radio">
-                                <input type="radio" name="taxonomy_selection" value="all" checked>
-                                <?php echo esc_html__('All Taxonomies', 'amfm-tools'); ?>
-                            </label>
-                            <label class="amfm-radio">
-                                <input type="radio" name="taxonomy_selection" value="selected">
-                                <?php echo esc_html__('Select Specific Taxonomies', 'amfm-tools'); ?>
-                            </label>
-                            <div class="amfm-specific-taxonomies" style="display:none;">
-                                <!-- Will be populated by JavaScript based on post type -->
+                <!-- Import/Export Content -->
+                <div class="amfm-tab-content">
+                    <div class="amfm-components-grid">
+                        <!-- Export Data Card -->
+                        <div class="amfm-component-card amfm-component-enabled">
+                            <div class="amfm-component-header">
+                                <div class="amfm-component-icon">📤</div>
+                                <div class="amfm-component-toggle">
+                                    <span class="amfm-core-label">Core</span>
+                                </div>
+                            </div>
+                            <div class="amfm-component-body">
+                                <h3 class="amfm-component-title">Export Data</h3>
+                                <p class="amfm-component-description">Export your posts, pages, and custom post types with their metadata to CSV format.</p>
+                                <div class="amfm-component-status">
+                                    <span class="amfm-status-indicator"></span>
+                                    <span class="amfm-status-text">Always Active</span>
+                                </div>
+                                <div class="amfm-component-actions">
+                                    <button type="button" 
+                                            class="amfm-info-button amfm-doc-button" 
+                                            onclick="openImportExportDrawer('export')">
+                                        Export Data
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
-                        <?php if (function_exists('acf_get_field_groups')): ?>
-                        <div class="amfm-form-group amfm-acf-selection" style="display:none;">
-                            <label><?php echo esc_html__('ACF Field Selection:', 'amfm-tools'); ?></label>
-                            <label class="amfm-radio">
-                                <input type="radio" name="acf_selection" value="all" checked>
-                                <?php echo esc_html__('All ACF Fields', 'amfm-tools'); ?>
-                            </label>
-                            <label class="amfm-radio">
-                                <input type="radio" name="acf_selection" value="selected">
-                                <?php echo esc_html__('Select Specific Field Groups', 'amfm-tools'); ?>
-                            </label>
-                            <div class="amfm-specific-acf-groups" style="display:none;">
-                                <?php echo $this->getAcfFieldGroupsCheckboxes(); ?>
+                        <!-- Import Data Card -->
+                        <div class="amfm-component-card amfm-component-enabled">
+                            <div class="amfm-component-header">
+                                <div class="amfm-component-icon">📥</div>
+                                <div class="amfm-component-toggle">
+                                    <span class="amfm-core-label">Core</span>
+                                </div>
+                            </div>
+                            <div class="amfm-component-body">
+                                <h3 class="amfm-component-title">Import Data</h3>
+                                <p class="amfm-component-description">Import data from CSV files to update posts with keywords, categories, and other metadata.</p>
+                                <div class="amfm-component-status">
+                                    <span class="amfm-status-indicator"></span>
+                                    <span class="amfm-status-text">Always Active</span>
+                                </div>
+                                <div class="amfm-component-actions">
+                                    <button type="button" 
+                                            class="amfm-info-button amfm-config-button" 
+                                            onclick="openImportExportDrawer('import')">
+                                        Import Data
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                        <?php endif; ?>
-
-                        <button type="submit" name="amfm_export" value="1" class="button button-primary">
-                            <?php echo esc_html__('Export to CSV', 'amfm-tools'); ?>
-                        </button>
-                    </form>
+                    </div>
                 </div>
+            </div>
+        </div>
 
-                <!-- Import Keywords Card -->
-                <div class="amfm-card">
-                    <h2><?php echo esc_html__('Import Keywords', 'amfm-tools'); ?></h2>
-                    <p><?php echo esc_html__('Import keywords for posts from a CSV file. CSV must have ID and Keywords columns.', 'amfm-tools'); ?></p>
-                    
-                    <form method="post" action="" enctype="multipart/form-data" class="amfm-import-form">
-                        <?php wp_nonce_field('amfm_csv_import', 'amfm_csv_import_nonce'); ?>
-                        
-                        <div class="amfm-form-group">
-                            <label for="csv_file"><?php echo esc_html__('Select CSV File:', 'amfm-tools'); ?></label>
-                            <input type="file" name="csv_file" id="csv_file" accept=".csv" required>
-                        </div>
-
-                        <div class="amfm-form-info">
-                            <p><strong><?php echo esc_html__('CSV Format:', 'amfm-tools'); ?></strong></p>
-                            <code>ID,Keywords</code><br>
-                            <code>123,"keyword1, keyword2, keyword3"</code>
-                        </div>
-
-                        <button type="submit" class="button button-primary">
-                            <?php echo esc_html__('Import Keywords', 'amfm-tools'); ?>
-                        </button>
-                    </form>
+        <!-- Import/Export Drawer -->
+        <div id="amfm-import-export-drawer" class="amfm-drawer">
+            <div class="amfm-drawer-overlay" onclick="closeImportExportDrawer()"></div>
+            <div class="amfm-drawer-content">
+                <div class="amfm-drawer-header">
+                    <h2 id="amfm-drawer-title">Data Management</h2>
+                    <button type="button" class="amfm-drawer-close" onclick="closeImportExportDrawer()">&times;</button>
                 </div>
-
-                <!-- Import Categories Card -->
-                <div class="amfm-card">
-                    <h2><?php echo esc_html__('Import Categories', 'amfm-tools'); ?></h2>
-                    <p><?php echo esc_html__('Import and assign categories to posts from a CSV file.', 'amfm-tools'); ?></p>
-                    
-                    <form method="post" action="" enctype="multipart/form-data" class="amfm-import-form">
-                        <?php wp_nonce_field('amfm_category_csv_import', 'amfm_category_csv_import_nonce'); ?>
-                        
-                        <div class="amfm-form-group">
-                            <label for="category_csv_file"><?php echo esc_html__('Select CSV File:', 'amfm-tools'); ?></label>
-                            <input type="file" name="category_csv_file" id="category_csv_file" accept=".csv" required>
-                        </div>
-
-                        <div class="amfm-form-info">
-                            <p><strong><?php echo esc_html__('CSV Format:', 'amfm-tools'); ?></strong></p>
-                            <code>ID,Categories</code><br>
-                            <code>123,"Category Name"</code>
-                        </div>
-
-                        <button type="submit" class="button button-primary">
-                            <?php echo esc_html__('Import Categories', 'amfm-tools'); ?>
-                        </button>
-                    </form>
+                <div class="amfm-drawer-body" id="amfm-drawer-body">
+                    <!-- Content will be loaded dynamically -->
                 </div>
             </div>
         </div>
 
         <script>
-        jQuery(document).ready(function($) {
-            // Toggle taxonomy selection
-            $('input[name="export_options[]"][value="taxonomies"]').on('change', function() {
-                if ($(this).is(':checked')) {
-                    $('.amfm-taxonomy-selection').show();
-                } else {
-                    $('.amfm-taxonomy-selection').hide();
-                }
-            });
+        // Import/Export drawer data
+        const importExportData = {
+            'export': {
+                title: 'Export Data',
+                content: `
+                    <form method="post" action="" class="amfm-form" id="amfm-export-form">
+                        <?php wp_nonce_field('amfm_export_nonce', 'amfm_export_nonce'); ?>
+                        
+                        <div class="amfm-form-group">
+                            <label for="export_post_type">Select Post Type:</label>
+                            <select name="export_post_type" id="export_post_type" required>
+                                <option value="">Select a post type</option>
+                                <?php echo $this->getPostTypesOptions(); ?>
+                            </select>
+                        </div>
 
-            // Toggle specific taxonomies
-            $('input[name="taxonomy_selection"]').on('change', function() {
-                if ($(this).val() === 'selected') {
-                    $('.amfm-specific-taxonomies').show();
-                } else {
-                    $('.amfm-specific-taxonomies').hide();
-                }
-            });
+                        <div class="amfm-form-group">
+                            <label>Export Options:</label>
+                            <div class="amfm-checkbox-grid">
+                                <label class="amfm-checkbox-item">
+                                    <input type="checkbox" name="export_options[]" value="taxonomies" checked>
+                                    <span>Include Taxonomies</span>
+                                </label>
+                                <?php if (function_exists('acf_get_field_groups')): ?>
+                                <label class="amfm-checkbox-item">
+                                    <input type="checkbox" name="export_options[]" value="acf_fields" checked>
+                                    <span>Include ACF Fields</span>
+                                </label>
+                                <?php endif; ?>
+                                <label class="amfm-checkbox-item">
+                                    <input type="checkbox" name="export_options[]" value="featured_image">
+                                    <span>Include Featured Image URL</span>
+                                </label>
+                            </div>
+                        </div>
 
-            // Toggle ACF selection
-            $('input[name="export_options[]"][value="acf_fields"]').on('change', function() {
-                if ($(this).is(':checked')) {
-                    $('.amfm-acf-selection').show();
-                } else {
-                    $('.amfm-acf-selection').hide();
-                }
-            });
+                        <div class="amfm-form-group amfm-taxonomy-selection" style="display:none;">
+                            <label>Taxonomy Selection:</label>
+                            <div class="amfm-radio-group">
+                                <label class="amfm-radio-item">
+                                    <input type="radio" name="taxonomy_selection" value="all" checked>
+                                    <span>All Taxonomies</span>
+                                </label>
+                                <label class="amfm-radio-item">
+                                    <input type="radio" name="taxonomy_selection" value="selected">
+                                    <span>Select Specific Taxonomies</span>
+                                </label>
+                            </div>
+                            <div class="amfm-specific-taxonomies amfm-checkbox-grid" style="display:none;">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                        </div>
 
-            // Toggle specific ACF groups
-            $('input[name="acf_selection"]').on('change', function() {
-                if ($(this).val() === 'selected') {
-                    $('.amfm-specific-acf-groups').show();
-                } else {
-                    $('.amfm-specific-acf-groups').hide();
-                }
-            });
+                        <?php if (function_exists('acf_get_field_groups')): ?>
+                        <div class="amfm-form-group amfm-acf-selection" style="display:none;">
+                            <label>ACF Field Selection:</label>
+                            <div class="amfm-radio-group">
+                                <label class="amfm-radio-item">
+                                    <input type="radio" name="acf_selection" value="all" checked>
+                                    <span>All ACF Fields</span>
+                                </label>
+                                <label class="amfm-radio-item">
+                                    <input type="radio" name="acf_selection" value="selected">
+                                    <span>Select Specific Field Groups</span>
+                                </label>
+                            </div>
+                            <div class="amfm-specific-acf-groups amfm-checkbox-grid" style="display:none;">
+                                <?php echo $this->getAcfFieldGroupsCheckboxes(); ?>
+                            </div>
+                        </div>
+                        <?php endif; ?>
 
-            // Update taxonomies based on post type
-            $('#export_post_type').on('change', function() {
-                var postType = $(this).val();
-                if (postType) {
-                    $.ajax({
-                        url: ajaxurl,
-                        type: 'POST',
-                        data: {
-                            action: 'amfm_get_post_type_taxonomies',
-                            post_type: postType,
-                            nonce: '<?php echo wp_create_nonce('amfm_ajax'); ?>'
-                        },
-                        success: function(response) {
-                            if (response.success) {
-                                $('.amfm-specific-taxonomies').html(response.data);
+                        <div class="amfm-form-actions">
+                            <button type="submit" name="amfm_export" value="1" class="button button-primary">
+                                Export to CSV
+                            </button>
+                        </div>
+                    </form>
+                `
+            },
+            'import': {
+                title: 'Import Data',
+                content: `
+                    <form method="post" action="" enctype="multipart/form-data" class="amfm-form" id="amfm-import-form">
+                        <?php wp_nonce_field('amfm_csv_import', 'amfm_csv_import_nonce'); ?>
+                        
+                        <div class="amfm-info-box">
+                            <h4>📋 Import Requirements</h4>
+                            <p>Your CSV file should match the columns from the Export Data function. The system will automatically detect and import the following data:</p>
+                            <ul class="amfm-requirements-list">
+                                <li><strong>ID</strong> - Post ID (required)</li>
+                                <li><strong>Post Title</strong> - Will update post title if provided</li>
+                                <li><strong>Post Content</strong> - Will update post content if provided</li>
+                                <li><strong>Post Excerpt</strong> - Will update post excerpt if provided</li>
+                                <li><strong>Taxonomies</strong> - Will assign categories/tags based on column names</li>
+                                <li><strong>ACF Fields</strong> - Will update ACF fields based on column names</li>
+                                <li><strong>Featured Image URL</strong> - Will set featured image from URL</li>
+                            </ul>
+                        </div>
+
+                        <div class="amfm-form-group">
+                            <label for="csv_file">Select CSV File:</label>
+                            <input type="file" name="csv_file" id="csv_file" accept=".csv" required class="amfm-file-input">
+                        </div>
+
+                        <div class="amfm-info-box">
+                            <h4>💡 Pro Tips</h4>
+                            <ul class="amfm-requirements-list">
+                                <li>Export first to see the exact column format</li>
+                                <li>Keep the ID column - it's required to identify posts</li>
+                                <li>Leave cells empty to skip updating that field</li>
+                                <li>Use the same column names as the export</li>
+                            </ul>
+                        </div>
+
+                        <div class="amfm-form-actions">
+                            <button type="submit" class="button button-primary">
+                                Import Data
+                            </button>
+                        </div>
+                    </form>
+                `
+            }
+        };
+
+        // Drawer functionality
+        function openImportExportDrawer(type) {
+            const drawer = document.getElementById('amfm-import-export-drawer');
+            const title = document.getElementById('amfm-drawer-title');
+            const body = document.getElementById('amfm-drawer-body');
+            
+            if (importExportData[type]) {
+                title.textContent = importExportData[type].title;
+                body.innerHTML = importExportData[type].content;
+                drawer.classList.add('amfm-drawer-open');
+                document.body.style.overflow = 'hidden';
+                
+                // Initialize form handlers after content is loaded
+                initializeFormHandlers();
+            }
+        }
+
+        function closeImportExportDrawer() {
+            const drawer = document.getElementById('amfm-import-export-drawer');
+            drawer.classList.remove('amfm-drawer-open');
+            document.body.style.overflow = '';
+        }
+
+        function initializeFormHandlers() {
+            // Re-initialize jQuery handlers for the new form elements
+            jQuery(document).ready(function($) {
+                // Toggle taxonomy selection
+                $('input[name="export_options[]"][value="taxonomies"]').off('change').on('change', function() {
+                    if ($(this).is(':checked')) {
+                        $('.amfm-taxonomy-selection').show();
+                    } else {
+                        $('.amfm-taxonomy-selection').hide();
+                    }
+                });
+
+                // Toggle specific taxonomies
+                $('input[name="taxonomy_selection"]').off('change').on('change', function() {
+                    if ($(this).val() === 'selected') {
+                        $('.amfm-specific-taxonomies').show();
+                    } else {
+                        $('.amfm-specific-taxonomies').hide();
+                    }
+                });
+
+                // Toggle ACF selection
+                $('input[name="export_options[]"][value="acf_fields"]').off('change').on('change', function() {
+                    if ($(this).is(':checked')) {
+                        $('.amfm-acf-selection').show();
+                    } else {
+                        $('.amfm-acf-selection').hide();
+                    }
+                });
+
+                // Toggle specific ACF groups
+                $('input[name="acf_selection"]').off('change').on('change', function() {
+                    if ($(this).val() === 'selected') {
+                        $('.amfm-specific-acf-groups').show();
+                    } else {
+                        $('.amfm-specific-acf-groups').hide();
+                    }
+                });
+
+                // Update taxonomies based on post type
+                $('#export_post_type').off('change').on('change', function() {
+                    var postType = $(this).val();
+                    if (postType) {
+                        $.ajax({
+                            url: ajaxurl,
+                            type: 'POST',
+                            data: {
+                                action: 'amfm_get_post_type_taxonomies',
+                                post_type: postType,
+                                nonce: '<?php echo wp_create_nonce('amfm_ajax'); ?>'
+                            },
+                            success: function(response) {
+                                if (response.success) {
+                                    $('.amfm-specific-taxonomies').html(response.data);
+                                }
                             }
-                        }
-                    });
-                }
+                        });
+                    }
+                });
             });
+        }
+
+        // Close drawer with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeImportExportDrawer();
+            }
         });
         </script>
         <?php

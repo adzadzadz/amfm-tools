@@ -201,6 +201,9 @@ class SettingsService extends Service
      */
     public function ajaxDkvConfigUpdate(): void
     {
+        wp_send_json_success(['message' => 'AJAX handler is working']);
+        return;
+        
         // Verify nonce and capabilities
         if (!check_ajax_referer('amfm_dkv_config_update', 'amfm_dkv_config_nonce', false) || 
             !current_user_can('manage_options')) {

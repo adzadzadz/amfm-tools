@@ -55,8 +55,8 @@ class ElementorController extends Controller
         // Widget registry
         $available_widgets = [
             'amfm_related_posts' => [
-                'file' => 'Widgets/RelatedPostsWidget.php',
-                'class' => 'App\\Widgets\\RelatedPostsWidget'
+                'file' => 'Widgets/Elementor/RelatedPostsWidget.php',
+                'class' => 'App\\Widgets\\Elementor\\RelatedPostsWidget'
             ]
         ];
         

@@ -105,10 +105,10 @@ add_action('plugins_loaded', function() {
     new \App\Controllers\Admin\DashboardController();
 
     // Admin controllers - Always enabled for admin interface
-    new \App\Controllers\Admin\ImportExportController();
     new \App\Controllers\Admin\ElementorController();
     new \App\Controllers\Admin\ShortcodesController();
     new \App\Controllers\Admin\UtilitiesController();
+    new \App\Controllers\Admin\ImportExportController(); // Load last to appear last in menu
 
     // ACF Helper - Core component (always enabled)
     if (in_array('acf_helper', $enabled_components)) {

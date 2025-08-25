@@ -121,7 +121,7 @@ class ImportExportController extends Controller
      */
     public function actionAdminMenu()
     {
-        // Add Import/Export submenu under AMFM Tools
+        // Add Import/Export submenu under AMFM Tools (loads last, appears last)
         \add_submenu_page(
             'amfm-tools',
             \__('Import/Export', 'amfm-tools'),

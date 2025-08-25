@@ -102,62 +102,9 @@ class DashboardController extends Controller
         ];
 
         // Render dashboard page
-        echo View::render('admin/dashboard', $this->getDashboardData($view_data));
+        echo View::render('admin/dashboard', $view_data);
     }
 
-    /**
-     * Get dashboard tab data
-     */
-    private function getDashboardData(array $base_data): array
-    {
-        $available_components = [
-            'acf_helper' => [
-                'name' => 'ACF Helper',
-                'description' => 'Manages ACF keyword cookies and enhances ACF functionality for dynamic content delivery.',
-                'icon' => '🔧',
-                'status' => 'Core Feature'
-            ],
-            'text_utilities' => [
-                'name' => 'Text Utilities',
-                'description' => 'Provides text processing shortcodes like [limit_words] for content formatting.',
-                'icon' => '📝',
-                'status' => 'Available'
-            ],
-            'optimization' => [
-                'name' => 'Performance Optimization',
-                'description' => 'Gravity Forms optimization and performance enhancements for faster page loading.',
-                'icon' => '⚡',
-                'status' => 'Available'
-            ],
-            'shortcodes' => [
-                'name' => 'Shortcode System',
-                'description' => 'DKV shortcode and other dynamic content shortcodes with advanced filtering options.',
-                'icon' => '📄',
-                'status' => 'Available'
-            ],
-            'elementor_widgets' => [
-                'name' => 'Elementor Widgets',
-                'description' => 'Custom Elementor widgets including Related Posts widget with keyword-based matching.',
-                'icon' => '🎨',
-                'status' => 'Available'
-            ],
-            'import_export' => [
-                'name' => 'Import/Export Tools',
-                'description' => 'Comprehensive data management for importing keywords, categories, and exporting posts with ACF fields.',
-                'icon' => '📊',
-                'status' => 'Core Feature'
-            ]
-        ];
-        
-        // Direct instantiation to bypass service resolution issues
-        $settingsService = new \App\Services\SettingsService();
-        $enabled_components = $settingsService->getEnabledComponents();
-        
-        return array_merge($base_data, [
-            'available_components' => $available_components,
-            'enabled_components' => $enabled_components
-        ]);
-    }
 
 
 

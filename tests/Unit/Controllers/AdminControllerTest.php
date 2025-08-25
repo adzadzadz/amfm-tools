@@ -299,6 +299,160 @@ class AdminControllerTest extends FrameworkTestCase
         $this->assertTrue(true);
     }
 
+    public function testGetUtilitiesData()
+    {
+        // Use reflection to access private method
+        $reflection = new \ReflectionClass($this->controller);
+        $method = $reflection->getMethod('getUtilitiesData');
+        $method->setAccessible(true);
+
+        // Mock the settings service
+        $controller = Mockery::mock(AdminController::class)->makePartial();
+        $controller->shouldReceive('service')
+            ->with('settings')
+            ->andReturn($this->mockSettingsService);
+        
+        // Mock initial enabled components without optimization
+        $this->mockSettingsService->shouldReceive('getEnabledComponents')
+            ->andReturn(['acf_helper', 'import_export']);
+        
+        // Mock updateComponentSettings to enable optimization
+        $this->mockSettingsService->shouldReceive('updateComponentSettings')
+            ->with(['acf_helper', 'import_export', 'optimization'])
+            ->once()
+            ->andReturn(true);
+
+        $baseData = ['active_tab' => 'utilities'];
+        $result = $method->invoke($controller, $baseData);
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('available_utilities', $result);
+        $this->assertArrayHasKey('enabled_utilities', $result);
+        
+        // Verify CSV Import and Data Export cards are removed
+        $availableUtilities = $result['available_utilities'];
+        $this->assertArrayNotHasKey('csv_import', $availableUtilities);
+        $this->assertArrayNotHasKey('data_export', $availableUtilities);
+        
+        // Verify core utilities are present
+        $this->assertArrayHasKey('acf_helper', $availableUtilities);
+        $this->assertArrayHasKey('optimization', $availableUtilities);
+        $this->assertArrayHasKey('import_export', $availableUtilities);
+        
+        // Verify utility details
+        $this->assertEquals('ACF Helper', $availableUtilities['acf_helper']['name']);
+        $this->assertEquals('Performance Optimization', $availableUtilities['optimization']['name']);
+        $this->assertEquals('Import/Export Tools', $availableUtilities['import_export']['name']);
+    }
+
+    public function testGetUtilitiesDataPerformanceOptimizationEnabledByDefault()
+    {
+        // Use reflection to access private method
+        $reflection = new \ReflectionClass($this->controller);
+        $method = $reflection->getMethod('getUtilitiesData');
+        $method->setAccessible(true);
+
+        // Mock the settings service
+        $controller = Mockery::mock(AdminController::class)->makePartial();
+        $controller->shouldReceive('service')
+            ->with('settings')
+            ->andReturn($this->mockSettingsService);
+        
+        // Mock enabled components without optimization initially
+        $this->mockSettingsService->shouldReceive('getEnabledComponents')
+            ->andReturn(['acf_helper', 'import_export']);
+        
+        // Verify that updateComponentSettings is called to enable optimization
+        $this->mockSettingsService->shouldReceive('updateComponentSettings')
+            ->with(Mockery::on(function($components) {
+                return in_array('optimization', $components) &&
+                       in_array('acf_helper', $components) &&
+                       in_array('import_export', $components);
+            }))
+            ->once()
+            ->andReturn(true);
+
+        $baseData = ['active_tab' => 'utilities'];
+        $result = $method->invoke($controller, $baseData);
+        
+        // Test passes if updateComponentSettings was called with optimization included
+        $this->assertTrue(true);
+    }
+
+    public function testGetUtilitiesDataWhenOptimizationAlreadyEnabled()
+    {
+        // Use reflection to access private method
+        $reflection = new \ReflectionClass($this->controller);
+        $method = $reflection->getMethod('getUtilitiesData');
+        $method->setAccessible(true);
+
+        // Mock the settings service
+        $controller = Mockery::mock(AdminController::class)->makePartial();
+        $controller->shouldReceive('service')
+            ->with('settings')
+            ->andReturn($this->mockSettingsService);
+        
+        // Mock enabled components with optimization already enabled
+        $this->mockSettingsService->shouldReceive('getEnabledComponents')
+            ->andReturn(['acf_helper', 'import_export', 'optimization']);
+        
+        // Verify updateComponentSettings is NOT called when optimization is already enabled
+        $this->mockSettingsService->shouldNotReceive('updateComponentSettings');
+
+        $baseData = ['active_tab' => 'utilities'];
+        $result = $method->invoke($controller, $baseData);
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('enabled_utilities', $result);
+        
+        // Verify optimization is in the enabled utilities
+        $enabledUtilities = $result['enabled_utilities'];
+        $this->assertContains('optimization', $enabledUtilities);
+    }
+
+    public function testUtilitiesDataStructure()
+    {
+        // Use reflection to access private method
+        $reflection = new \ReflectionClass($this->controller);
+        $method = $reflection->getMethod('getUtilitiesData');
+        $method->setAccessible(true);
+
+        // Mock the settings service
+        $controller = Mockery::mock(AdminController::class)->makePartial();
+        $controller->shouldReceive('service')
+            ->with('settings')
+            ->andReturn($this->mockSettingsService);
+        
+        $this->mockSettingsService->shouldReceive('getEnabledComponents')
+            ->andReturn(['acf_helper', 'import_export', 'optimization']);
+        
+        $this->mockSettingsService->shouldNotReceive('updateComponentSettings');
+
+        $baseData = ['active_tab' => 'utilities'];
+        $result = $method->invoke($controller, $baseData);
+
+        // Verify the structure of available utilities
+        $availableUtilities = $result['available_utilities'];
+        
+        // Test ACF Helper structure
+        $this->assertEquals('ACF Helper', $availableUtilities['acf_helper']['name']);
+        $this->assertEquals('🔧', $availableUtilities['acf_helper']['icon']);
+        $this->assertEquals('Core Feature', $availableUtilities['acf_helper']['status']);
+        $this->assertStringContainsString('ACF keyword cookies', $availableUtilities['acf_helper']['description']);
+        
+        // Test Performance Optimization structure
+        $this->assertEquals('Performance Optimization', $availableUtilities['optimization']['name']);
+        $this->assertEquals('⚡', $availableUtilities['optimization']['icon']);
+        $this->assertEquals('Available', $availableUtilities['optimization']['status']);
+        $this->assertStringContainsString('Gravity Forms optimization', $availableUtilities['optimization']['description']);
+        
+        // Test Import/Export Tools structure
+        $this->assertEquals('Import/Export Tools', $availableUtilities['import_export']['name']);
+        $this->assertEquals('📊', $availableUtilities['import_export']['icon']);
+        $this->assertEquals('Core Feature', $availableUtilities['import_export']['status']);
+        $this->assertStringContainsString('data management', $availableUtilities['import_export']['description']);
+    }
+
     protected function tearDown(): void
     {
         Mockery::close();

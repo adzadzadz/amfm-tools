@@ -259,6 +259,67 @@ class OptimizationControllerTest extends FrameworkTestCase
         $post = $originalPost;
     }
 
+    public function testPerformanceOptimizationIsEnabledByDefault()
+    {
+        // Test that performance optimization functionality is properly configured
+        $this->assertTrue($this->controller->enableGFNoConflictScripts());
+        $this->assertTrue($this->controller->enableGFNoConflictStyles());
+        
+        // Verify controller has proper hook configuration for optimization
+        $this->assertArrayHasKey('wp_enqueue_scripts', $this->controller->actions);
+        $this->assertArrayHasKey('gform_noconflict_scripts', $this->controller->filters);
+        $this->assertArrayHasKey('gform_noconflict_styles', $this->controller->filters);
+    }
+
+    public function testPerformanceOptimizationIntegration()
+    {
+        // Test that the optimization controller properly integrates with WordPress hooks
+        $reflection = new \ReflectionClass($this->controller);
+        
+        // Verify the controller has all necessary methods for performance optimization
+        $requiredMethods = [
+            'initialize',
+            'conditionallyLoadGFAssets', 
+            'enableGFNoConflictScripts',
+            'enableGFNoConflictStyles'
+        ];
+        
+        foreach ($requiredMethods as $method) {
+            $this->assertTrue($reflection->hasMethod($method), "Method $method is required for performance optimization");
+        }
+        
+        // Verify hooks are properly configured
+        $expectedActions = ['init', 'wp_enqueue_scripts'];
+        $expectedFilters = ['gform_noconflict_scripts', 'gform_noconflict_styles'];
+        
+        foreach ($expectedActions as $action) {
+            $this->assertArrayHasKey($action, $this->controller->actions, "Action $action should be registered");
+        }
+        
+        foreach ($expectedFilters as $filter) {
+            $this->assertArrayHasKey($filter, $this->controller->filters, "Filter $filter should be registered");
+        }
+    }
+
+    public function testOptimizationControllerIsLoadedCorrectly()
+    {
+        // Test that optimization controller is instantiated and configured properly
+        $this->assertInstanceOf(OptimizationController::class, $this->controller);
+        
+        // Test that optimization methods return expected values
+        $this->assertTrue($this->controller->enableGFNoConflictScripts());
+        $this->assertTrue($this->controller->enableGFNoConflictStyles());
+        
+        // Test bootstrap method can be called without errors
+        $reflection = new \ReflectionClass($this->controller);
+        $method = $reflection->getMethod('bootstrap');
+        $method->setAccessible(true);
+        
+        // Should not throw any exceptions
+        $result = $method->invoke($this->controller);
+        $this->assertNull($result); // bootstrap method returns nothing
+    }
+
     protected function tearDown(): void
     {
         Mockery::close();

@@ -32,9 +32,6 @@ class ImportExportController extends Controller
             $this->handleFormSubmissions();
         }
 
-        // Display any import results
-        $this->displayImportResults();
-
         // Render the page
         $this->renderPage();
     }
@@ -61,44 +58,6 @@ class ImportExportController extends Controller
         }
     }
 
-    /**
-     * Display import results if any
-     */
-    private function displayImportResults(): void
-    {
-        // Check for unified import results
-        if (isset($_GET['imported']) && $_GET['imported'] === 'data') {
-            $results = get_transient('amfm_unified_csv_import_results');
-            if ($results) {
-                $this->showImportNotice($results, 'Data');
-                delete_transient('amfm_unified_csv_import_results');
-            }
-        }
-    }
-
-    /**
-     * Show import notice
-     */
-    private function showImportNotice($results, $type): void
-    {
-        $class = $results['errors'] > 0 ? 'notice-warning' : 'notice-success';
-        ?>
-        <div class="notice <?php echo esc_attr($class); ?> is-dismissible">
-            <p><strong><?php echo esc_html($type); ?> Import Results:</strong></p>
-            <p>Success: <?php echo esc_html($results['success']); ?> | Errors: <?php echo esc_html($results['errors']); ?></p>
-            <?php if (!empty($results['details'])): ?>
-                <details>
-                    <summary>View Details</summary>
-                    <ul>
-                        <?php foreach ($results['details'] as $detail): ?>
-                            <li><?php echo esc_html($detail); ?></li>
-                        <?php endforeach; ?>
-                    </ul>
-                </details>
-            <?php endif; ?>
-        </div>
-        <?php
-    }
 
     /**
      * Render the main page
@@ -138,21 +97,6 @@ class ImportExportController extends Controller
 
         // Add custom styles for import/export page
         wp_add_inline_style('amfm-admin-style', '
-            /* Import/Export page layout */
-            .amfm-admin-page.wrap {
-                padding: 0;
-            }
-            
-            .amfm-container {
-                padding: 20px 40px;
-                max-width: 1400px;
-                margin: 0 auto;
-            }
-            
-            .amfm-tab-content {
-                padding: 20px 0;
-            }
-            
             /* Import/Export specific styles */
             .amfm-import-export-grid {
                 display: grid;
@@ -245,44 +189,6 @@ class ImportExportController extends Controller
 
             .amfm-primary-button:active {
                 transform: translateY(0);
-            }
-
-            /* Mobile responsiveness */
-            @media (max-width: 768px) {
-                .amfm-container {
-                    padding: 15px 20px;
-                }
-                
-                .amfm-tab-content {
-                    padding: 15px 0;
-                }
-                
-                .amfm-import-export-grid {
-                    grid-template-columns: 1fr;
-                    gap: 20px;
-                    margin: 20px 0;
-                }
-
-                .amfm-import-export-card {
-                    padding: 20px;
-                }
-
-                .amfm-card-icon {
-                    width: 50px;
-                    height: 50px;
-                    font-size: 2rem;
-                }
-
-                .amfm-card-title {
-                    font-size: 1.25rem;
-                }
-            }
-            
-            /* Tablet responsiveness */
-            @media (max-width: 1024px) and (min-width: 769px) {
-                .amfm-container {
-                    padding: 20px 30px;
-                }
             }
 
             /* Drawer form improvements */
@@ -390,72 +296,40 @@ class ImportExportController extends Controller
             }
         ');
 
-        ?>
-        <div class="wrap amfm-admin-page">
-            <div class="amfm-container">
-                <!-- Enhanced Header -->
-                <div class="amfm-header">
-                    <div class="amfm-header-content">
-                        <div class="amfm-header-main">
-                            <div class="amfm-header-logo">
-                                <span class="amfm-icon">📊</span>
-                            </div>
-                            <div class="amfm-header-text">
-                                <h1>Import/Export</h1>
-                                <p class="amfm-subtitle">Data Management Tools</p>
-                            </div>
-                        </div>
-                        <div class="amfm-header-actions">
-                            <div class="amfm-version-badge">
-                                v<?php echo esc_html(AMFM_TOOLS_VERSION); ?>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+        // Create page content using template service
+        $templateService = $this->service('page_template');
+        
+        // Define the cards
+        $cards = [
+            [
+                'icon' => '📤',
+                'title' => 'Export Data',
+                'description' => 'Export your posts, pages, and custom post types with their metadata to CSV format for backup or migration purposes.',
+                'actions' => [
+                    [
+                        'text' => 'Export',
+                        'onclick' => "openImportExportDrawer('export')"
+                    ]
+                ]
+            ],
+            [
+                'icon' => '📥',
+                'title' => 'Import Data', 
+                'description' => 'Import data from CSV files to update posts with content, taxonomies, ACF fields, and other metadata seamlessly.',
+                'actions' => [
+                    [
+                        'text' => 'Import',
+                        'onclick' => "openImportExportDrawer('import')"
+                    ]
+                ]
+            ]
+        ];
 
-                <!-- Import/Export Content -->
-                <div class="amfm-tab-content">
-                    <div class="amfm-import-export-grid">
-                        <!-- Export Data Card -->
-                        <div class="amfm-import-export-card">
-                            <div class="amfm-card-header">
-                                <div class="amfm-card-icon">📤</div>
-                                <h3 class="amfm-card-title">Export Data</h3>
-                            </div>
-                            <div class="amfm-card-body">
-                                <p class="amfm-card-description">Export your posts, pages, and custom post types with their metadata to CSV format for backup or migration purposes.</p>
-                                <div class="amfm-card-actions">
-                                    <button type="button" 
-                                            class="amfm-primary-button" 
-                                            onclick="openImportExportDrawer('export')">
-                                        Export
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Import Data Card -->
-                        <div class="amfm-import-export-card">
-                            <div class="amfm-card-header">
-                                <div class="amfm-card-icon">📥</div>
-                                <h3 class="amfm-card-title">Import Data</h3>
-                            </div>
-                            <div class="amfm-card-body">
-                                <p class="amfm-card-description">Import data from CSV files to update posts with content, taxonomies, ACF fields, and other metadata seamlessly.</p>
-                                <div class="amfm-card-actions">
-                                    <button type="button" 
-                                            class="amfm-primary-button" 
-                                            onclick="openImportExportDrawer('import')">
-                                        Import
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
+        // Create page content
+        $page_content = $templateService->renderSimpleCards($cards);
+        
+        // Add drawer HTML
+        $page_content .= '
         <!-- Import/Export Drawer -->
         <div id="amfm-import-export-drawer" class="amfm-drawer">
             <div class="amfm-drawer-overlay" onclick="closeImportExportDrawer()"></div>
@@ -468,8 +342,31 @@ class ImportExportController extends Controller
                     <!-- Content will be loaded dynamically -->
                 </div>
             </div>
-        </div>
-        <?php
+        </div>';
+
+        // Check for import results
+        $show_results = false;
+        $results = null;
+        $results_type = 'Data Import';
+        
+        if (isset($_GET['imported']) && $_GET['imported'] === 'data') {
+            $results = get_transient('amfm_unified_csv_import_results');
+            if ($results) {
+                $show_results = true;
+                delete_transient('amfm_unified_csv_import_results');
+            }
+        }
+
+        // Render the page using template
+        $templateService->displayPage([
+            'page_title' => 'Import/Export',
+            'page_subtitle' => 'Data Management Tools',
+            'page_icon' => '📊',
+            'page_content' => $page_content,
+            'show_results' => $show_results,
+            'results' => $results,
+            'results_type' => $results_type
+        ]);
     }
 
     /**

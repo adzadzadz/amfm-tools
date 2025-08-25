@@ -216,20 +216,28 @@ class SettingsService extends Service
         $errors = [];
         
         // Update excluded keywords
-        if (!$this->updateExcludedKeywords($excludedKeywords)) {
-            $success = false;
-            $errors[] = 'Failed to update excluded keywords';
-        }
+        $this->updateExcludedKeywords($excludedKeywords);
         
-        // Update other DKV settings
-        if (!update_option('amfm_dkv_default_fallback', $defaultFallback)) {
+        // Update other DKV settings (update_option returns false if value unchanged, not just on failure)
+        update_option('amfm_dkv_default_fallback', $defaultFallback);
+        update_option('amfm_dkv_cache_duration', $cacheDuration);
+        
+        // Verify the values were actually set correctly
+        if (get_option('amfm_dkv_default_fallback') !== $defaultFallback) {
             $success = false;
             $errors[] = 'Failed to update default fallback text';
         }
         
-        if (!update_option('amfm_dkv_cache_duration', $cacheDuration)) {
+        if ((int)get_option('amfm_dkv_cache_duration', 24) !== $cacheDuration) {
             $success = false;
             $errors[] = 'Failed to update cache duration';
+        }
+        
+        // For excluded keywords, check if they were saved properly
+        $savedKeywords = implode("\n", $this->getExcludedKeywords());
+        if (trim($savedKeywords) !== trim($excludedKeywords)) {
+            $success = false;
+            $errors[] = 'Failed to update excluded keywords';
         }
         
         if ($success) {

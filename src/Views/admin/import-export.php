@@ -45,29 +45,6 @@ $all_field_groups = $all_field_groups ?? [];
             </div>
         </div>
 
-        <!-- Tabs Navigation -->
-        <div class="amfm-tabs-nav">
-            <a href="<?php echo esc_url(admin_url('admin.php?page=amfm-tools&tab=dashboard')); ?>" 
-               class="amfm-tab-link <?php echo $active_tab === 'dashboard' ? 'active' : ''; ?>">
-                <span class="amfm-tab-icon">🎛️</span>
-                Dashboard
-            </a>
-            <a href="<?php echo esc_url(admin_url('admin.php?page=amfm-tools&tab=import-export')); ?>" 
-               class="amfm-tab-link <?php echo $active_tab === 'import-export' ? 'active' : ''; ?>">
-                <span class="amfm-tab-icon">📊</span>
-                Import/Export
-            </a>
-            <a href="<?php echo esc_url(admin_url('admin.php?page=amfm-tools&tab=shortcodes')); ?>" 
-               class="amfm-tab-link <?php echo $active_tab === 'shortcodes' ? 'active' : ''; ?>">
-                <span class="amfm-tab-icon">📄</span>
-                Shortcodes
-            </a>
-            <a href="<?php echo esc_url(admin_url('admin.php?page=amfm-tools&tab=elementor')); ?>" 
-               class="amfm-tab-link <?php echo $active_tab === 'elementor' ? 'active' : ''; ?>">
-                <span class="amfm-tab-icon">🎨</span>
-                Elementor
-            </a>
-        </div>
 
         <!-- Import/Export Tab Content -->
         <div class="amfm-tab-content">

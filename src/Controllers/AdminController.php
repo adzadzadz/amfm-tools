@@ -34,17 +34,28 @@ class AdminController extends Controller
      */
     public function actionAdminInit()
     {
+        // Get service instances using the service() method
+        $csvImportService = $this->service('csv_import');
+        $dataExportService = $this->service('data_export');
+        $settingsService = $this->service('settings');
+        
         // Handle CSV imports
-        $this->csvImportService->handleKeywordsUpload();
-        $this->csvImportService->handleCategoriesUpload();
+        if ($csvImportService) {
+            $csvImportService->handleKeywordsUpload();
+            $csvImportService->handleCategoriesUpload();
+        }
         
         // Handle data export
-        $this->dataExportService->handleDirectExport();
+        if ($dataExportService) {
+            $dataExportService->handleDirectExport();
+        }
         
         // Handle settings updates
-        $this->settingsService->handleExcludedKeywordsUpdate();
-        $this->settingsService->handleElementorWidgetsUpdate();
-        $this->settingsService->handleComponentSettingsUpdate();
+        if ($settingsService) {
+            $settingsService->handleExcludedKeywordsUpdate();
+            $settingsService->handleElementorWidgetsUpdate();
+            $settingsService->handleComponentSettingsUpdate();
+        }
     }
 
     /**
@@ -193,7 +204,8 @@ class AdminController extends Controller
             ]
         ];
         
-        $enabled_components = $this->settingsService->getEnabledComponents();
+        $settingsService = $this->service('settings');
+        $enabled_components = $settingsService ? $settingsService->getEnabledComponents() : [];
         
         return array_merge($base_data, [
             'available_components' => $available_components,
@@ -248,7 +260,8 @@ class AdminController extends Controller
     private function getShortcodesData(array $base_data): array
     {
         // Get current excluded keywords from service
-        $excluded_keywords = $this->settingsService->getExcludedKeywords();
+        $settingsService = $this->service('settings');
+        $excluded_keywords = $settingsService ? $settingsService->getExcludedKeywords() : [];
         if (empty($excluded_keywords)) {
             // Initialize with defaults if not set
             $excluded_keywords = [
@@ -259,7 +272,9 @@ class AdminController extends Controller
                 'co-morbidity',
                 'co-morbid'
             ];
-            $this->settingsService->updateExcludedKeywords(implode("\n", $excluded_keywords));
+            if ($settingsService) {
+                $settingsService->updateExcludedKeywords(implode("\n", $excluded_keywords));
+            }
         }
         
         $keywords_text = is_array($excluded_keywords) ? implode("\n", $excluded_keywords) : '';
@@ -283,7 +298,8 @@ class AdminController extends Controller
             ]
         ];
         
-        $enabled_widgets = $this->settingsService->getEnabledElementorWidgets();
+        $settingsService = $this->service('settings');
+        $enabled_widgets = $settingsService ? $settingsService->getEnabledElementorWidgets() : [];
         
         return array_merge($base_data, [
             'available_widgets' => $available_widgets,
@@ -327,7 +343,10 @@ class AdminController extends Controller
      */
     public function actionWpAjaxAmfmGetPostTypeTaxonomies()
     {
-        $this->ajaxService->getPostTypeTaxonomies();
+        $ajaxService = $this->service('ajax');
+        if ($ajaxService) {
+            $ajaxService->getPostTypeTaxonomies();
+        }
     }
     
     /**
@@ -335,7 +354,10 @@ class AdminController extends Controller
      */
     public function actionWpAjaxAmfmGetAcfFieldGroups()
     {
-        $this->ajaxService->getAcfFieldGroups();
+        $ajaxService = $this->service('ajax');
+        if ($ajaxService) {
+            $ajaxService->getAcfFieldGroups();
+        }
     }
 
     /**
@@ -343,7 +365,10 @@ class AdminController extends Controller
      */
     public function actionWpAjaxAmfmExportData()
     {
-        $this->ajaxService->exportData();
+        $ajaxService = $this->service('ajax');
+        if ($ajaxService) {
+            $ajaxService->exportData();
+        }
     }
 
     /**
@@ -351,7 +376,10 @@ class AdminController extends Controller
      */
     public function actionWpAjaxAmfmComponentSettingsUpdate()
     {
-        $this->settingsService->ajaxToggleComponent();
+        $settingsService = $this->service('settings');
+        if ($settingsService) {
+            $settingsService->ajaxToggleComponent();
+        }
     }
 
     /**
@@ -359,6 +387,9 @@ class AdminController extends Controller
      */
     public function actionWpAjaxAmfmElementorWidgetsUpdate()
     {
-        $this->settingsService->ajaxToggleElementorWidget();
+        $settingsService = $this->service('settings');
+        if ($settingsService) {
+            $settingsService->ajaxToggleElementorWidget();
+        }
     }
 }

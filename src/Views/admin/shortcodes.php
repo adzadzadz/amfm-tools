@@ -29,16 +29,6 @@ $currentCacheDuration = $settingsService->getDkvCacheDuration();
                     </div>
                 </div>
                 <div class="amfm-header-actions">
-                    <div class="amfm-header-stats">
-                        <div class="amfm-header-stat">
-                            <span class="amfm-header-stat-number"><?php echo count($available_shortcodes); ?></span>
-                            <span class="amfm-header-stat-label">Available</span>
-                        </div>
-                        <div class="amfm-header-stat">
-                            <span class="amfm-header-stat-number"><?php echo count($enabled_shortcodes); ?></span>
-                            <span class="amfm-header-stat-label">Enabled</span>
-                        </div>
-                    </div>
                     <div class="amfm-version-badge">
                         v<?php echo esc_html(AMFM_TOOLS_VERSION); ?>
                     </div>

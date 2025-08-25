@@ -4,63 +4,53 @@ namespace App\Controllers;
 
 use AdzWP\Core\Controller;
 use AdzWP\Core\View;
-use App\Services\CSVImporter;
-use App\Services\DataExporter;
-use App\Services\AjaxHandler;
-use App\Services\SettingsManager;
+use App\Services\CsvImportService;
+use App\Services\DataExportService;
+use App\Services\AjaxService;
+use App\Services\SettingsService;
 
+/**
+ * Admin Controller - handles WordPress admin interface and functionality
+ * 
+ * Uses the framework's auto hook registration and service dependency injection
+ */
 class AdminController extends Controller
 {
-    protected $csvImporter;
-    protected $dataExporter;
-    protected $ajaxHandler;
-    protected $settingsManager;
-
-    public $actions = [
-        'admin_menu' => 'addAdminMenu',
-        'admin_enqueue_scripts' => 'enqueueAdminAssets',
-        'admin_init' => 'handleAdminInit',
-        // AJAX actions
-        'wp_ajax_amfm_get_post_type_taxonomies' => 'ajaxGetPostTypeTaxonomies',
-        'wp_ajax_amfm_get_acf_field_groups' => 'ajaxGetACFFieldGroups',
-        'wp_ajax_amfm_export_data' => 'ajaxExportData',
-        'wp_ajax_amfm_component_settings_update' => 'ajaxComponentSettingsUpdate',
-        'wp_ajax_amfm_elementor_widgets_update' => 'ajaxElementorWidgetsUpdate',
-    ];
-
-    public $filters = [];
-
-    protected function bootstrap()
+    /**
+     * Initialize services on WordPress init
+     */
+    public function actionWpInit()
     {
-        // Initialize service classes
-        $this->csvImporter = new CSVImporter();
-        $this->dataExporter = new DataExporter();
-        $this->ajaxHandler = new AjaxHandler();
-        $this->settingsManager = new SettingsManager();
+        // Services are auto-instantiated when accessed via magic properties
+        // This ensures proper dependency injection and service registration
+        new CsvImportService();
+        new DataExportService();
+        new AjaxService();
+        new SettingsService();
     }
 
     /**
-     * Handle admin initialization
+     * Handle admin initialization - framework auto-hook
      */
-    public function handleAdminInit()
+    public function actionAdminInit()
     {
         // Handle CSV imports
-        $this->csvImporter->handleKeywordsUpload();
-        $this->csvImporter->handleCategoriesUpload();
+        $this->csvImportService->handleKeywordsUpload();
+        $this->csvImportService->handleCategoriesUpload();
         
         // Handle data export
-        $this->dataExporter->handleExport();
+        $this->dataExportService->handleDirectExport();
         
         // Handle settings updates
-        $this->settingsManager->handleExcludedKeywordsUpdate();
-        $this->settingsManager->handleElementorWidgetsUpdate();
-        $this->settingsManager->handleComponentSettingsUpdate();
+        $this->settingsService->handleExcludedKeywordsUpdate();
+        $this->settingsService->handleElementorWidgetsUpdate();
+        $this->settingsService->handleComponentSettingsUpdate();
     }
 
     /**
-     * Add admin menu
+     * Add admin menu - framework auto-hook
      */
-    public function addAdminMenu()
+    public function actionAdminMenu()
     {
         // Check if main AMFM menu exists, if not create it
         if (!$this->mainMenuExists()) {
@@ -89,7 +79,7 @@ class AdminController extends Controller
     /**
      * Check if main menu exists
      */
-    private function mainMenuExists()
+    private function mainMenuExists(): bool
     {
         global $menu;
         if (!is_array($menu)) {
@@ -109,7 +99,7 @@ class AdminController extends Controller
      */
     public function renderAdminPage()
     {
-        $active_tab = isset($_GET['tab']) ? \sanitize_text_field($_GET['tab']) : 'dashboard';
+        $active_tab = isset($_GET['tab']) ? $this->sanitizeText($_GET['tab']) : 'dashboard';
         
         // Check for import results
         $results = null;
@@ -162,7 +152,7 @@ class AdminController extends Controller
     /**
      * Get dashboard tab data
      */
-    private function getDashboardData($base_data)
+    private function getDashboardData(array $base_data): array
     {
         $available_components = [
             'acf_helper' => [
@@ -203,7 +193,7 @@ class AdminController extends Controller
             ]
         ];
         
-        $enabled_components = \get_option('amfm_enabled_components', array_keys($available_components));
+        $enabled_components = $this->settingsService->getEnabledComponents();
         
         return array_merge($base_data, [
             'available_components' => $available_components,
@@ -214,7 +204,7 @@ class AdminController extends Controller
     /**
      * Get import/export tab data
      */
-    private function getImportExportData($base_data)
+    private function getImportExportData(array $base_data): array
     {
         // Get all post types
         $post_types = \get_post_types(['show_ui' => true], 'objects');
@@ -240,7 +230,7 @@ class AdminController extends Controller
         
         // Get all ACF field groups
         $all_field_groups = [];
-        if (function_exists('acf_get_field_groups')) {
+        if (\function_exists('acf_get_field_groups')) {
             $all_field_groups = \acf_get_field_groups();
         }
         
@@ -255,11 +245,11 @@ class AdminController extends Controller
     /**
      * Get shortcodes tab data
      */
-    private function getShortcodesData($base_data)
+    private function getShortcodesData(array $base_data): array
     {
-        // Get current excluded keywords
-        $excluded_keywords = \get_option('amfm_excluded_keywords', null);
-        if ($excluded_keywords === null) {
+        // Get current excluded keywords from service
+        $excluded_keywords = $this->settingsService->getExcludedKeywords();
+        if (empty($excluded_keywords)) {
             // Initialize with defaults if not set
             $excluded_keywords = [
                 'co-occurring',
@@ -269,7 +259,7 @@ class AdminController extends Controller
                 'co-morbidity',
                 'co-morbid'
             ];
-            \update_option('amfm_excluded_keywords', $excluded_keywords);
+            $this->settingsService->updateExcludedKeywords(implode("\n", $excluded_keywords));
         }
         
         $keywords_text = is_array($excluded_keywords) ? implode("\n", $excluded_keywords) : '';
@@ -283,7 +273,7 @@ class AdminController extends Controller
     /**
      * Get Elementor tab data
      */
-    private function getElementorData($base_data)
+    private function getElementorData(array $base_data): array
     {
         $available_widgets = [
             'amfm_related_posts' => [
@@ -293,7 +283,7 @@ class AdminController extends Controller
             ]
         ];
         
-        $enabled_widgets = \get_option('amfm_elementor_enabled_widgets', array_keys($available_widgets));
+        $enabled_widgets = $this->settingsService->getEnabledElementorWidgets();
         
         return array_merge($base_data, [
             'available_widgets' => $available_widgets,
@@ -302,9 +292,9 @@ class AdminController extends Controller
     }
 
     /**
-     * Enqueue admin assets
+     * Enqueue admin assets - framework auto-hook
      */
-    public function enqueueAdminAssets($hook_suffix)
+    public function actionAdminEnqueueScripts($hook_suffix)
     {
         if (strpos($hook_suffix, 'amfm') !== false) {
             \wp_enqueue_style(
@@ -325,50 +315,50 @@ class AdminController extends Controller
             // Localize script for AJAX
             \wp_localize_script('amfm-admin-script', 'amfm_ajax', [
                 'ajax_url' => \admin_url('admin-ajax.php'),
-                'export_nonce' => \wp_create_nonce('amfm_export_nonce'),
-                'component_nonce' => \wp_create_nonce('amfm_component_settings_nonce'),
-                'elementor_nonce' => \wp_create_nonce('amfm_elementor_widgets_nonce')
+                'export_nonce' => $this->createNonce('amfm_export_nonce'),
+                'component_nonce' => $this->createNonce('amfm_component_settings_nonce'),
+                'elementor_nonce' => $this->createNonce('amfm_elementor_widgets_nonce')
             ]);
         }
     }
 
     /**
-     * AJAX: Get post type taxonomies
+     * AJAX: Get post type taxonomies - framework auto-hook
      */
-    public function ajaxGetPostTypeTaxonomies()
+    public function actionWpAjaxAmfmGetPostTypeTaxonomies()
     {
-        $this->ajaxHandler->getPostTypeTaxonomies();
+        $this->ajaxService->getPostTypeTaxonomies();
     }
     
     /**
-     * AJAX: Get ACF field groups
+     * AJAX: Get ACF field groups - framework auto-hook
      */
-    public function ajaxGetACFFieldGroups()
+    public function actionWpAjaxAmfmGetAcfFieldGroups()
     {
-        $this->ajaxHandler->getACFFieldGroups();
+        $this->ajaxService->getAcfFieldGroups();
     }
 
     /**
-     * AJAX: Export data
+     * AJAX: Export data - framework auto-hook
      */
-    public function ajaxExportData()
+    public function actionWpAjaxAmfmExportData()
     {
-        $this->ajaxHandler->exportData();
+        $this->ajaxService->exportData();
     }
 
     /**
-     * AJAX: Update component settings
+     * AJAX: Update component settings - framework auto-hook
      */
-    public function ajaxComponentSettingsUpdate()
+    public function actionWpAjaxAmfmComponentSettingsUpdate()
     {
-        $this->settingsManager->ajaxComponentSettingsUpdate();
+        $this->settingsService->ajaxToggleComponent();
     }
 
     /**
-     * AJAX: Update Elementor widgets
+     * AJAX: Update Elementor widgets - framework auto-hook
      */
-    public function ajaxElementorWidgetsUpdate()
+    public function actionWpAjaxAmfmElementorWidgetsUpdate()
     {
-        $this->settingsManager->ajaxElementorWidgetsUpdate();
+        $this->settingsService->ajaxToggleElementorWidget();
     }
 }

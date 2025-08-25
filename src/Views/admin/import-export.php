@@ -116,7 +116,7 @@ $current_subtab = 'export';
 
                 <!-- Feature Cards -->
                 <div class="amfm-components-grid">
-                    <div class="amfm-component-card amfm-tab-card active" data-tab="export">
+                    <div class="amfm-component-card amfm-tab-card" data-tab="export">
                         <div class="amfm-component-header">
                             <div class="amfm-component-icon">📤</div>
                             <div class="amfm-component-badge">Ready</div>
@@ -125,7 +125,7 @@ $current_subtab = 'export';
                             <h3 class="amfm-component-title">Export Data</h3>
                             <p class="amfm-component-description">Export posts with ACF fields, taxonomies, and metadata to CSV format for backup or migration.</p>
                             <div class="amfm-component-status">
-                                <span class="amfm-status-indicator active"></span>
+                                <span class="amfm-status-indicator"></span>
                                 <span class="amfm-status-text">Click to Export</span>
                             </div>
                         </div>

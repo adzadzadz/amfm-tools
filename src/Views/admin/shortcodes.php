@@ -567,9 +567,9 @@ function autoSaveDkvField(fieldId) {
                 hideFieldStatus(fieldId);
             }, 3000);
         } else {
-            const errorMessage = data.data?.message || 'Save failed';
+            const errorMessage = data.data?.message || data.message || 'Save failed';
             showFieldStatus(fieldId, 'error', errorMessage);
-            console.error('DKV Field Save Error:', data.data);
+            console.error('DKV Field Save Error:', data);
         }
     })
     .catch(error => {

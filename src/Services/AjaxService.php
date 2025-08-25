@@ -12,6 +12,18 @@ use AdzWP\Core\Service;
 class AjaxService extends Service
 {
     /**
+     * WordPress actions to register automatically
+     */
+    protected $actions = [
+        'wp_ajax_amfm_dkv_config_update' => 'updateDkvConfig',
+        'wp_ajax_amfm_get_post_type_taxonomies' => 'getPostTypeTaxonomies',
+        'wp_ajax_amfm_get_acf_field_groups' => 'getAcfFieldGroups',
+        'wp_ajax_amfm_export_data' => 'exportData',
+        'wp_ajax_amfm_update_component_settings' => 'updateComponentSettings',
+        'wp_ajax_amfm_update_elementor_widgets' => 'updateElementorWidgets'
+    ];
+
+    /**
      * Handle AJAX request for getting taxonomies for a post type
      */
     public function getPostTypeTaxonomies(): void
@@ -147,6 +159,16 @@ class AjaxService extends Service
         } else {
             wp_send_json_error('Failed to update widget settings');
         }
+    }
+
+    /**
+     * Handle AJAX request for DKV configuration update
+     */
+    public function updateDkvConfig(): void
+    {
+        // Use SettingsService AJAX handler which has proper nonce verification
+        $settingsService = $this->service('settings');
+        $settingsService->ajaxDkvConfigUpdate();
     }
 
     /**

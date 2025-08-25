@@ -101,14 +101,19 @@ add_action('plugins_loaded', function() {
         'import_export'
     ]);
 
-    // Admin Controller - Always enabled
-    new \App\Controllers\AdminController();
+    // Dashboard Controller - Always enabled
+    new \App\Controllers\Admin\DashboardController();
+
+    // Admin controllers - Always enabled for admin interface
+    new \App\Controllers\Admin\ImportExportController();
+    new \App\Controllers\Admin\ElementorController();
+    new \App\Controllers\Admin\ShortcodesController();
+    new \App\Controllers\Admin\UtilitiesController();
 
     // ACF Helper - Core component (always enabled)
     if (in_array('acf_helper', $enabled_components)) {
         new \App\Controllers\ACFController();
     }
-
 
     // Performance Optimization - Optional
     if (in_array('optimization', $enabled_components)) {

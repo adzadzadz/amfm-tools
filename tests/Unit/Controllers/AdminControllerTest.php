@@ -3,7 +3,7 @@
 namespace Tests\Unit\Controllers;
 
 use Tests\Helpers\FrameworkTestCase;
-use App\Controllers\AdminController;
+use App\Controllers\Admin\DashboardController;
 use App\Services\CsvImportService;
 use App\Services\DataExportService;
 use App\Services\AjaxService;
@@ -11,13 +11,13 @@ use App\Services\SettingsService;
 use Mockery;
 
 /**
- * Unit tests for AdminController
+ * Unit tests for DashboardController
  * 
  * Tests admin functionality, service integration, and WordPress hooks
  */
-class AdminControllerTest extends FrameworkTestCase
+class DashboardControllerTest extends FrameworkTestCase
 {
-    protected AdminController $controller;
+    protected DashboardController $controller;
     protected $mockCsvImportService;
     protected $mockDataExportService;
     protected $mockAjaxService;
@@ -28,7 +28,7 @@ class AdminControllerTest extends FrameworkTestCase
         parent::setUp();
         
         // Create controller instance
-        $this->controller = new AdminController();
+        $this->controller = new DashboardController();
         
         // Mock services
         $this->mockCsvImportService = Mockery::mock(CsvImportService::class);
@@ -40,7 +40,7 @@ class AdminControllerTest extends FrameworkTestCase
     public function testServiceInitialization()
     {
         // Test that services are properly instantiated in actionWpInit
-        $this->assertInstanceOf(AdminController::class, $this->controller);
+        $this->assertInstanceOf(DashboardController::class, $this->controller);
         
         // Call the service initialization method
         $this->controller->actionWpInit();
@@ -52,7 +52,7 @@ class AdminControllerTest extends FrameworkTestCase
     public function testActionAdminInitWithServices()
     {
         // Mock the service() method to return our mocked services
-        $controller = Mockery::mock(AdminController::class)->makePartial();
+        $controller = Mockery::mock(DashboardController::class)->makePartial();
         
         $controller->shouldReceive('service')
             ->with('csv_import')
@@ -84,7 +84,7 @@ class AdminControllerTest extends FrameworkTestCase
     public function testActionAdminInitWithNullServices()
     {
         // Mock the service() method to return null (services not available)
-        $controller = Mockery::mock(AdminController::class)->makePartial();
+        $controller = Mockery::mock(DashboardController::class)->makePartial();
         
         $controller->shouldReceive('service')->andReturn(null);
 
@@ -132,7 +132,7 @@ class AdminControllerTest extends FrameworkTestCase
         $this->mockWordPressFunction('delete_transient', 'amfm_csv_import_results');
         
         // Mock the service method
-        $controller = Mockery::mock(AdminController::class)->makePartial();
+        $controller = Mockery::mock(DashboardController::class)->makePartial();
         $controller->shouldReceive('getDashboardData')->andReturn([]);
         
         // Capture output
@@ -155,7 +155,7 @@ class AdminControllerTest extends FrameworkTestCase
         $method->setAccessible(true);
 
         // Mock the service method
-        $controller = Mockery::mock(AdminController::class)->makePartial();
+        $controller = Mockery::mock(DashboardController::class)->makePartial();
         $controller->shouldReceive('service')
             ->with('settings')
             ->andReturn($this->mockSettingsService);
@@ -180,7 +180,7 @@ class AdminControllerTest extends FrameworkTestCase
         $method->setAccessible(true);
 
         // Mock the service method to return null
-        $controller = Mockery::mock(AdminController::class)->makePartial();
+        $controller = Mockery::mock(DashboardController::class)->makePartial();
         $controller->shouldReceive('service')
             ->with('settings')
             ->andReturn(null);
@@ -223,7 +223,7 @@ class AdminControllerTest extends FrameworkTestCase
     public function testAjaxMethods()
     {
         // Mock the service method
-        $controller = Mockery::mock(AdminController::class)->makePartial();
+        $controller = Mockery::mock(DashboardController::class)->makePartial();
         
         // Test AJAX taxonomy method
         $controller->shouldReceive('service')
@@ -247,7 +247,7 @@ class AdminControllerTest extends FrameworkTestCase
     public function testAjaxMethodsWithNullService()
     {
         // Mock the service method to return null
-        $controller = Mockery::mock(AdminController::class)->makePartial();
+        $controller = Mockery::mock(DashboardController::class)->makePartial();
         $controller->shouldReceive('service')->andReturn(null);
 
         // These should not cause errors when service is null
@@ -261,7 +261,7 @@ class AdminControllerTest extends FrameworkTestCase
     public function testSettingsAjaxMethods()
     {
         // Mock the service method
-        $controller = Mockery::mock(AdminController::class)->makePartial();
+        $controller = Mockery::mock(DashboardController::class)->makePartial();
         
         $controller->shouldReceive('service')
             ->with('settings')
@@ -287,7 +287,7 @@ class AdminControllerTest extends FrameworkTestCase
         $this->mockWordPressFunction('admin_url', 'admin-ajax.php', 'http://example.com/wp-admin/admin-ajax.php');
         
         // Mock the createNonce method
-        $controller = Mockery::mock(AdminController::class)->makePartial();
+        $controller = Mockery::mock(DashboardController::class)->makePartial();
         $controller->shouldReceive('createNonce')->andReturn('test_nonce');
 
         // Test with AMFM page
@@ -307,7 +307,7 @@ class AdminControllerTest extends FrameworkTestCase
         $method->setAccessible(true);
 
         // Mock the settings service
-        $controller = Mockery::mock(AdminController::class)->makePartial();
+        $controller = Mockery::mock(DashboardController::class)->makePartial();
         $controller->shouldReceive('service')
             ->with('settings')
             ->andReturn($this->mockSettingsService);
@@ -353,7 +353,7 @@ class AdminControllerTest extends FrameworkTestCase
         $method->setAccessible(true);
 
         // Mock the settings service
-        $controller = Mockery::mock(AdminController::class)->makePartial();
+        $controller = Mockery::mock(DashboardController::class)->makePartial();
         $controller->shouldReceive('service')
             ->with('settings')
             ->andReturn($this->mockSettingsService);
@@ -387,7 +387,7 @@ class AdminControllerTest extends FrameworkTestCase
         $method->setAccessible(true);
 
         // Mock the settings service
-        $controller = Mockery::mock(AdminController::class)->makePartial();
+        $controller = Mockery::mock(DashboardController::class)->makePartial();
         $controller->shouldReceive('service')
             ->with('settings')
             ->andReturn($this->mockSettingsService);
@@ -418,7 +418,7 @@ class AdminControllerTest extends FrameworkTestCase
         $method->setAccessible(true);
 
         // Mock the settings service
-        $controller = Mockery::mock(AdminController::class)->makePartial();
+        $controller = Mockery::mock(DashboardController::class)->makePartial();
         $controller->shouldReceive('service')
             ->with('settings')
             ->andReturn($this->mockSettingsService);

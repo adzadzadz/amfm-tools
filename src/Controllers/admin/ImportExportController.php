@@ -116,6 +116,230 @@ class ImportExportController extends Controller
             $version
         );
 
+        // Add custom styles for import/export page
+        wp_add_inline_style('amfm-admin-style', '
+            /* Import/Export specific styles */
+            .amfm-import-export-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+                gap: 30px;
+                margin: 40px 0;
+                max-width: 1200px;
+            }
+
+            .amfm-import-export-card {
+                background: #fff;
+                border-radius: 12px;
+                padding: 30px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+                border: 1px solid #e1e5e9;
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+            }
+
+            .amfm-import-export-card:hover {
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+                transform: translateY(-2px);
+            }
+
+            .amfm-card-header {
+                display: flex;
+                align-items: center;
+                margin-bottom: 20px;
+                gap: 15px;
+            }
+
+            .amfm-card-icon {
+                font-size: 2.5rem;
+                width: 60px;
+                height: 60px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                border-radius: 12px;
+                color: white;
+                text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+            }
+
+            .amfm-card-title {
+                font-size: 1.5rem;
+                font-weight: 600;
+                margin: 0;
+                color: #2c3e50;
+            }
+
+            .amfm-card-body {
+                margin-top: 20px;
+            }
+
+            .amfm-card-description {
+                font-size: 1rem;
+                line-height: 1.6;
+                color: #5a6c7d;
+                margin: 0 0 30px 0;
+            }
+
+            .amfm-card-actions {
+                display: flex;
+                justify-content: center;
+                margin-top: 30px;
+            }
+
+            .amfm-primary-button {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                border: none;
+                color: white;
+                padding: 12px 30px;
+                font-size: 1rem;
+                font-weight: 500;
+                border-radius: 8px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                min-width: 120px;
+            }
+
+            .amfm-primary-button:hover {
+                background: linear-gradient(135deg, #5a67d8 0%, #667eea 100%);
+                transform: translateY(-1px);
+                box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            }
+
+            .amfm-primary-button:active {
+                transform: translateY(0);
+            }
+
+            /* Mobile responsiveness */
+            @media (max-width: 768px) {
+                .amfm-import-export-grid {
+                    grid-template-columns: 1fr;
+                    gap: 20px;
+                    margin: 20px 0;
+                }
+
+                .amfm-import-export-card {
+                    padding: 20px;
+                }
+
+                .amfm-card-icon {
+                    width: 50px;
+                    height: 50px;
+                    font-size: 2rem;
+                }
+
+                .amfm-card-title {
+                    font-size: 1.25rem;
+                }
+            }
+
+            /* Drawer form improvements */
+            .amfm-drawer .amfm-form {
+                padding: 0;
+            }
+
+            .amfm-drawer .amfm-form-group {
+                margin-bottom: 25px;
+            }
+
+            .amfm-drawer .amfm-form-group label {
+                display: block;
+                font-weight: 600;
+                margin-bottom: 8px;
+                color: #2c3e50;
+            }
+
+            .amfm-drawer .amfm-checkbox-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                gap: 10px;
+                margin-top: 10px;
+            }
+
+            .amfm-drawer .amfm-checkbox-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 5px 0;
+                cursor: pointer;
+            }
+
+            .amfm-drawer .amfm-radio-group {
+                display: flex;
+                gap: 20px;
+                margin-top: 10px;
+            }
+
+            .amfm-drawer .amfm-radio-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                cursor: pointer;
+            }
+
+            .amfm-drawer .amfm-form-actions {
+                margin-top: 30px;
+                padding-top: 20px;
+                border-top: 1px solid #e1e5e9;
+                text-align: center;
+            }
+
+            .amfm-drawer .button-primary {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                border: none;
+                padding: 12px 30px;
+                font-size: 1rem;
+                font-weight: 500;
+                border-radius: 8px;
+                min-width: 150px;
+            }
+
+            .amfm-drawer .button-primary:hover {
+                background: linear-gradient(135deg, #5a67d8 0%, #667eea 100%);
+                box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            }
+
+            .amfm-info-box {
+                background: #f8f9fa;
+                border-left: 4px solid #667eea;
+                padding: 20px;
+                margin: 20px 0;
+                border-radius: 0 8px 8px 0;
+            }
+
+            .amfm-info-box h4 {
+                margin: 0 0 10px 0;
+                color: #2c3e50;
+                font-weight: 600;
+            }
+
+            .amfm-requirements-list {
+                margin: 10px 0 0 20px;
+                list-style: disc;
+            }
+
+            .amfm-requirements-list li {
+                margin: 5px 0;
+                color: #5a6c7d;
+            }
+
+            .amfm-file-input {
+                width: 100%;
+                padding: 10px;
+                border: 2px dashed #d1d5db;
+                border-radius: 8px;
+                background: #f9fafb;
+                transition: border-color 0.3s ease;
+            }
+
+            .amfm-file-input:focus {
+                border-color: #667eea;
+                outline: none;
+            }
+        ');
+
         ?>
         <div class="wrap amfm-admin-page">
             <div class="amfm-container">
@@ -141,52 +365,38 @@ class ImportExportController extends Controller
 
                 <!-- Import/Export Content -->
                 <div class="amfm-tab-content">
-                    <div class="amfm-components-grid">
+                    <div class="amfm-import-export-grid">
                         <!-- Export Data Card -->
-                        <div class="amfm-component-card amfm-component-enabled">
-                            <div class="amfm-component-header">
-                                <div class="amfm-component-icon">📤</div>
-                                <div class="amfm-component-toggle">
-                                    <span class="amfm-core-label">Core</span>
-                                </div>
+                        <div class="amfm-import-export-card">
+                            <div class="amfm-card-header">
+                                <div class="amfm-card-icon">📤</div>
+                                <h3 class="amfm-card-title">Export Data</h3>
                             </div>
-                            <div class="amfm-component-body">
-                                <h3 class="amfm-component-title">Export Data</h3>
-                                <p class="amfm-component-description">Export your posts, pages, and custom post types with their metadata to CSV format.</p>
-                                <div class="amfm-component-status">
-                                    <span class="amfm-status-indicator"></span>
-                                    <span class="amfm-status-text">Always Active</span>
-                                </div>
-                                <div class="amfm-component-actions">
+                            <div class="amfm-card-body">
+                                <p class="amfm-card-description">Export your posts, pages, and custom post types with their metadata to CSV format for backup or migration purposes.</p>
+                                <div class="amfm-card-actions">
                                     <button type="button" 
-                                            class="amfm-info-button amfm-doc-button" 
+                                            class="amfm-primary-button" 
                                             onclick="openImportExportDrawer('export')">
-                                        Export Data
+                                        Export
                                     </button>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Import Data Card -->
-                        <div class="amfm-component-card amfm-component-enabled">
-                            <div class="amfm-component-header">
-                                <div class="amfm-component-icon">📥</div>
-                                <div class="amfm-component-toggle">
-                                    <span class="amfm-core-label">Core</span>
-                                </div>
+                        <div class="amfm-import-export-card">
+                            <div class="amfm-card-header">
+                                <div class="amfm-card-icon">📥</div>
+                                <h3 class="amfm-card-title">Import Data</h3>
                             </div>
-                            <div class="amfm-component-body">
-                                <h3 class="amfm-component-title">Import Data</h3>
-                                <p class="amfm-component-description">Import data from CSV files to update posts with keywords, categories, and other metadata.</p>
-                                <div class="amfm-component-status">
-                                    <span class="amfm-status-indicator"></span>
-                                    <span class="amfm-status-text">Always Active</span>
-                                </div>
-                                <div class="amfm-component-actions">
+                            <div class="amfm-card-body">
+                                <p class="amfm-card-description">Import data from CSV files to update posts with content, taxonomies, ACF fields, and other metadata seamlessly.</p>
+                                <div class="amfm-card-actions">
                                     <button type="button" 
-                                            class="amfm-info-button amfm-config-button" 
+                                            class="amfm-primary-button" 
                                             onclick="openImportExportDrawer('import')">
-                                        Import Data
+                                        Import
                                     </button>
                                 </div>
                             </div>

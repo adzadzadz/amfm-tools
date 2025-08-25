@@ -29,7 +29,7 @@ class CsvImportService extends Service
         try {
             $results = $this->processKeywordsCsv($file['tmp_name']);
             set_transient('amfm_csv_import_results', $results, 300);
-            wp_redirect(admin_url('admin.php?page=amfm-tools&tab=import-export&imported=keywords'));
+            wp_redirect(admin_url('admin.php?page=amfm-tools-import-export&imported=keywords'));
             exit;
         } catch (\Exception $e) {
             $this->addNotice('Import failed: ' . $e->getMessage(), 'error');
@@ -54,7 +54,7 @@ class CsvImportService extends Service
         try {
             $results = $this->processCategoriesCsv($file['tmp_name']);
             set_transient('amfm_category_csv_import_results', $results, 300);
-            wp_redirect(admin_url('admin.php?page=amfm-tools&tab=import-export&imported=categories'));
+            wp_redirect(admin_url('admin.php?page=amfm-tools-import-export&imported=categories'));
             exit;
         } catch (\Exception $e) {
             $this->addNotice('Import failed: ' . $e->getMessage(), 'error');

@@ -102,8 +102,8 @@ class AjaxService extends Service
             wp_send_json_error('Permission denied');
         }
 
-        // Use DataExportService for the actual export logic
-        $exportService = $this->service('data_export');
+        // Use CsvExportService for the actual export logic
+        $exportService = $this->service('csv_export');
         
         try {
             $result = $exportService->exportData($_POST);
@@ -176,7 +176,7 @@ class AjaxService extends Service
      */
     protected function dependencies(): array
     {
-        return ['settings', 'data_export'];
+        return ['settings', 'csv_export'];
     }
 
     /**

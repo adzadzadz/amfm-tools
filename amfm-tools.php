@@ -101,6 +101,11 @@ add_action('plugins_loaded', function() {
         'import_export'
     ]);
 
+    // Services - Initialize first so controllers can access them
+    new \App\Services\CsvExportService();
+    new \App\Services\CsvImportService();
+    new \App\Services\SettingsService();
+
     // Dashboard Controller - Always enabled
     new \App\Controllers\Admin\DashboardController();
 
@@ -109,6 +114,7 @@ add_action('plugins_loaded', function() {
     new \App\Controllers\Admin\ShortcodesController();
     new \App\Controllers\Admin\UtilitiesController();
     new \App\Controllers\Admin\ImportExportController(); // Load last to appear last in menu
+    new \App\Controllers\Admin\AjaxController(); // AJAX handlers for all admin functionality
 
     // ACF Helper - Core component (always enabled)
     if (in_array('acf_helper', $enabled_components)) {

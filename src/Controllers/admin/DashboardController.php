@@ -5,7 +5,7 @@ namespace App\Controllers\Admin;
 use AdzWP\Core\Controller;
 use AdzWP\Core\View;
 use App\Services\CsvImportService;
-use App\Services\DataExportService;
+use App\Services\CsvExportService;
 use App\Services\AjaxService;
 use App\Services\SettingsService;
 
@@ -24,7 +24,7 @@ class DashboardController extends Controller
         // Services are auto-instantiated when accessed via magic properties
         // This ensures proper dependency injection and service registration
         new CsvImportService();
-        new DataExportService();
+        new CsvExportService();
         new AjaxService();
         new SettingsService();
     }
@@ -36,7 +36,7 @@ class DashboardController extends Controller
     {
         // Get service instances using the service() method
         $csvImportService = $this->service('csv_import');
-        $dataExportService = $this->service('data_export');
+        $csvExportService = $this->service('csv_export');
         
         // Handle CSV imports for categories (dashboard stats)
         if ($csvImportService) {
@@ -44,8 +44,8 @@ class DashboardController extends Controller
         }
         
         // Handle data export
-        if ($dataExportService) {
-            $dataExportService->handleDirectExport();
+        if ($csvExportService) {
+            $csvExportService->handleExport();
         }
     }
 

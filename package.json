@@ -1,7 +1,7 @@
 {
-    "name": "your-wordpress-plugin",
+    "name": "amfm-tools",
     "version": "1.0.0",
-    "description": "WordPress plugin built with ADZ Framework",
+    "description": "AMFM Tools WordPress plugin built with ADZ Framework",
     "scripts": {
         "build": "node tools/build.js",
         "build:assets": "node tools/build-assets.js",
@@ -16,5 +16,9 @@
         "clean-css": "^5.0.0",
         "postcss": "^8.0.0",
         "terser": "^5.0.0"
-    }
+    },
+    "browserslist": [
+        "> 1%",
+        "last 2 versions"
+    ]
 }

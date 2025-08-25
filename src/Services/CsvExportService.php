@@ -5,11 +5,11 @@ namespace App\Services;
 use AdzWP\Core\Service;
 
 /**
- * Data Export Service - handles data export functionality
+ * CSV Export Service - handles CSV data export functionality
  * 
  * Provides clean, reusable export logic with proper validation and security
  */
-class DataExportService extends Service
+class CsvExportService extends Service
 {
     /**
      * Export data based on provided options
@@ -18,7 +18,6 @@ class DataExportService extends Service
     {
         // Validate required parameters
         $postType = $this->validatePostType($options['export_post_type'] ?? '');
-        $exportOptions = $this->sanitizeExportOptions($options['export_options'] ?? []);
         
         // Get posts
         $posts = $this->getPosts($postType);
@@ -27,7 +26,7 @@ class DataExportService extends Service
         }
 
         // Build export data
-        $csvData = $this->buildCsvData($posts, $postType, $exportOptions, $options);
+        $csvData = $this->buildCsvData($posts, $postType, $options);
         $filename = $this->generateFilename($postType);
 
         return [
@@ -38,26 +37,221 @@ class DataExportService extends Service
     }
 
     /**
-     * Handle non-AJAX export (direct download)
+     * Handle direct export from form submission
      */
-    public function handleDirectExport(): void
+    public function handleExport(): void
     {
-        // Skip if this is an AJAX request
-        if (wp_doing_ajax()) {
-            return;
-        }
-        
-        // Verify nonce and permissions
-        if (!$this->verifyNonce('amfm_export_nonce') || !current_user_can('manage_options')) {
+        // Verify nonce and user capabilities first
+        if (!isset($_POST['amfm_export']) ||
+            !check_admin_referer('amfm_export_nonce', 'amfm_export_nonce') ||
+            !current_user_can('manage_options')) {
             return;
         }
 
         try {
-            $result = $this->exportData($_POST);
-            $this->outputCsv($result['data'], $result['filename']);
+            $this->processExport();
         } catch (\Exception $e) {
-            wp_die('Export failed: ' . esc_html($e->getMessage()));
+            $this->addNotice('Export failed: ' . $e->getMessage(), 'error');
         }
+    }
+
+    /**
+     * Process the export with full validation
+     */
+    private function processExport(): void
+    {
+        // Validate form data
+        if (empty($_POST['export_post_type'])) {
+            throw new \Exception('Please select a post type to export.');
+        }
+
+        // Sanitize and validate post type
+        $postType = sanitize_key(wp_unslash($_POST['export_post_type']));
+        if (!post_type_exists($postType)) {
+            throw new \Exception('Invalid post type selected.');
+        }
+
+        // Process export options
+        $exportOptions = $this->processExportOptions();
+        
+        // Get posts
+        $posts = get_posts([
+            'post_type' => $postType,
+            'posts_per_page' => -1,
+            'post_status' => 'any'
+        ]);
+
+        if (empty($posts)) {
+            throw new \Exception(sprintf('No posts found for the post type: %s', esc_html($postType)));
+        }
+
+        // Build export data
+        $headers = $this->buildExportHeaders($postType, $exportOptions);
+        $csvData = $this->buildExportData($posts, $postType, $exportOptions, $headers);
+        
+        // Output CSV
+        $this->outputDirectCsv($csvData, $postType);
+    }
+
+    /**
+     * Process and validate export options
+     */
+    private function processExportOptions(): array
+    {
+        $exportOptions = isset($_POST['export_options']) ?
+            array_map('sanitize_key', wp_unslash($_POST['export_options'])) :
+            [];
+
+        $taxonomySelection = isset($_POST['taxonomy_selection']) ?
+            sanitize_key(wp_unslash($_POST['taxonomy_selection'])) :
+            'all';
+        if (!in_array($taxonomySelection, ['all', 'selected'], true)) {
+            $taxonomySelection = 'all';
+        }
+
+        $specificTaxonomies = isset($_POST['specific_taxonomies']) ?
+            array_map('sanitize_key', wp_unslash($_POST['specific_taxonomies'])) :
+            [];
+
+        $acfSelection = isset($_POST['acf_selection']) ?
+            sanitize_key(wp_unslash($_POST['acf_selection'])) :
+            'all';
+        if (!in_array($acfSelection, ['all', 'selected'], true)) {
+            $acfSelection = 'all';
+        }
+
+        $specificAcfGroups = isset($_POST['specific_acf_groups']) ?
+            array_map('sanitize_key', wp_unslash($_POST['specific_acf_groups'])) :
+            [];
+
+        return [
+            'export_options' => $exportOptions,
+            'taxonomy_selection' => $taxonomySelection,
+            'specific_taxonomies' => $specificTaxonomies,
+            'acf_selection' => $acfSelection,
+            'specific_acf_groups' => $specificAcfGroups
+        ];
+    }
+
+    /**
+     * Build export headers based on options
+     */
+    private function buildExportHeaders(string $postType, array $options): array
+    {
+        $headers = [
+            esc_html__('ID', 'amfm-tools'),
+            esc_html__('Post Title', 'amfm-tools'),
+            esc_html__('Post Content', 'amfm-tools'),
+            esc_html__('Post Excerpt', 'amfm-tools'),
+            esc_html__('Post Status', 'amfm-tools'),
+            esc_html__('Post Date', 'amfm-tools'),
+            esc_html__('Post Modified', 'amfm-tools'),
+            esc_html__('Post URL', 'amfm-tools')
+        ];
+
+        // Add taxonomy headers
+        if (in_array('taxonomies', $options['export_options'], true)) {
+            $taxonomies = $this->getTaxonomiesForExport($postType, $options);
+            foreach ($taxonomies as $taxonomy) {
+                $headers[] = esc_html($taxonomy->label);
+            }
+        }
+
+        // Add ACF field headers
+        if (in_array('acf_fields', $options['export_options'], true)) {
+            $acfFields = $this->getAcfFieldsForExport($options);
+            foreach ($acfFields as $fieldName => $fieldLabel) {
+                $headers[] = esc_html($fieldLabel);
+            }
+        }
+
+        // Add featured image header
+        if (in_array('featured_image', $options['export_options'], true)) {
+            $headers[] = esc_html__('Featured Image URL', 'amfm-tools');
+        }
+
+        return $headers;
+    }
+
+    /**
+     * Build export data for all posts
+     */
+    private function buildExportData(array $posts, string $postType, array $options, array $headers): array
+    {
+        $csvData = [$headers];
+
+        foreach ($posts as $post) {
+            $row = [
+                absint($post->ID),
+                sanitize_text_field($post->post_title),
+                wp_kses_post($post->post_content),
+                sanitize_textarea_field($post->post_excerpt),
+                sanitize_key($post->post_status),
+                sanitize_text_field($post->post_date),
+                sanitize_text_field($post->post_modified),
+                esc_url_raw(get_permalink($post->ID))
+            ];
+
+            // Add taxonomy values
+            if (in_array('taxonomies', $options['export_options'], true)) {
+                $taxonomies = $this->getTaxonomiesForExport($postType, $options);
+                foreach ($taxonomies as $taxonomy) {
+                    $terms = wp_get_post_terms($post->ID, $taxonomy->name, ['fields' => 'names']);
+                    $row[] = !is_wp_error($terms) ?
+                        implode(', ', array_map('sanitize_text_field', $terms)) :
+                        '';
+                }
+            }
+
+            // Add ACF field values
+            if (in_array('acf_fields', $options['export_options'], true)) {
+                $acfFields = $this->getAcfFieldsForExport($options);
+                foreach ($acfFields as $fieldName => $fieldLabel) {
+                    $value = get_field($fieldName, $post->ID);
+                    if (is_array($value)) {
+                        $value = wp_json_encode($value);
+                    }
+                    $row[] = sanitize_text_field($value);
+                }
+            }
+
+            // Add featured image
+            if (in_array('featured_image', $options['export_options'], true)) {
+                $imageUrl = get_the_post_thumbnail_url($post->ID, 'full');
+                $row[] = $imageUrl ? esc_url_raw($imageUrl) : '';
+            }
+
+            $csvData[] = $row;
+        }
+
+        return $csvData;
+    }
+
+    /**
+     * Output CSV directly to browser
+     */
+    private function outputDirectCsv(array $data, string $postType): void
+    {
+        // Set proper headers for download
+        header('Content-Type: text/csv; charset=utf-8');
+        header(sprintf(
+            'Content-Disposition: attachment; filename="%s-export-%s.csv"',
+            sanitize_file_name($postType),
+            sanitize_file_name(gmdate('Y-m-d'))
+        ));
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        // Add BOM for Excel compatibility
+        echo "\xEF\xBB\xBF";
+
+        // Output CSV data
+        $output = fopen('php://output', 'w');
+        foreach ($data as $row) {
+            fputcsv($output, $row);
+        }
+        fclose($output);
+        exit;
     }
 
     /**
@@ -77,13 +271,6 @@ class DataExportService extends Service
         return $postType;
     }
 
-    /**
-     * Sanitize export options
-     */
-    private function sanitizeExportOptions(array $options): array
-    {
-        return array_map('sanitize_key', $options);
-    }
 
     /**
      * Get posts for export
@@ -100,13 +287,13 @@ class DataExportService extends Service
     /**
      * Build CSV data structure
      */
-    private function buildCsvData(array $posts, string $postType, array $exportOptions, array $options): array
+    private function buildCsvData(array $posts, string $postType, array $options): array
     {
-        $headers = $this->buildHeaders($postType, $exportOptions, $options);
+        $headers = $this->buildHeaders($postType, $options);
         $csvData = [$headers];
 
         foreach ($posts as $post) {
-            $row = $this->buildPostRow($post, $postType, $exportOptions, $options);
+            $row = $this->buildPostRow($post, $postType, $options);
             $csvData[] = $row;
         }
 
@@ -116,9 +303,10 @@ class DataExportService extends Service
     /**
      * Build CSV headers
      */
-    private function buildHeaders(string $postType, array $exportOptions, array $options): array
+    private function buildHeaders(string $postType, array $options): array
     {
         $headers = [];
+        $exportOptions = $options['export_options'] ?? [];
 
         // Post columns
         if (in_array('post_columns', $exportOptions, true)) {
@@ -153,9 +341,10 @@ class DataExportService extends Service
     /**
      * Build row data for a single post
      */
-    private function buildPostRow(\WP_Post $post, string $postType, array $exportOptions, array $options): array
+    private function buildPostRow(\WP_Post $post, string $postType, array $options): array
     {
         $row = [];
+        $exportOptions = $options['export_options'] ?? [];
 
         // Post columns
         if (in_array('post_columns', $exportOptions, true)) {
@@ -383,5 +572,16 @@ class DataExportService extends Service
     private function verifyNonce(string $nonceAction): bool
     {
         return isset($_POST[$nonceAction]) && wp_verify_nonce($_POST[$nonceAction], $nonceAction);
+    }
+
+    /**
+     * Add admin notice
+     */
+    private function addNotice(string $message, string $type = 'info'): void
+    {
+        add_action('admin_notices', function() use ($message, $type) {
+            $class = $type === 'error' ? 'notice-error' : 'notice-success';
+            echo '<div class="notice ' . $class . ' is-dismissible"><p>' . esc_html($message) . '</p></div>';
+        });
     }
 }

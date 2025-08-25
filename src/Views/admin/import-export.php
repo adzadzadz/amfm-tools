@@ -11,6 +11,9 @@ $post_types = $post_types ?? [];
 $selected_post_type = $selected_post_type ?? '';
 $post_type_taxonomies = $post_type_taxonomies ?? [];
 $all_field_groups = $all_field_groups ?? [];
+
+// Determine current sub-tab from URL
+$current_subtab = $_GET['subtab'] ?? 'export';
 ?>
 
 <div class="wrap amfm-admin-page">
@@ -28,16 +31,6 @@ $all_field_groups = $all_field_groups ?? [];
                     </div>
                 </div>
                 <div class="amfm-header-actions">
-                    <div class="amfm-header-stats">
-                        <div class="amfm-header-stat">
-                            <span class="amfm-header-stat-number"><?php echo count($post_types); ?></span>
-                            <span class="amfm-header-stat-label">Post Types</span>
-                        </div>
-                        <div class="amfm-header-stat">
-                            <span class="amfm-header-stat-number"><?php echo count($all_field_groups); ?></span>
-                            <span class="amfm-header-stat-label">ACF Groups</span>
-                        </div>
-                    </div>
                     <div class="amfm-version-badge">
                         v<?php echo esc_html(AMFM_TOOLS_VERSION); ?>
                     </div>
@@ -45,89 +38,106 @@ $all_field_groups = $all_field_groups ?? [];
             </div>
         </div>
 
-
-        <!-- Import/Export Tab Content -->
-        <div class="amfm-tab-content">
-            <?php if ($show_results || $show_category_results) : ?>
-                <!-- Import Results -->
-                <div class="amfm-results-section">
-                    <?php if ($show_results && $results) : ?>
-                    <h2>Import Results</h2>
-                    
-                    <div class="amfm-stats">
-                        <div class="amfm-stat amfm-stat-success">
-                            <div class="amfm-stat-number"><?php echo esc_html($results['success']); ?></div>
-                            <div class="amfm-stat-label">Successful Updates</div>
-                        </div>
-                        <div class="amfm-stat amfm-stat-error">
-                            <div class="amfm-stat-number"><?php echo esc_html($results['errors']); ?></div>
-                            <div class="amfm-stat-label">Errors</div>
-                        </div>
+        <?php if ($show_results || $show_category_results) : ?>
+            <!-- Import Results Section -->
+            <div class="amfm-results-section">
+                <?php if ($show_results && $results) : ?>
+                <h2>Import Results</h2>
+                
+                <div class="amfm-stats">
+                    <div class="amfm-stat amfm-stat-success">
+                        <div class="amfm-stat-number"><?php echo esc_html($results['success']); ?></div>
+                        <div class="amfm-stat-label">Successful Updates</div>
                     </div>
-
-                    <?php if (!empty($results['details'])) : ?>
-                        <div class="amfm-details">
-                            <h3>Detailed Log</h3>
-                            <div class="amfm-log">
-                                <?php foreach ($results['details'] as $detail) : ?>
-                                    <div class="amfm-log-item">
-                                        <?php echo esc_html($detail); ?>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-                    <?php endif; ?>
-                    <?php endif; ?>
-                    
-                    <?php if ($show_category_results && $category_results) : ?>
-                    <h2>Category Import Results</h2>
-                    
-                    <div class="amfm-stats">
-                        <div class="amfm-stat amfm-stat-success">
-                            <div class="amfm-stat-number"><?php echo esc_html($category_results['success']); ?></div>
-                            <div class="amfm-stat-label">Successful Assignments</div>
-                        </div>
-                        <div class="amfm-stat amfm-stat-error">
-                            <div class="amfm-stat-number"><?php echo esc_html($category_results['errors']); ?></div>
-                            <div class="amfm-stat-label">Errors</div>
-                        </div>
-                    </div>
-
-                    <?php if (!empty($category_results['details'])) : ?>
-                        <div class="amfm-details">
-                            <h3>Detailed Log</h3>
-                            <div class="amfm-log">
-                                <?php foreach ($category_results['details'] as $detail) : ?>
-                                    <div class="amfm-log-item">
-                                        <?php echo esc_html($detail); ?>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-                    <?php endif; ?>
-                    <?php endif; ?>
-                    
-                    <div class="amfm-actions">
-                        <a href="<?php echo esc_url(admin_url('admin.php?page=amfm-tools&tab=import-export')); ?>" class="button button-primary">
-                            Import Another File
-                        </a>
+                    <div class="amfm-stat amfm-stat-error">
+                        <div class="amfm-stat-number"><?php echo esc_html($results['errors']); ?></div>
+                        <div class="amfm-stat-label">Errors</div>
                     </div>
                 </div>
-            <?php else : ?>
-                <!-- Accordion layout for all sections -->
-                <div class="amfm-accordion-container" style="margin-top: 20px;">
-                    
-                    <!-- Export Section -->
-                    <div class="amfm-accordion-section">
-                        <div class="amfm-accordion-header" data-target="export-data">
-                            <h2>
-                                <span class="amfm-seo-icon">📤</span>
-                                Export Data
-                                <span class="amfm-accordion-toggle">▼</span>
-                            </h2>
-                            <p>Export posts with ACF fields, taxonomies, and more to CSV.</p>
+
+                <?php if (!empty($results['details'])) : ?>
+                    <div class="amfm-details">
+                        <h3>Detailed Log</h3>
+                        <div class="amfm-log">
+                            <?php foreach ($results['details'] as $detail) : ?>
+                                <div class="amfm-log-item">
+                                    <?php echo esc_html($detail); ?>
+                                </div>
+                            <?php endforeach; ?>
                         </div>
-                        <div class="amfm-accordion-content" id="export-data" style="display: none;">
+                    </div>
+                <?php endif; ?>
+                <?php endif; ?>
+                
+                <?php if ($show_category_results && $category_results) : ?>
+                <h2>Category Import Results</h2>
+                
+                <div class="amfm-stats">
+                    <div class="amfm-stat amfm-stat-success">
+                        <div class="amfm-stat-number"><?php echo esc_html($category_results['success']); ?></div>
+                        <div class="amfm-stat-label">Successful Assignments</div>
+                    </div>
+                    <div class="amfm-stat amfm-stat-error">
+                        <div class="amfm-stat-number"><?php echo esc_html($category_results['errors']); ?></div>
+                        <div class="amfm-stat-label">Errors</div>
+                    </div>
+                </div>
+
+                <?php if (!empty($category_results['details'])) : ?>
+                    <div class="amfm-details">
+                        <h3>Detailed Log</h3>
+                        <div class="amfm-log">
+                            <?php foreach ($category_results['details'] as $detail) : ?>
+                                <div class="amfm-log-item">
+                                    <?php echo esc_html($detail); ?>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+                <?php endif; ?>
+                
+                <div class="amfm-actions">
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=amfm-tools-import-export')); ?>" class="button button-primary">
+                        Continue Import/Export
+                    </a>
+                </div>
+            </div>
+        <?php else : ?>
+            <!-- Tabbed Interface -->
+            <div class="amfm-tab-content">
+                <!-- Tab Navigation -->
+                <div class="amfm-subtabs-nav">
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=amfm-tools-import-export&subtab=export')); ?>" 
+                       class="amfm-subtab-link <?php echo $current_subtab === 'export' ? 'active' : ''; ?>">
+                        <span class="amfm-subtab-icon">📤</span>
+                        Export Data
+                    </a>
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=amfm-tools-import-export&subtab=keywords')); ?>" 
+                       class="amfm-subtab-link <?php echo $current_subtab === 'keywords' ? 'active' : ''; ?>">
+                        <span class="amfm-subtab-icon">📥</span>
+                        Import Keywords
+                    </a>
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=amfm-tools-import-export&subtab=categories')); ?>" 
+                       class="amfm-subtab-link <?php echo $current_subtab === 'categories' ? 'active' : ''; ?>">
+                        <span class="amfm-subtab-icon">📋</span>
+                        Import Categories
+                    </a>
+                </div>
+
+                <!-- Tab Content -->
+                <div class="amfm-subtab-content">
+                    <?php if ($current_subtab === 'export') : ?>
+                        <!-- Export Data Tab -->
+                        <div class="amfm-import-export-section">
+                            <div class="amfm-section-header">
+                                <h2>
+                                    <span class="amfm-section-icon">📤</span>
+                                    Export Data
+                                </h2>
+                                <p>Export posts with ACF fields, taxonomies, and metadata to CSV format.</p>
+                            </div>
+
                             <form method="post" action="" id="amfm_export_form">
                                 <?php wp_nonce_field('amfm_export_nonce', 'amfm_export_nonce'); ?>
                                 
@@ -147,227 +157,451 @@ $all_field_groups = $all_field_groups ?? [];
                                     
                                         <!-- Post Columns Options -->
                                         <div class="option-section" style="margin-bottom: 15px;">
-                                            <label>
-                                                <input type="checkbox" name="export_options[]" value="post_columns" class="toggle-section" data-section="post-columns-options" checked>
-                                                <?php esc_html_e('Select Post Columns', 'amfm-tools'); ?>
-                                            </label>
-                                            <div class="sub-options post-columns-options" style="margin-left: 20px; margin-top: 10px;">
-                                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px;">
-                                                    <label><input type="checkbox" name="post_columns[]" value="id" checked> <?php esc_html_e('Post ID', 'amfm-tools'); ?></label>
-                                                    <label><input type="checkbox" name="post_columns[]" value="title" checked> <?php esc_html_e('Post Title', 'amfm-tools'); ?></label>
-                                                    <label><input type="checkbox" name="post_columns[]" value="content"> <?php esc_html_e('Post Content', 'amfm-tools'); ?></label>
-                                                    <label><input type="checkbox" name="post_columns[]" value="excerpt"> <?php esc_html_e('Post Excerpt', 'amfm-tools'); ?></label>
-                                                    <label><input type="checkbox" name="post_columns[]" value="status"> <?php esc_html_e('Post Status', 'amfm-tools'); ?></label>
-                                                    <label><input type="checkbox" name="post_columns[]" value="date"> <?php esc_html_e('Post Date', 'amfm-tools'); ?></label>
-                                                    <label><input type="checkbox" name="post_columns[]" value="modified"> <?php esc_html_e('Post Modified', 'amfm-tools'); ?></label>
-                                                    <label><input type="checkbox" name="post_columns[]" value="url"> <?php esc_html_e('Post URL', 'amfm-tools'); ?></label>
-                                                    <label><input type="checkbox" name="post_columns[]" value="slug"> <?php esc_html_e('Post Slug', 'amfm-tools'); ?></label>
-                                                    <label><input type="checkbox" name="post_columns[]" value="author"> <?php esc_html_e('Post Author', 'amfm-tools'); ?></label>
-                                                </div>
+                                            <h4><?php esc_html_e('Post Fields', 'amfm-tools'); ?></h4>
+                                            <label><input type="checkbox" name="export_columns[]" value="ID" checked> ID</label><br>
+                                            <label><input type="checkbox" name="export_columns[]" value="post_title" checked> Title</label><br>
+                                            <label><input type="checkbox" name="export_columns[]" value="post_content"> Content</label><br>
+                                            <label><input type="checkbox" name="export_columns[]" value="post_excerpt"> Excerpt</label><br>
+                                            <label><input type="checkbox" name="export_columns[]" value="post_date" checked> Date</label><br>
+                                            <label><input type="checkbox" name="export_columns[]" value="post_status" checked> Status</label><br>
+                                            <label><input type="checkbox" name="export_columns[]" value="post_author"> Author</label><br>
+                                        </div>
+
+                                        <!-- Taxonomy Selection -->
+                                        <div class="taxonomy-section" id="taxonomy-section" style="display: none; margin-bottom: 15px;">
+                                            <h4><?php esc_html_e('Taxonomies', 'amfm-tools'); ?></h4>
+                                            <div id="taxonomy-checkboxes">
+                                                <!-- Dynamic content will be loaded here -->
                                             </div>
                                         </div>
 
-                                        <!-- Taxonomy Options -->
-                                        <div class="option-section" style="margin-bottom: 15px;">
-                                            <label>
-                                                <input type="checkbox" name="export_options[]" value="taxonomies" class="toggle-section" data-section="taxonomy-options" checked>
-                                                <?php esc_html_e('Include Taxonomies', 'amfm-tools'); ?>
-                                            </label>
-                                            <div class="sub-options taxonomy-options" style="margin-left: 20px; margin-top: 10px; display: block;">
-                                                <div style="margin-bottom: 10px;">
-                                                    <label style="display: block; margin-bottom: 5px;">
-                                                        <input type="radio" name="taxonomy_selection" value="all" checked>
-                                                        <?php esc_html_e('Include all taxonomies', 'amfm-tools'); ?>
-                                                    </label>
-                                                    <label style="display: block;">
-                                                        <input type="radio" name="taxonomy_selection" value="selected">
-                                                        <?php esc_html_e('Select specific taxonomies', 'amfm-tools'); ?>
-                                                    </label>
-                                                </div>
-                                                <div class="taxonomy-list" style="display: none; margin-top: 10px; padding: 10px; background: #f9f9f9; border-radius: 4px;">
-                                                    <!-- Taxonomies will be loaded here dynamically -->
-                                                </div>
+                                        <!-- ACF Fields Selection -->
+                                        <div class="acf-section" style="margin-bottom: 15px;">
+                                            <h4><?php esc_html_e('ACF Fields', 'amfm-tools'); ?></h4>
+                                            <div id="acf-checkboxes">
+                                                <?php if (!empty($all_field_groups)) : ?>
+                                                    <?php foreach ($all_field_groups as $group) : ?>
+                                                        <div style="margin-bottom: 8px; font-weight: bold;"><?php echo esc_html($group['title']); ?></div>
+                                                        <?php if (!empty($group['fields'])) : ?>
+                                                            <?php foreach ($group['fields'] as $field) : ?>
+                                                                <label style="margin-left: 20px;"><input type="checkbox" name="export_acf_fields[]" value="<?php echo esc_attr($field['name']); ?>"> <?php echo esc_html($field['label']); ?></label><br>
+                                                            <?php endforeach; ?>
+                                                        <?php endif; ?>
+                                                    <?php endforeach; ?>
+                                                <?php else: ?>
+                                                    <p><em>No ACF field groups found. Make sure ACF is active and has field groups configured.</em></p>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
 
-                                        <!-- ACF Fields Options -->
-                                        <div class="option-section" style="margin-bottom: 15px;">
-                                            <label>
-                                                <input type="checkbox" name="export_options[]" value="acf_fields" class="toggle-section" data-section="acf-options" checked>
-                                                <?php esc_html_e('Include ACF Fields', 'amfm-tools'); ?>
-                                            </label>
-                                            <div class="sub-options acf-options" style="margin-left: 20px; margin-top: 10px; display: block;">
-                                                <div style="margin-bottom: 10px;">
-                                                    <label style="display: block; margin-bottom: 5px;">
-                                                        <input type="radio" name="acf_selection" value="all" checked>
-                                                        <?php esc_html_e('Include all ACF fields', 'amfm-tools'); ?>
-                                                    </label>
-                                                    <label style="display: block;">
-                                                        <input type="radio" name="acf_selection" value="selected">
-                                                        <?php esc_html_e('Select specific field groups', 'amfm-tools'); ?>
-                                                    </label>
-                                                </div>
-                                                <div class="acf-list" style="display: none; margin-top: 10px; padding: 10px; background: #f9f9f9; border-radius: 4px;">
-                                                    <?php if (!empty($all_field_groups)) : ?>
-                                                        <?php foreach ($all_field_groups as $group) : ?>
-                                                        <label style="display: block; margin-bottom: 5px;">
-                                                            <input type="checkbox" name="specific_acf_groups[]" value="<?php echo esc_attr($group['key']); ?>">
-                                                            <?php echo esc_html($group['title']); ?>
-                                                        </label>
-                                                        <?php endforeach; ?>
-                                                    <?php else : ?>
-                                                        <p><?php esc_html_e('No ACF field groups found.', 'amfm-tools'); ?></p>
-                                                    <?php endif; ?>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Featured Image Option -->
-                                        <div class="option-section" style="margin-bottom: 15px;">
-                                            <label>
-                                                <input type="checkbox" name="export_options[]" value="featured_image" checked>
-                                                <?php esc_html_e('Include Featured Image URL', 'amfm-tools'); ?>
-                                            </label>
-                                        </div>
-
-                                        <p class="submit">
-                                            <button type="submit" id="amfm_export_btn" class="button button-primary">
-                                                <span class="export-text">Export to CSV</span>
-                                                <span class="spinner" style="display: none; float: none; margin: 0 0 0 5px;"></span>
-                                            </button>
-                                        </p>
+                                        <button type="submit" name="amfm_export" class="button button-primary">
+                                            <?php esc_html_e('Export to CSV', 'amfm-tools'); ?>
+                                        </button>
                                     </div>
                                 </div>
                             </form>
                         </div>
-                    </div>
 
-                    <!-- Keywords Import Section -->
-                    <div class="amfm-accordion-section">
-                        <div class="amfm-accordion-header" data-target="keywords-import">
-                            <h2>
-                                <span class="amfm-seo-icon">📥</span>
-                                Import Keywords
-                                <span class="amfm-accordion-toggle">▼</span>
-                            </h2>
-                            <p>Import keywords to update ACF fields in bulk for SEO optimization.</p>
-                        </div>
-                        <div class="amfm-accordion-content" id="keywords-import" style="display: none;">
-                            <div class="amfm-import-section">
-                                <!-- Collapsible Instructions -->
-                                <div class="amfm-instructions-header" data-target="keywords-instructions">
-                                    <button type="button" class="amfm-help-button">Need help?</button>
-                                </div>
-                                
-                                <div class="amfm-instructions-content" id="keywords-instructions" style="display: none;">
-                                    <div class="amfm-info-box">
-                                        <div class="amfm-instructions-section">
-                                            <h4>File Format</h4>
-                                            <p>Upload a CSV file with the following columns:</p>
-                                            <ul>
-                                                <li><strong>ID</strong> - Post ID to update</li>
-                                                <li><strong>Keywords</strong> - Keywords to add to the ACF field</li>
-                                            </ul>
-                                        </div>
-                                        
-                                        <div class="amfm-instructions-section">
-                                            <h4>Example CSV Content</h4>
-                                            <div class="amfm-code-block">
-                                                <pre>ID,Keywords
-1,"wordpress, cms, website"
-2,"seo, optimization, performance"</pre>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <form method="post" enctype="multipart/form-data" class="amfm-upload-form">
-                                    <?php wp_nonce_field('amfm_csv_import', 'amfm_csv_import_nonce'); ?>
-                                
-                                    <div class="amfm-file-input-wrapper">
-                                        <label for="csv_file" class="amfm-file-label">
-                                            <span class="amfm-file-icon">📁</span>
-                                            <span class="amfm-file-text">Choose CSV File</span>
-                                            <input type="file" id="csv_file" name="csv_file" accept=".csv" required class="amfm-file-input">
-                                        </label>
-                                        <div class="amfm-file-info"></div>
-                                    </div>
-
-                                    <div class="amfm-submit-wrapper">
-                                        <button type="submit" class="button button-primary amfm-submit-btn">
-                                            <span class="amfm-submit-icon">⬆️</span>
-                                            Import CSV File
-                                        </button>
-                                    </div>
-                                </form>
+                    <?php elseif ($current_subtab === 'keywords') : ?>
+                        <!-- Import Keywords Tab -->
+                        <div class="amfm-import-export-section">
+                            <div class="amfm-section-header">
+                                <h2>
+                                    <span class="amfm-section-icon">📥</span>
+                                    Import Keywords
+                                </h2>
+                                <p>Import keywords from CSV to assign to posts via ACF fields.</p>
                             </div>
-                        </div>
-                    </div>
 
-                    <!-- Categories Import Section -->
-                    <div class="amfm-accordion-section">
-                        <div class="amfm-accordion-header" data-target="categories-import">
-                            <h2>
-                                <span class="amfm-seo-icon">📂</span>
-                                Import Categories
-                                <span class="amfm-accordion-toggle">▼</span>
-                            </h2>
-                            <p>Import categories to assign to posts in bulk using CSV files.</p>
-                        </div>
-                        <div class="amfm-accordion-content" id="categories-import" style="display: none;">
-                            <div class="amfm-import-section">
-                                <!-- Collapsible Instructions -->
-                                <div class="amfm-instructions-header" data-target="categories-instructions">
-                                    <button type="button" class="amfm-help-button">Need help?</button>
+                            <div class="import-instructions">
+                                <h3>CSV Format Requirements</h3>
+                                <p>Your CSV file should have the following columns:</p>
+                                <ul>
+                                    <li><strong>post_id</strong>: The ID of the post to update</li>
+                                    <li><strong>keywords</strong>: Comma-separated keywords (for amfm_keywords field)</li>
+                                    <li><strong>other_keywords</strong> (optional): Additional keywords (for amfm_other_keywords field)</li>
+                                </ul>
+                                <div class="csv-example">
+                                    <h4>Example CSV content:</h4>
+                                    <code>
+                                        post_id,keywords,other_keywords<br>
+                                        123,"keyword1,keyword2,keyword3","extra1,extra2"<br>
+                                        456,"test,sample","additional"
+                                    </code>
                                 </div>
+                            </div>
+
+                            <form method="post" enctype="multipart/form-data" class="amfm-import-form">
+                                <?php wp_nonce_field('amfm_keywords_import_nonce', 'amfm_keywords_import_nonce'); ?>
                                 
-                                <div class="amfm-instructions-content" id="categories-instructions" style="display: none;">
-                                    <div class="amfm-info-box">
-                                        <div class="amfm-instructions-section">
-                                            <h4>File Format</h4>
-                                            <p>Upload a CSV file with the following columns:</p>
-                                            <ul>
-                                                <li><strong>id</strong> - Post ID to assign category to</li>
-                                                <li><strong>Categories</strong> - Category name to assign to the post</li>
-                                            </ul>
-                                        </div>
-                                        
-                                        <div class="amfm-instructions-section">
-                                            <h4>Example CSV Content</h4>
-                                            <div class="amfm-code-block">
-                                                <pre>id,Categories
-2518,"Bipolar Disorder & Mania"
-2650,"News, Advocacy & Thought Leadership"
-2708,"Bipolar Disorder & Mania"</pre>
-                                            </div>
-                                        </div>
-                                    </div>
+                                <div class="upload-section">
+                                    <h3>Upload CSV File</h3>
+                                    <input type="file" name="keywords_csv_file" id="keywords_csv_file" accept=".csv" required>
+                                    <p class="description">Maximum file size: 2MB</p>
                                 </div>
 
-                                <form method="post" enctype="multipart/form-data" class="amfm-upload-form">
-                                    <?php wp_nonce_field('amfm_category_csv_import', 'amfm_category_csv_import_nonce'); ?>
+                                <div class="import-options">
+                                    <h3>Import Options</h3>
+                                    <label>
+                                        <input type="checkbox" name="overwrite_existing" value="1"> 
+                                        Overwrite existing keywords
+                                    </label>
+                                    <p class="description">If unchecked, new keywords will be appended to existing ones.</p>
+                                </div>
+
+                                <button type="submit" name="amfm_import_keywords" class="button button-primary">
+                                    Import Keywords
+                                </button>
+                            </form>
+                        </div>
+
+                    <?php elseif ($current_subtab === 'categories') : ?>
+                        <!-- Import Categories Tab -->
+                        <div class="amfm-import-export-section">
+                            <div class="amfm-section-header">
+                                <h2>
+                                    <span class="amfm-section-icon">📋</span>
+                                    Import Categories
+                                </h2>
+                                <p>Import category assignments from CSV to organize your content.</p>
+                            </div>
+
+                            <div class="import-instructions">
+                                <h3>CSV Format Requirements</h3>
+                                <p>Your CSV file should have the following columns:</p>
+                                <ul>
+                                    <li><strong>post_id</strong>: The ID of the post to update</li>
+                                    <li><strong>categories</strong>: Comma-separated category names or IDs</li>
+                                    <li><strong>taxonomy</strong> (optional): Taxonomy name (defaults to 'category')</li>
+                                </ul>
+                                <div class="csv-example">
+                                    <h4>Example CSV content:</h4>
+                                    <code>
+                                        post_id,categories,taxonomy<br>
+                                        123,"News,Technology,Updates",category<br>
+                                        456,"Product Reviews","custom_taxonomy"
+                                    </code>
+                                </div>
+                            </div>
+
+                            <form method="post" enctype="multipart/form-data" class="amfm-import-form">
+                                <?php wp_nonce_field('amfm_categories_import_nonce', 'amfm_categories_import_nonce'); ?>
+                                
+                                <div class="upload-section">
+                                    <h3>Upload CSV File</h3>
+                                    <input type="file" name="categories_csv_file" id="categories_csv_file" accept=".csv" required>
+                                    <p class="description">Maximum file size: 2MB</p>
+                                </div>
+
+                                <div class="import-options">
+                                    <h3>Import Options</h3>
+                                    <label>
+                                        <input type="checkbox" name="create_missing_categories" value="1" checked> 
+                                        Create missing categories
+                                    </label>
+                                    <p class="description">If unchecked, missing categories will be skipped.</p>
                                     
-                                    <div class="amfm-file-input-wrapper">
-                                        <label for="category_csv_file" class="amfm-file-label">
-                                            <span class="amfm-file-icon">📁</span>
-                                            <span class="amfm-file-text">Choose CSV File</span>
-                                            <input type="file" id="category_csv_file" name="category_csv_file" accept=".csv" required class="amfm-file-input">
-                                        </label>
-                                        <div class="amfm-file-info"></div>
-                                    </div>
+                                    <label>
+                                        <input type="checkbox" name="replace_categories" value="1"> 
+                                        Replace existing categories
+                                    </label>
+                                    <p class="description">If unchecked, new categories will be added to existing ones.</p>
+                                </div>
 
-                                    <div class="amfm-submit-wrapper">
-                                        <button type="submit" class="button button-primary amfm-submit-btn">
-                                            <span class="amfm-submit-icon">⬆️</span>
-                                            Import CSV File
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
+                                <button type="submit" name="amfm_import_categories" class="button button-primary">
+                                    Import Categories
+                                </button>
+                            </form>
                         </div>
-                    </div>
+                    <?php endif; ?>
                 </div>
-            <?php endif; ?>
-        </div>
+            </div>
+        <?php endif; ?>
     </div>
 </div>
+
+<style>
+/* Tab Navigation Styles */
+.amfm-subtabs-nav {
+    display: flex;
+    border-bottom: 2px solid #e5e5e5;
+    margin-bottom: 30px;
+    background: #f9f9f9;
+    border-radius: 6px 6px 0 0;
+    overflow: hidden;
+}
+
+.amfm-subtab-link {
+    display: flex;
+    align-items: center;
+    padding: 15px 25px;
+    color: #666;
+    text-decoration: none;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    background: #f9f9f9;
+}
+
+.amfm-subtab-link:hover {
+    color: #0073aa;
+    background: #fff;
+}
+
+.amfm-subtab-link.active {
+    color: #0073aa;
+    border-bottom-color: #0073aa;
+    background: #fff;
+}
+
+.amfm-subtab-icon {
+    margin-right: 8px;
+    font-size: 16px;
+}
+
+/* Content Section Styles */
+.amfm-import-export-section {
+    background: #fff;
+    padding: 30px;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.amfm-section-header {
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.amfm-section-header h2 {
+    display: flex;
+    align-items: center;
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.amfm-section-icon {
+    margin-right: 10px;
+    font-size: 20px;
+}
+
+.amfm-section-header p {
+    margin: 0;
+    color: #666;
+}
+
+/* Import Instructions Styles */
+.import-instructions {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 6px;
+    margin-bottom: 30px;
+    border-left: 4px solid #0073aa;
+}
+
+.import-instructions h3 {
+    margin-top: 0;
+    color: #333;
+}
+
+.import-instructions ul {
+    margin: 10px 0 20px 20px;
+}
+
+.csv-example {
+    background: #fff;
+    padding: 15px;
+    border-radius: 4px;
+    margin-top: 15px;
+}
+
+.csv-example code {
+    display: block;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    color: #d73e48;
+    line-height: 1.5;
+}
+
+/* Form Styles */
+.export-section, .upload-section, .import-options {
+    margin-bottom: 30px;
+}
+
+.export-section h3, .upload-section h3, .import-options h3 {
+    color: #333;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 10px;
+}
+
+.option-section, .taxonomy-section, .acf-section {
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+.option-section label, .taxonomy-section label, .acf-section label {
+    display: block;
+    margin-bottom: 8px;
+    cursor: pointer;
+}
+
+.option-section input, .taxonomy-section input, .acf-section input {
+    margin-right: 8px;
+}
+
+/* Upload styles */
+input[type="file"] {
+    width: 100%;
+    padding: 10px;
+    border: 2px dashed #ccc;
+    border-radius: 4px;
+    background: #fafafa;
+    margin-bottom: 10px;
+}
+
+input[type="file"]:hover {
+    border-color: #0073aa;
+    background: #f0f8ff;
+}
+
+/* Results section styles */
+.amfm-results-section {
+    background: #fff;
+    padding: 30px;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
+}
+
+.amfm-stats {
+    display: flex;
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.amfm-stat {
+    background: #f9f9f9;
+    padding: 20px;
+    border-radius: 6px;
+    text-align: center;
+    min-width: 120px;
+}
+
+.amfm-stat-success {
+    border-left: 4px solid #46b450;
+}
+
+.amfm-stat-error {
+    border-left: 4px solid #dc3232;
+}
+
+.amfm-stat-number {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.amfm-stat-success .amfm-stat-number {
+    color: #46b450;
+}
+
+.amfm-stat-error .amfm-stat-number {
+    color: #dc3232;
+}
+
+.amfm-log {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 4px;
+    max-height: 300px;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.amfm-log-item {
+    margin-bottom: 5px;
+    padding: 3px 0;
+    border-bottom: 1px solid #eee;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .amfm-subtabs-nav {
+        flex-direction: column;
+    }
+    
+    .amfm-subtab-link {
+        border-bottom: 1px solid #e5e5e5;
+        border-right: none;
+    }
+    
+    .amfm-subtab-link.active {
+        border-bottom-color: #e5e5e5;
+        border-left: 3px solid #0073aa;
+    }
+    
+    .amfm-stats {
+        flex-direction: column;
+    }
+    
+    .amfm-import-export-section {
+        padding: 20px;
+    }
+}
+</style>
+
+<script>
+// Handle post type selection for export
+document.getElementById('export_post_type').addEventListener('change', function() {
+    const postType = this.value;
+    const exportOptions = document.querySelector('.export-options');
+    const taxonomySection = document.getElementById('taxonomy-section');
+    
+    if (postType) {
+        exportOptions.style.display = 'block';
+        
+        // Load taxonomies for selected post type
+        fetch(ajaxurl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                action: 'amfm_get_post_type_taxonomies',
+                post_type: postType,
+                nonce: '<?php echo wp_create_nonce('amfm_ajax_nonce'); ?>'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const taxonomyCheckboxes = document.getElementById('taxonomy-checkboxes');
+                taxonomyCheckboxes.innerHTML = '';
+                
+                if (data.data.length > 0) {
+                    taxonomySection.style.display = 'block';
+                    data.data.forEach(taxonomy => {
+                        const label = document.createElement('label');
+                        label.innerHTML = `<input type="checkbox" name="export_taxonomies[]" value="${taxonomy.name}"> ${taxonomy.label}`;
+                        label.style.display = 'block';
+                        label.style.marginBottom = '8px';
+                        taxonomyCheckboxes.appendChild(label);
+                    });
+                } else {
+                    taxonomySection.style.display = 'none';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error loading taxonomies:', error);
+        });
+    } else {
+        exportOptions.style.display = 'none';
+        taxonomySection.style.display = 'none';
+    }
+});
+</script>

@@ -1036,56 +1036,6 @@ select:focus {
 </style>
 
 <script>
-// Handle post type selection for export
-document.getElementById('export_post_type').addEventListener('change', function() {
-    const postType = this.value;
-    const exportOptions = document.querySelector('.export-options');
-    const taxonomySection = document.getElementById('taxonomy-section');
-    
-    if (postType) {
-        exportOptions.style.display = 'block';
-        
-        // Load taxonomies for selected post type
-        fetch(ajaxurl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-                action: 'amfm_get_post_type_taxonomies',
-                post_type: postType,
-                nonce: '<?php echo wp_create_nonce('amfm_ajax_nonce'); ?>'
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const taxonomyCheckboxes = document.getElementById('taxonomy-checkboxes');
-                taxonomyCheckboxes.innerHTML = '';
-                
-                if (data.data.length > 0) {
-                    taxonomySection.style.display = 'block';
-                    data.data.forEach(taxonomy => {
-                        const label = document.createElement('label');
-                        label.innerHTML = `<input type="checkbox" name="export_taxonomies[]" value="${taxonomy.name}"> ${taxonomy.label}`;
-                        label.style.display = 'block';
-                        label.style.marginBottom = '8px';
-                        taxonomyCheckboxes.appendChild(label);
-                    });
-                } else {
-                    taxonomySection.style.display = 'none';
-                }
-            }
-        })
-        .catch(error => {
-            console.error('Error loading taxonomies:', error);
-        });
-    } else {
-        exportOptions.style.display = 'none';
-        taxonomySection.style.display = 'none';
-    }
-});
-
 // Import/Export tool data
 const importExportData = {
     'export': {

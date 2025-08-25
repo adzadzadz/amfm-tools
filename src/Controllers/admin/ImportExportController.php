@@ -97,13 +97,15 @@ class ImportExportController extends Controller
 
         // Add custom styles for import/export page
         wp_add_inline_style('amfm-admin-style', '
-            /* Import/Export specific styles */
-            .amfm-import-export-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            /* Import/Export single column layout */
+            .amfm-import-export-single-column {
+                display: flex;
+                flex-direction: column;
                 gap: 30px;
                 margin: 40px 0;
-                max-width: 1200px;
+                max-width: 800px;
+                margin-left: auto;
+                margin-right: auto;
             }
 
             .amfm-import-export-card {
@@ -160,61 +162,38 @@ class ImportExportController extends Controller
                 margin: 0 0 30px 0;
             }
 
-            .amfm-card-actions {
-                display: flex;
-                justify-content: center;
-                margin-top: 30px;
-            }
-
-            .amfm-primary-button {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                border: none;
-                color: white;
-                padding: 12px 30px;
-                font-size: 1rem;
-                font-weight: 500;
-                border-radius: 8px;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-                min-width: 120px;
-            }
-
-            .amfm-primary-button:hover {
-                background: linear-gradient(135deg, #5a67d8 0%, #667eea 100%);
-                transform: translateY(-1px);
-                box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-            }
-
-            .amfm-primary-button:active {
-                transform: translateY(0);
-            }
-
-            /* Drawer form improvements */
-            .amfm-drawer .amfm-form {
+            /* Form styles */
+            .amfm-form {
                 padding: 0;
             }
 
-            .amfm-drawer .amfm-form-group {
+            .amfm-form-group {
                 margin-bottom: 25px;
             }
 
-            .amfm-drawer .amfm-form-group label {
+            .amfm-form-group label {
                 display: block;
                 font-weight: 600;
                 margin-bottom: 8px;
                 color: #2c3e50;
             }
 
-            .amfm-drawer .amfm-checkbox-grid {
+            .amfm-form-group select {
+                width: 100%;
+                padding: 10px;
+                border: 1px solid #d1d5db;
+                border-radius: 8px;
+                background: #fff;
+            }
+
+            .amfm-checkbox-grid {
                 display: grid;
                 grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
                 gap: 10px;
                 margin-top: 10px;
             }
 
-            .amfm-drawer .amfm-checkbox-item {
+            .amfm-checkbox-item {
                 display: flex;
                 align-items: center;
                 gap: 8px;
@@ -222,39 +201,42 @@ class ImportExportController extends Controller
                 cursor: pointer;
             }
 
-            .amfm-drawer .amfm-radio-group {
+            .amfm-radio-group {
                 display: flex;
                 gap: 20px;
                 margin-top: 10px;
             }
 
-            .amfm-drawer .amfm-radio-item {
+            .amfm-radio-item {
                 display: flex;
                 align-items: center;
                 gap: 8px;
                 cursor: pointer;
             }
 
-            .amfm-drawer .amfm-form-actions {
+            .amfm-form-actions {
                 margin-top: 30px;
                 padding-top: 20px;
                 border-top: 1px solid #e1e5e9;
                 text-align: center;
             }
 
-            .amfm-drawer .button-primary {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                border: none;
-                padding: 12px 30px;
-                font-size: 1rem;
-                font-weight: 500;
-                border-radius: 8px;
-                min-width: 150px;
+            .button-primary {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+                border: none !important;
+                padding: 12px 30px !important;
+                font-size: 1rem !important;
+                font-weight: 500 !important;
+                border-radius: 8px !important;
+                min-width: 150px !important;
+                color: white !important;
+                transition: all 0.3s ease !important;
             }
 
-            .amfm-drawer .button-primary:hover {
-                background: linear-gradient(135deg, #5a67d8 0%, #667eea 100%);
-                box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            .button-primary:hover {
+                background: linear-gradient(135deg, #5a67d8 0%, #667eea 100%) !important;
+                box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4) !important;
+                transform: translateY(-1px) !important;
             }
 
             .amfm-info-box {
@@ -299,47 +281,209 @@ class ImportExportController extends Controller
         // Create page content using template service
         $templateService = $this->service('page_template');
         
-        // Define the cards
-        $cards = [
-            [
-                'icon' => '📤',
-                'title' => 'Export Data',
-                'description' => 'Export your posts, pages, and custom post types with their metadata to CSV format for backup or migration purposes.',
-                'actions' => [
-                    [
-                        'text' => 'Export',
-                        'onclick' => "openImportExportDrawer('export')"
-                    ]
-                ]
-            ],
-            [
-                'icon' => '📥',
-                'title' => 'Import Data', 
-                'description' => 'Import data from CSV files to update posts with content, taxonomies, ACF fields, and other metadata seamlessly.',
-                'actions' => [
-                    [
-                        'text' => 'Import',
-                        'onclick' => "openImportExportDrawer('import')"
-                    ]
-                ]
-            ]
-        ];
-
-        // Create page content
-        $page_content = $templateService->renderSimpleCards($cards);
-        
-        // Add drawer HTML
-        $page_content .= '
-        <!-- Import/Export Drawer -->
-        <div id="amfm-import-export-drawer" class="amfm-drawer">
-            <div class="amfm-drawer-overlay" onclick="closeImportExportDrawer()"></div>
-            <div class="amfm-drawer-content">
-                <div class="amfm-drawer-header">
-                    <h2 id="amfm-drawer-title">Data Management</h2>
-                    <button type="button" class="amfm-drawer-close" onclick="closeImportExportDrawer()">&times;</button>
+        // Create page content with embedded forms instead of using cards
+        $page_content = '
+        <div class="amfm-import-export-single-column">
+            <!-- Export Section -->
+            <div class="amfm-import-export-card">
+                <div class="amfm-card-header">
+                    <div class="amfm-card-icon">📤</div>
+                    <h2 class="amfm-card-title">Export Data</h2>
                 </div>
-                <div class="amfm-drawer-body" id="amfm-drawer-body">
-                    <!-- Content will be loaded dynamically -->
+                <div class="amfm-card-body">
+                    <p class="amfm-card-description">Export your posts, pages, and custom post types with their metadata to CSV format for backup or migration purposes.</p>
+                    
+                    <form method="post" action="" class="amfm-form" id="amfm-export-form">
+                        <input type="hidden" name="amfm_export_nonce" value="' . wp_create_nonce('amfm_export_nonce') . '" />
+                        
+                        <div class="amfm-form-group">
+                            <label for="export_post_type">Select Post Type:</label>
+                            <select name="export_post_type" id="export_post_type" required>
+                                <option value="">Select a post type</option>
+                                ' . $this->getPostTypesOptions() . '
+                            </select>
+                        </div>
+
+                        <div class="amfm-form-group amfm-export-options" style="display:none;">
+                            <label>Export Options:</label>
+                            <div class="amfm-checkbox-grid">
+                                <label class="amfm-checkbox-item">
+                                    <input type="checkbox" name="export_options[]" value="post_data">
+                                    <span>Include Post Data</span>
+                                </label>
+                                <label class="amfm-checkbox-item">
+                                    <input type="checkbox" name="export_options[]" value="taxonomies">
+                                    <span>Include Taxonomies</span>
+                                </label>
+                                ' . (function_exists('acf_get_field_groups') ? '
+                                <label class="amfm-checkbox-item">
+                                    <input type="checkbox" name="export_options[]" value="acf_fields">
+                                    <span>Include ACF Fields</span>
+                                </label>
+                                ' : '') . '
+                                <label class="amfm-checkbox-item">
+                                    <input type="checkbox" name="export_options[]" value="featured_image">
+                                    <span>Include Featured Image URL</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="amfm-form-group amfm-post-data-selection" style="display:none;">
+                            <label>Post Data Selection:</label>
+                            <div class="amfm-radio-group">
+                                <label class="amfm-radio-item">
+                                    <input type="radio" name="post_data_selection" value="all" checked>
+                                    <span>All Post Columns</span>
+                                </label>
+                                <label class="amfm-radio-item">
+                                    <input type="radio" name="post_data_selection" value="selected">
+                                    <span>Select Specific Columns</span>
+                                </label>
+                            </div>
+                            <div class="amfm-specific-post-columns amfm-checkbox-grid" style="display:none;">
+                                <label class="amfm-checkbox-item">
+                                    <input type="checkbox" name="specific_post_columns[]" value="post_title" checked>
+                                    <span>Post Title</span>
+                                </label>
+                                <label class="amfm-checkbox-item">
+                                    <input type="checkbox" name="specific_post_columns[]" value="post_content">
+                                    <span>Post Content</span>
+                                </label>
+                                <label class="amfm-checkbox-item">
+                                    <input type="checkbox" name="specific_post_columns[]" value="post_excerpt">
+                                    <span>Post Excerpt</span>
+                                </label>
+                                <label class="amfm-checkbox-item">
+                                    <input type="checkbox" name="specific_post_columns[]" value="post_status">
+                                    <span>Post Status</span>
+                                </label>
+                                <label class="amfm-checkbox-item">
+                                    <input type="checkbox" name="specific_post_columns[]" value="post_date">
+                                    <span>Post Date</span>
+                                </label>
+                                <label class="amfm-checkbox-item">
+                                    <input type="checkbox" name="specific_post_columns[]" value="post_modified">
+                                    <span>Post Modified Date</span>
+                                </label>
+                                <label class="amfm-checkbox-item">
+                                    <input type="checkbox" name="specific_post_columns[]" value="post_author">
+                                    <span>Post Author</span>
+                                </label>
+                                <label class="amfm-checkbox-item">
+                                    <input type="checkbox" name="specific_post_columns[]" value="post_name">
+                                    <span>Post Slug</span>
+                                </label>
+                                <label class="amfm-checkbox-item">
+                                    <input type="checkbox" name="specific_post_columns[]" value="menu_order">
+                                    <span>Menu Order</span>
+                                </label>
+                                <label class="amfm-checkbox-item">
+                                    <input type="checkbox" name="specific_post_columns[]" value="comment_status">
+                                    <span>Comment Status</span>
+                                </label>
+                                <label class="amfm-checkbox-item">
+                                    <input type="checkbox" name="specific_post_columns[]" value="ping_status">
+                                    <span>Ping Status</span>
+                                </label>
+                                <label class="amfm-checkbox-item">
+                                    <input type="checkbox" name="specific_post_columns[]" value="post_parent">
+                                    <span>Post Parent</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="amfm-form-group amfm-taxonomy-selection" style="display:none;">
+                            <label>Taxonomy Selection:</label>
+                            <div class="amfm-radio-group">
+                                <label class="amfm-radio-item">
+                                    <input type="radio" name="taxonomy_selection" value="all" checked>
+                                    <span>All Taxonomies</span>
+                                </label>
+                                <label class="amfm-radio-item">
+                                    <input type="radio" name="taxonomy_selection" value="selected">
+                                    <span>Select Specific Taxonomies</span>
+                                </label>
+                            </div>
+                            <div class="amfm-specific-taxonomies amfm-checkbox-grid" style="display:none;">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                        </div>
+
+                        ' . (function_exists('acf_get_field_groups') ? '
+                        <div class="amfm-form-group amfm-acf-selection" style="display:none;">
+                            <label>ACF Field Selection:</label>
+                            <div class="amfm-radio-group">
+                                <label class="amfm-radio-item">
+                                    <input type="radio" name="acf_selection" value="all" checked>
+                                    <span>All ACF Fields</span>
+                                </label>
+                                <label class="amfm-radio-item">
+                                    <input type="radio" name="acf_selection" value="selected">
+                                    <span>Select Specific Field Groups</span>
+                                </label>
+                            </div>
+                            <div class="amfm-specific-acf-groups amfm-checkbox-grid" style="display:none;">
+                                ' . $this->getAcfFieldGroupsCheckboxes() . '
+                            </div>
+                        </div>
+                        ' : '') . '
+
+                        <div class="amfm-form-actions">
+                            <button type="submit" name="amfm_export" value="1" class="button button-primary">
+                                Export to CSV
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Import Section -->
+            <div class="amfm-import-export-card">
+                <div class="amfm-card-header">
+                    <div class="amfm-card-icon">📥</div>
+                    <h2 class="amfm-card-title">Import Data</h2>
+                </div>
+                <div class="amfm-card-body">
+                    <p class="amfm-card-description">Import data from CSV files to update posts with content, taxonomies, ACF fields, and other metadata seamlessly.</p>
+                    
+                    <form method="post" action="" enctype="multipart/form-data" class="amfm-form" id="amfm-import-form">
+                        <input type="hidden" name="amfm_csv_import_nonce" value="' . wp_create_nonce('amfm_csv_import') . '" />
+                        
+                        <div class="amfm-info-box">
+                            <h4>📋 Import Requirements</h4>
+                            <p>Your CSV file should match the columns from the Export Data function. The system will automatically detect and import the following data:</p>
+                            <ul class="amfm-requirements-list">
+                                <li><strong>ID</strong> - Post ID (required)</li>
+                                <li><strong>Post Title</strong> - Will update post title if provided</li>
+                                <li><strong>Post Content</strong> - Will update post content if provided</li>
+                                <li><strong>Post Excerpt</strong> - Will update post excerpt if provided</li>
+                                <li><strong>Taxonomies</strong> - Will assign categories/tags based on column names</li>
+                                <li><strong>ACF Fields</strong> - Will update ACF fields based on column names</li>
+                                <li><strong>Featured Image URL</strong> - Will set featured image from URL</li>
+                            </ul>
+                        </div>
+
+                        <div class="amfm-form-group">
+                            <label for="csv_file">Select CSV File:</label>
+                            <input type="file" name="csv_file" id="csv_file" accept=".csv" required class="amfm-file-input">
+                        </div>
+
+                        <div class="amfm-info-box">
+                            <h4>💡 Pro Tips</h4>
+                            <ul class="amfm-requirements-list">
+                                <li>Export first to see the exact column format</li>
+                                <li>Keep the ID column - it\'s required to identify posts</li>
+                                <li>Leave cells empty to skip updating that field</li>
+                                <li>Use the same column names as the export</li>
+                            </ul>
+                        </div>
+
+                        <div class="amfm-form-actions">
+                            <button type="submit" class="button button-primary">
+                                Import Data
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>';

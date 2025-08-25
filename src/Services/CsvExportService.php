@@ -124,12 +124,26 @@ class CsvExportService extends Service
             array_map('sanitize_key', wp_unslash($_POST['specific_acf_groups'])) :
             [];
 
+        // Handle post data selection
+        $postDataSelection = isset($_POST['post_data_selection']) ?
+            sanitize_key(wp_unslash($_POST['post_data_selection'])) :
+            'all';
+        if (!in_array($postDataSelection, ['all', 'selected'], true)) {
+            $postDataSelection = 'all';
+        }
+
+        $specificPostColumns = isset($_POST['specific_post_columns']) ?
+            array_map('sanitize_key', wp_unslash($_POST['specific_post_columns'])) :
+            [];
+
         return [
             'export_options' => $exportOptions,
             'taxonomy_selection' => $taxonomySelection,
             'specific_taxonomies' => $specificTaxonomies,
             'acf_selection' => $acfSelection,
-            'specific_acf_groups' => $specificAcfGroups
+            'specific_acf_groups' => $specificAcfGroups,
+            'post_data_selection' => $postDataSelection,
+            'specific_post_columns' => $specificPostColumns
         ];
     }
 
@@ -138,16 +152,13 @@ class CsvExportService extends Service
      */
     private function buildExportHeaders(string $postType, array $options): array
     {
-        $headers = [
-            esc_html__('ID', 'amfm-tools'),
-            esc_html__('Post Title', 'amfm-tools'),
-            esc_html__('Post Content', 'amfm-tools'),
-            esc_html__('Post Excerpt', 'amfm-tools'),
-            esc_html__('Post Status', 'amfm-tools'),
-            esc_html__('Post Date', 'amfm-tools'),
-            esc_html__('Post Modified', 'amfm-tools'),
-            esc_html__('Post URL', 'amfm-tools')
-        ];
+        $headers = [];
+
+        // Add post data headers only if post_data option is selected
+        if (in_array('post_data', $options['export_options'], true)) {
+            $postColumns = $this->getSelectedPostColumnsForExport($options);
+            $headers = array_merge($headers, $this->getPostColumnHeaders($postColumns));
+        }
 
         // Add taxonomy headers
         if (in_array('taxonomies', $options['export_options'], true)) {
@@ -181,16 +192,13 @@ class CsvExportService extends Service
         $csvData = [$headers];
 
         foreach ($posts as $post) {
-            $row = [
-                absint($post->ID),
-                sanitize_text_field($post->post_title),
-                wp_kses_post($post->post_content),
-                sanitize_textarea_field($post->post_excerpt),
-                sanitize_key($post->post_status),
-                sanitize_text_field($post->post_date),
-                sanitize_text_field($post->post_modified),
-                esc_url_raw(get_permalink($post->ID))
-            ];
+            $row = [];
+
+            // Add post data only if post_data option is selected
+            if (in_array('post_data', $options['export_options'], true)) {
+                $postColumns = $this->getSelectedPostColumnsForExport($options);
+                $row = array_merge($row, $this->getPostColumnDataForExport($post, $postColumns));
+            }
 
             // Add taxonomy values
             if (in_array('taxonomies', $options['export_options'], true)) {
@@ -383,7 +391,33 @@ class CsvExportService extends Service
     }
 
     /**
-     * Get selected post columns with defaults
+     * Get selected post columns for export based on options
+     */
+    private function getSelectedPostColumnsForExport(array $options): array
+    {
+        $postDataSelection = $options['post_data_selection'] ?? 'all';
+        
+        if ($postDataSelection === 'all') {
+            // Return all available post columns including ID
+            return ['id', 'post_title', 'post_content', 'post_excerpt', 'post_status', 
+                    'post_date', 'post_modified', 'post_author', 'post_name', 
+                    'menu_order', 'comment_status', 'ping_status', 'post_parent'];
+        }
+        
+        // Always include ID even if not selected, as it's required for imports
+        $selected = $options['specific_post_columns'] ?? [];
+        $selected = is_array($selected) ? array_map('sanitize_key', $selected) : [];
+        
+        // Ensure ID is always first
+        if (!in_array('id', $selected)) {
+            array_unshift($selected, 'id');
+        }
+        
+        return $selected;
+    }
+
+    /**
+     * Get selected post columns with defaults (legacy method)
      */
     private function getSelectedPostColumns(array $options): array
     {
@@ -397,16 +431,29 @@ class CsvExportService extends Service
     private function getPostColumnHeaders(array $columns): array
     {
         $mappings = [
-            'id' => 'ID',
-            'title' => 'Post Title',
-            'content' => 'Post Content',
-            'excerpt' => 'Post Excerpt',
-            'status' => 'Post Status',
-            'date' => 'Post Date',
-            'modified' => 'Post Modified',
-            'url' => 'Post URL',
-            'slug' => 'Post Slug',
-            'author' => 'Post Author'
+            'id' => esc_html__('ID', 'amfm-tools'),
+            'post_title' => esc_html__('Post Title', 'amfm-tools'),
+            'post_content' => esc_html__('Post Content', 'amfm-tools'),
+            'post_excerpt' => esc_html__('Post Excerpt', 'amfm-tools'),
+            'post_status' => esc_html__('Post Status', 'amfm-tools'),
+            'post_date' => esc_html__('Post Date', 'amfm-tools'),
+            'post_modified' => esc_html__('Post Modified', 'amfm-tools'),
+            'post_author' => esc_html__('Post Author', 'amfm-tools'),
+            'post_name' => esc_html__('Post Slug', 'amfm-tools'),
+            'menu_order' => esc_html__('Menu Order', 'amfm-tools'),
+            'comment_status' => esc_html__('Comment Status', 'amfm-tools'),
+            'ping_status' => esc_html__('Ping Status', 'amfm-tools'),
+            'post_parent' => esc_html__('Post Parent', 'amfm-tools'),
+            // Legacy mappings
+            'title' => esc_html__('Post Title', 'amfm-tools'),
+            'content' => esc_html__('Post Content', 'amfm-tools'),
+            'excerpt' => esc_html__('Post Excerpt', 'amfm-tools'),
+            'status' => esc_html__('Post Status', 'amfm-tools'),
+            'date' => esc_html__('Post Date', 'amfm-tools'),
+            'modified' => esc_html__('Post Modified', 'amfm-tools'),
+            'url' => esc_html__('Post URL', 'amfm-tools'),
+            'slug' => esc_html__('Post Slug', 'amfm-tools'),
+            'author' => esc_html__('Post Author', 'amfm-tools')
         ];
 
         $headers = [];
@@ -420,7 +467,76 @@ class CsvExportService extends Service
     }
 
     /**
-     * Get post column data
+     * Get post column data for export
+     */
+    private function getPostColumnDataForExport(\WP_Post $post, array $columns): array
+    {
+        $data = [];
+        
+        foreach ($columns as $column) {
+            switch ($column) {
+                case 'id':
+                    $data[] = absint($post->ID);
+                    break;
+                case 'post_title':
+                case 'title':
+                    $data[] = sanitize_text_field($post->post_title);
+                    break;
+                case 'post_content':
+                case 'content':
+                    $data[] = wp_kses_post($post->post_content);
+                    break;
+                case 'post_excerpt':
+                case 'excerpt':
+                    $data[] = sanitize_textarea_field($post->post_excerpt);
+                    break;
+                case 'post_status':
+                case 'status':
+                    $data[] = sanitize_key($post->post_status);
+                    break;
+                case 'post_date':
+                case 'date':
+                    $data[] = sanitize_text_field($post->post_date);
+                    break;
+                case 'post_modified':
+                case 'modified':
+                    $data[] = sanitize_text_field($post->post_modified);
+                    break;
+                case 'post_author':
+                case 'author':
+                    $author = get_userdata($post->post_author);
+                    $data[] = $author ? sanitize_text_field($author->display_name) : '';
+                    break;
+                case 'post_name':
+                case 'slug':
+                    $data[] = sanitize_title($post->post_name);
+                    break;
+                case 'menu_order':
+                    $data[] = absint($post->menu_order);
+                    break;
+                case 'comment_status':
+                    $data[] = sanitize_key($post->comment_status);
+                    break;
+                case 'ping_status':
+                    $data[] = sanitize_key($post->ping_status);
+                    break;
+                case 'post_parent':
+                    $data[] = absint($post->post_parent);
+                    break;
+                case 'url':
+                    $data[] = esc_url_raw(get_permalink($post->ID));
+                    break;
+                default:
+                    $data[] = '';
+                    break;
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * Get post column data (legacy method)
      */
     private function getPostColumnData(\WP_Post $post, array $columns): array
     {

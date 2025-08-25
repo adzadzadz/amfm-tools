@@ -10,4 +10,6 @@ composer.lock
 package-lock.json
 .phpunit.result.cache
 .vscode/
+.claude
 temp/
+.claude/

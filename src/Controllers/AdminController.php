@@ -85,6 +85,16 @@ class AdminController extends Controller
             [$this, 'renderAdminPage']
         );
         
+        // Add Elementor submenu
+        \add_submenu_page(
+            'amfm-tools',
+            \__('Elementor', 'amfm-tools'),
+            \__('Elementor', 'amfm-tools'),
+            'manage_options',
+            'amfm-tools-elementor',
+            [$this, 'renderAdminPage']
+        );
+        
         // Add Shortcodes submenu
         \add_submenu_page(
             'amfm-tools',
@@ -112,16 +122,6 @@ class AdminController extends Controller
             \__('Import/Export', 'amfm-tools'),
             'manage_options',
             'amfm-tools-import-export',
-            [$this, 'renderAdminPage']
-        );
-        
-        // Add Elementor submenu
-        \add_submenu_page(
-            'amfm-tools',
-            \__('Elementor', 'amfm-tools'),
-            \__('Elementor', 'amfm-tools'),
-            'manage_options',
-            'amfm-tools-elementor',
             [$this, 'renderAdminPage']
         );
     }
@@ -367,34 +367,28 @@ class AdminController extends Controller
                 'icon' => '🔧',
                 'status' => 'Core Feature'
             ],
-            'optimization' => [
-                'name' => 'Performance Optimization',
-                'description' => 'Gravity Forms optimization and performance enhancements for faster page loading.',
-                'icon' => '⚡',
-                'status' => 'Available'
-            ],
             'import_export' => [
                 'name' => 'Import/Export Tools',
                 'description' => 'Comprehensive data management for importing keywords, categories, and exporting posts with ACF fields.',
                 'icon' => '📊',
                 'status' => 'Core Feature'
             ],
-            'csv_import' => [
-                'name' => 'CSV Import',
-                'description' => 'Advanced CSV import functionality for keywords and categories.',
-                'icon' => '📥',
-                'status' => 'Available'
-            ],
-            'data_export' => [
-                'name' => 'Data Export',
-                'description' => 'Export posts and data with custom field support.',
-                'icon' => '📤',
+            'optimization' => [
+                'name' => 'Performance Optimization',
+                'description' => 'Gravity Forms optimization and performance enhancements for faster page loading.',
+                'icon' => '⚡',
                 'status' => 'Available'
             ]
         ];
         
         $settingsService = new \App\Services\SettingsService();
         $enabled_utilities = $settingsService->getEnabledComponents();
+        
+        // Ensure performance optimization is enabled by default
+        if (!in_array('optimization', $enabled_utilities)) {
+            $enabled_utilities[] = 'optimization';
+            $settingsService->updateComponentSettings($enabled_utilities);
+        }
         
         return array_merge($base_data, [
             'available_utilities' => $available_utilities,

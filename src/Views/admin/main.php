@@ -9,7 +9,7 @@ $active_tab = $active_tab ?? 'dashboard';
         <!-- Header -->
         <div class="amfm-header">
             <h1><span class="amfm-icon">🛠️</span> AMFM Tools</h1>
-            <p class="amfm-subtitle">Advanced Custom Field Management & Performance Optimization Tools</p>
+            <p class="amfm-subtitle">Advanced Features Management</p>
         </div>
 
         <!-- Tabs Navigation -->

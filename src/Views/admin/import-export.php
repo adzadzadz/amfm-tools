@@ -24,7 +24,7 @@ $all_field_groups = $all_field_groups ?? [];
                     </div>
                     <div class="amfm-header-text">
                         <h1>AMFM Tools</h1>
-                        <p class="amfm-subtitle">Advanced Custom Field Management & Performance Optimization Tools</p>
+                        <p class="amfm-subtitle">Advanced Features Management</p>
                     </div>
                 </div>
                 <div class="amfm-header-actions">

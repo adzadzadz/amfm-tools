@@ -1036,6 +1036,37 @@ select:focus {
 </style>
 
 <script>
+// Generate export form HTML server-side
+<?php
+// Generate post types options
+$post_types_options = '';
+foreach ($post_types as $post_type) {
+    $selected = selected($selected_post_type, $post_type->name, false);
+    $post_types_options .= '<option value="' . esc_attr($post_type->name) . '" ' . $selected . '>' . esc_html($post_type->label) . '</option>';
+}
+
+// Generate ACF fields HTML
+$acf_fields_html = '';
+if (!empty($all_field_groups)) {
+    foreach ($all_field_groups as $group) {
+        $acf_fields_html .= '<div class="amfm-field-group">';
+        $acf_fields_html .= '<strong class="amfm-group-title">' . esc_html($group['title']) . '</strong>';
+        if (!empty($group['fields'])) {
+            foreach ($group['fields'] as $field) {
+                $acf_fields_html .= '<label><input type="checkbox" name="export_acf_fields[]" value="' . esc_attr($field['name']) . '"> <span>' . esc_html($field['label']) . '</span></label>';
+            }
+        }
+        $acf_fields_html .= '</div>';
+    }
+} else {
+    $acf_fields_html = '<p class="amfm-no-fields">No ACF field groups found. Make sure ACF is active and has field groups configured.</p>';
+}
+
+$export_nonce = wp_nonce_field('amfm_export_nonce', 'amfm_export_nonce', true, false);
+$keywords_nonce = wp_nonce_field('amfm_keywords_import_nonce', 'amfm_keywords_import_nonce', true, false);
+$categories_nonce = wp_nonce_field('amfm_categories_import_nonce', 'amfm_categories_import_nonce', true, false);
+?>
+
 // Import/Export tool data
 const importExportData = {
     'export': {
@@ -1047,17 +1078,13 @@ const importExportData = {
                 <p class="amfm-drawer-description">Export your posts with Advanced Custom Fields data to CSV format for backup, migration, or analysis purposes.</p>
                 
                 <form method="post" action="" id="amfm_export_form" class="amfm-modern-form">
-                    <?php echo wp_nonce_field('amfm_export_nonce', 'amfm_export_nonce', true, false); ?>
+                    <?php echo $export_nonce; ?>
                     
                     <div class="amfm-form-group">
                         <label for="export_post_type">Select Post Type to Export</label>
                         <select name="export_post_type" id="export_post_type" required>
                             <option value="">Choose a post type...</option>
-                            <?php foreach ($post_types as $post_type): ?>
-                            <option value="<?php echo esc_attr($post_type->name); ?>" <?php selected($selected_post_type, $post_type->name); ?>>
-                                <?php echo esc_html($post_type->label); ?>
-                            </option>
-                            <?php endforeach; ?>
+                            <?php echo $post_types_options; ?>
                         </select>
                     </div>
 
@@ -1085,20 +1112,7 @@ const importExportData = {
                         <div class="amfm-form-group">
                             <h4>🔧 ACF Fields</h4>
                             <div id="acf-checkboxes" class="amfm-checkbox-grid">
-                                <?php if (!empty($all_field_groups)) : ?>
-                                    <?php foreach ($all_field_groups as $group) : ?>
-                                        <div class="amfm-field-group">
-                                            <strong class="amfm-group-title"><?php echo esc_html($group['title']); ?></strong>
-                                            <?php if (!empty($group['fields'])) : ?>
-                                                <?php foreach ($group['fields'] as $field) : ?>
-                                                    <label><input type="checkbox" name="export_acf_fields[]" value="<?php echo esc_attr($field['name']); ?>"> <span><?php echo esc_html($field['label']); ?></span></label>
-                                                <?php endforeach; ?>
-                                            <?php endif; ?>
-                                        </div>
-                                    <?php endforeach; ?>
-                                <?php else: ?>
-                                    <p class="amfm-no-fields">No ACF field groups found. Make sure ACF is active and has field groups configured.</p>
-                                <?php endif; ?>
+                                <?php echo $acf_fields_html; ?>
                             </div>
                         </div>
 
@@ -1138,7 +1152,7 @@ const importExportData = {
                 </div>
 
                 <form method="post" enctype="multipart/form-data" class="amfm-modern-form">
-                    <?php echo wp_nonce_field('amfm_keywords_import_nonce', 'amfm_keywords_import_nonce', true, false); ?>
+                    <?php echo $keywords_nonce; ?>
                     
                     <div class="amfm-form-group">
                         <label>📁 Upload CSV File</label>
@@ -1190,7 +1204,7 @@ const importExportData = {
                 </div>
 
                 <form method="post" enctype="multipart/form-data" class="amfm-modern-form">
-                    <?php echo wp_nonce_field('amfm_categories_import_nonce', 'amfm_categories_import_nonce', true, false); ?>
+                    <?php echo $categories_nonce; ?>
                     
                     <div class="amfm-form-group">
                         <label>📁 Upload CSV File</label>

@@ -7,6 +7,11 @@ $available_shortcodes = $available_shortcodes ?? [];
 $enabled_shortcodes = $enabled_shortcodes ?? [];
 $excluded_keywords = $excluded_keywords ?? [];
 $keywords_text = $keywords_text ?? '';
+
+// Get DKV config values
+$settingsService = new \App\Services\SettingsService();
+$currentFallback = $settingsService->getDkvDefaultFallback();
+$currentCacheDuration = $settingsService->getDkvCacheDuration();
 ?>
 
 <div class="wrap amfm-admin-page">
@@ -139,14 +144,8 @@ $keywords_text = $keywords_text ?? '';
 // PHP data for JavaScript
 const amfmPhpData = {
     currentKeywords: <?php echo json_encode($keywords_text ?? ''); ?>,
-    currentFallback: <?php 
-        $settingsService = new \App\Services\SettingsService();
-        echo json_encode($settingsService->getDkvDefaultFallback()); 
-    ?>,
-    currentCacheDuration: <?php 
-        $settingsService = new \App\Services\SettingsService();
-        echo $settingsService->getDkvCacheDuration(); 
-    ?>
+    currentFallback: <?php echo json_encode($currentFallback); ?>,
+    currentCacheDuration: <?php echo $currentCacheDuration; ?>
 };
 
 // Shortcode documentation data

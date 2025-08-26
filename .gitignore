@@ -13,3 +13,4 @@ package-lock.json
 .claude
 temp/
 .claude/
+build/

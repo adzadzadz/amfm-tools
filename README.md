@@ -83,6 +83,7 @@ composer test
 
 ## Version History
 
+- **v3.0.0**: Complete dashboard redesign with interactive cards and improved user experience
 - **v2.2.1**: Migrated to ADZ Framework architecture
 - **v2.2.0**: Transform General page into comprehensive Dashboard with component management
 - **v2.1.0**: Major code refactoring and enhanced UI

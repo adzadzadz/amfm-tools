@@ -105,11 +105,6 @@ class DashboardController extends Controller
         echo View::render('admin/dashboard', $view_data);
     }
 
-
-
-
-
-
     /**
      * Enqueue admin assets - framework auto-hook
      */

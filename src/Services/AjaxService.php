@@ -16,7 +16,6 @@ class AjaxService extends Service
      */
     protected $actions = [
         'wp_ajax_amfm_dkv_config_update' => 'updateDkvConfig',
-        // 'wp_ajax_amfm_get_post_type_taxonomies' => 'getPostTypeTaxonomies', // Temporarily disabled for debugging
         'wp_ajax_amfm_get_acf_field_groups' => 'getAcfFieldGroups',
         'wp_ajax_amfm_export_data' => 'exportData',
         'wp_ajax_amfm_update_component_settings' => 'updateComponentSettings',

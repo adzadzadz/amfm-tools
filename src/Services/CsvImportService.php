@@ -345,11 +345,6 @@ class CsvImportService extends Service
             }
 
             try {
-                // Debug log for ACF fields
-                if ($this->isAcfField($columnName)) {
-                    error_log("AMFM DEBUG: Processing ACF field - Column: '{$columnName}', Value: '{$value}', Post ID: {$post->ID}");
-                }
-                
                 $updateResult = $this->updatePostField($post, $columnName, $value, $updated);
                 
                 // If updatePostField returns false, it means the value was the same
@@ -358,7 +353,6 @@ class CsvImportService extends Service
                 }
                 
             } catch (\Exception $e) {
-                error_log("AMFM DEBUG: Failed to update {$columnName} for post {$post->ID}: " . $e->getMessage());
                 $errors[] = "Failed to update {$columnName}: " . $e->getMessage();
             }
         }
@@ -505,8 +499,6 @@ class CsvImportService extends Service
             throw new \Exception('ACF is not available');
         }
         
-        error_log("AMFM DEBUG: Updating ACF field - Name: '{$fieldName}', Value: '{$value}', Post ID: {$postId}");
-        
         // Get current value for comparison
         $currentValue = get_field($fieldName, $postId);
         
@@ -532,7 +524,6 @@ class CsvImportService extends Service
         $result = update_field($fieldName, $processedValue, $postId);
         if ($result !== false) {
             $updated[] = "ACF: {$fieldName}";
-            error_log("AMFM DEBUG: Successfully updated ACF field '{$fieldName}' for post {$postId}");
             return true;
         } else {
             throw new \Exception("Failed to update ACF field '{$fieldName}'");

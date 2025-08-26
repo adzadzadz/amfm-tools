@@ -869,8 +869,9 @@ class ImportExportController extends Controller
      */
     public function displayDebugPage(): void
     {
-        wp_enqueue_script('jquery');
-        include plugin_dir_path(dirname(__DIR__, 2)) . 'debug-export-import.php';
+        echo '<div class="wrap"><h1>Debug Information</h1>';
+        echo '<p>Debug functionality has been removed for production.</p>';
+        echo '</div>';
     }
 
     /**

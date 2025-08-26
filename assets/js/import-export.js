@@ -162,7 +162,6 @@ function initializeFormHandlers() {
                 timeout: 30000,
                 success: function(response) {
                     if (response.success) {
-                        console.log('CSV preview loaded:', response.data);
                         displayCsvTable(response.data, resultsContent);
                         startBatchImport(response.data, resultsContent);
                         submitButton.text('Import Data');
@@ -173,7 +172,6 @@ function initializeFormHandlers() {
                     }
                 },
                 error: function(xhr, status, error) {
-                    console.log('Preview Error:', {status, error, xhr});
                     resultsSection.removeClass('amfm-import-success').addClass('amfm-import-error');
                     resultsContent.html('<p><strong>Preview Failed:</strong> ' + error + '</p>');
                     submitButton.prop('disabled', false).text('Import Data');
@@ -253,12 +251,6 @@ function startBatchImport(csvData, container) {
     let skippedCount = 0;
     let importStopped = false;
     
-    console.log('Starting batch import:', {
-        totalRows: rows.length,
-        batchSize: batchSize,
-        totalBatches: totalBatches
-    });
-    
     // Add progress summary above table
     const progressHtml = '<div class="amfm-import-progress" style="margin-bottom: 20px; padding: 15px; background: #f0f9ff; border-radius: 8px; border-left: 4px solid #2196F3;">' +
         '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">' +
@@ -282,7 +274,6 @@ function startBatchImport(csvData, container) {
     container.find('#amfm-stop-import').on('click', function() {
         importStopped = true;
         $(this).prop('disabled', true).text('Stopping...');
-        console.log('Import stopped by user');
         
         // Show stopped message
         const stoppedHtml = '<div class="amfm-stopped-message" style="margin-top: 15px; padding: 12px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; color: #856404;">' +
@@ -297,15 +288,12 @@ function startBatchImport(csvData, container) {
     function processBatch() {
         // Check if import was stopped
         if (importStopped) {
-            console.log('Import stopped, not processing batch', currentBatch + 1);
             return;
         }
         
         const startIdx = currentBatch * batchSize;
         const endIdx = Math.min(startIdx + batchSize, rows.length);
         const batchRows = rows.slice(startIdx, endIdx);
-        
-        console.log('Processing batch', currentBatch + 1, 'of', totalBatches, '(rows', startIdx + 1, '-', endIdx, ')');
         
         // Update status to "Saving" for current batch
         batchRows.forEach(row => {
@@ -332,7 +320,6 @@ function startBatchImport(csvData, container) {
             success: function(response) {
                 if (response.success) {
                     const results = response.data;
-                    console.log('Batch processed successfully:', results);
                     
                     // Update status for each processed row
                     results.processed_rows.forEach(processedRow => {
@@ -429,7 +416,6 @@ function startBatchImport(csvData, container) {
     }
     
     function onImportComplete() {
-        console.log('Import completed:', {processedRows, successCount, errorCount, importStopped});
         $('#amfm-import-submit').prop('disabled', false);
         
         // Hide stop button since import is done

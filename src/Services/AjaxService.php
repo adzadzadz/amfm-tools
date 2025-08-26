@@ -16,7 +16,7 @@ class AjaxService extends Service
      */
     protected $actions = [
         'wp_ajax_amfm_dkv_config_update' => 'updateDkvConfig',
-        'wp_ajax_amfm_get_post_type_taxonomies' => 'getPostTypeTaxonomies',
+        // 'wp_ajax_amfm_get_post_type_taxonomies' => 'getPostTypeTaxonomies', // Temporarily disabled for debugging
         'wp_ajax_amfm_get_acf_field_groups' => 'getAcfFieldGroups',
         'wp_ajax_amfm_export_data' => 'exportData',
         'wp_ajax_amfm_update_component_settings' => 'updateComponentSettings',
@@ -25,11 +25,12 @@ class AjaxService extends Service
 
     /**
      * Handle AJAX request for getting taxonomies for a post type
+     * Note: This method is currently disabled in favor of server-side rendering
      */
     public function getPostTypeTaxonomies(): void
     {
         // Verify nonce and permissions
-        if (!$this->verifyAjaxNonce('amfm_export_nonce')) {
+        if (!$this->verifyAjaxNonce('amfm_ajax')) {
             wp_send_json_error('Invalid nonce');
         }
 
@@ -43,19 +44,20 @@ class AjaxService extends Service
         $taxonomies = get_object_taxonomies($postType, 'objects');
         
         if (empty($taxonomies)) {
-            wp_send_json_error('No taxonomies found');
+            wp_send_json_error('No taxonomies found for this post type');
         }
 
-        // Format response
-        $formattedTaxonomies = [];
+        // Format response as HTML
+        $html = '';
         foreach ($taxonomies as $taxonomy) {
-            $formattedTaxonomies[] = [
-                'name' => $taxonomy->name,
-                'label' => $taxonomy->label
-            ];
+            $html .= sprintf(
+                '<label class="amfm-checkbox-item"><input type="checkbox" name="specific_taxonomies[]" value="%s"> <span>%s</span></label>',
+                esc_attr($taxonomy->name),
+                esc_html($taxonomy->label)
+            );
         }
 
-        wp_send_json_success($formattedTaxonomies);
+        wp_send_json_success($html);
     }
     
     /**

@@ -154,9 +154,16 @@ class CsvExportService extends Service
     {
         $headers = [];
 
+        // ALWAYS include Post ID as the first column
+        $headers[] = esc_html__('ID', 'amfm-tools');
+
         // Add post data headers only if post_data option is selected
         if (in_array('post_data', $options['export_options'], true)) {
             $postColumns = $this->getSelectedPostColumnsForExport($options);
+            // Remove ID from post columns since we already added it
+            $postColumns = array_filter($postColumns, function($column) {
+                return $column !== 'id';
+            });
             $headers = array_merge($headers, $this->getPostColumnHeaders($postColumns));
         }
 
@@ -172,7 +179,7 @@ class CsvExportService extends Service
         if (in_array('acf_fields', $options['export_options'], true)) {
             $acfFields = $this->getAcfFieldsForExport($options);
             foreach ($acfFields as $fieldName => $fieldLabel) {
-                $headers[] = esc_html($fieldLabel);
+                $headers[] = esc_html($fieldName); // Use field name instead of label
             }
         }
 
@@ -194,10 +201,18 @@ class CsvExportService extends Service
         foreach ($posts as $post) {
             $row = [];
 
+            // ALWAYS include Post ID as the first column
+            $row[] = absint($post->ID);
+
             // Add post data only if post_data option is selected
             if (in_array('post_data', $options['export_options'], true)) {
                 $postColumns = $this->getSelectedPostColumnsForExport($options);
-                $row = array_merge($row, $this->getPostColumnDataForExport($post, $postColumns));
+                // Remove ID from post columns since we already added it
+                $postColumns = array_filter($postColumns, function($column) {
+                    return $column !== 'id';
+                });
+                $postData = $this->getPostColumnDataForExport($post, $postColumns);
+                $row = array_merge($row, $postData);
             }
 
             // Add taxonomy values
@@ -219,7 +234,7 @@ class CsvExportService extends Service
                     if (is_array($value)) {
                         $value = wp_json_encode($value);
                     }
-                    $row[] = sanitize_text_field($value);
+                    $row[] = sanitize_text_field($value ?? '');
                 }
             }
 
@@ -316,9 +331,16 @@ class CsvExportService extends Service
         $headers = [];
         $exportOptions = $options['export_options'] ?? [];
 
+        // ALWAYS include Post ID as the first column
+        $headers[] = esc_html__('ID', 'amfm-tools');
+
         // Post columns
         if (in_array('post_columns', $exportOptions, true)) {
             $selectedColumns = $this->getSelectedPostColumns($options);
+            // Remove ID from post columns since we already added it
+            $selectedColumns = array_filter($selectedColumns, function($column) {
+                return $column !== 'id';
+            });
             $headers = array_merge($headers, $this->getPostColumnHeaders($selectedColumns));
         }
 
@@ -333,8 +355,8 @@ class CsvExportService extends Service
         // ACF Fields
         if (in_array('acf_fields', $exportOptions, true)) {
             $acfFields = $this->getAcfFieldsForExport($options);
-            foreach ($acfFields as $fieldLabel) {
-                $headers[] = $fieldLabel;
+            foreach ($acfFields as $fieldName => $fieldLabel) {
+                $headers[] = $fieldName; // Use field name instead of label
             }
         }
 
@@ -354,10 +376,18 @@ class CsvExportService extends Service
         $row = [];
         $exportOptions = $options['export_options'] ?? [];
 
+        // ALWAYS include Post ID as the first column
+        $row[] = absint($post->ID);
+
         // Post columns
         if (in_array('post_columns', $exportOptions, true)) {
             $selectedColumns = $this->getSelectedPostColumns($options);
-            $row = array_merge($row, $this->getPostColumnData($post, $selectedColumns));
+            // Remove ID from post columns since we already added it
+            $selectedColumns = array_filter($selectedColumns, function($column) {
+                return $column !== 'id';
+            });
+            $postData = $this->getPostColumnData($post, $selectedColumns);
+            $row = array_merge($row, $postData);
         }
 
         // Taxonomies

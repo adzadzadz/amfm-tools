@@ -87,6 +87,187 @@ class CsvImportService extends Service
     }
 
     /**
+     * Handle unified CSV upload for AJAX requests
+     * Returns data instead of redirecting
+     */
+    public function processUnifiedCsvForAjax(): array
+    {
+        // Direct file validation without framework dependencies
+        $file = $this->validateUploadedFileForAjax('csv_file');
+        if (!$file) {
+            throw new \Exception('Error uploading file. Please try again.');
+        }
+
+        return $this->processUnifiedCsv($file['tmp_name']);
+    }
+
+    /**
+     * Preview CSV file for AJAX requests
+     */
+    public function previewCsvForAjax(): array
+    {
+        $file = $this->validateUploadedFileForAjax('csv_file');
+        if (!$file) {
+            throw new \Exception('Error uploading file. Please try again.');
+        }
+
+        $handle = $this->openCsvFile($file['tmp_name']);
+        $headers = fgetcsv($handle);
+        
+        if (!$headers || !in_array('ID', $headers)) {
+            fclose($handle);
+            throw new \Exception('Invalid CSV format. ID column is required.');
+        }
+
+        $rows = [];
+        $rowNumber = 1;
+        
+        while (($row = fgetcsv($handle)) !== false) {
+            $rowNumber++;
+            
+            // Create row object with data and metadata
+            $rowData = [];
+            foreach ($headers as $index => $header) {
+                $rowData[$header] = $row[$index] ?? '';
+            }
+            
+            $rows[] = [
+                'row_number' => $rowNumber,
+                'post_id' => intval($rowData['ID'] ?? 0),
+                'post_title' => $this->getPostTitle($rowData['ID'] ?? 0),
+                'data' => $rowData,
+                'status' => 'pending'
+            ];
+        }
+
+        fclose($handle);
+
+        return [
+            'headers' => $headers,
+            'rows' => $rows,
+            'total' => count($rows)
+        ];
+    }
+
+    /**
+     * Process a batch of CSV rows
+     */
+    public function processBatch(array $batchData): array
+    {
+        $results = [
+            'success' => 0,
+            'errors' => 0,
+            'skipped' => 0,
+            'processed_rows' => []
+        ];
+
+        $headers = $batchData['headers'] ?? [];
+        $rows = $batchData['rows'] ?? [];
+
+        if (empty($headers) || !in_array('ID', $headers)) {
+            throw new \Exception('Invalid headers - ID column required.');
+        }
+
+        // Map headers to their indices
+        $columnMap = [];
+        foreach ($headers as $index => $header) {
+            $columnMap[$header] = $index;
+        }
+
+        foreach ($rows as $rowInfo) {
+            $rowNumber = $rowInfo['row_number'];
+            $rowData = $rowInfo['data'];
+            
+            // Convert associative array back to indexed array for processing
+            $row = [];
+            foreach ($headers as $header) {
+                $row[] = $rowData[$header] ?? '';
+            }
+
+            try {
+                $processResults = [
+                    'success' => 0,
+                    'errors' => 0,
+                    'skipped' => 0,
+                    'details' => []
+                ];
+                
+                $this->processUnifiedRow($row, $columnMap, $headers, $rowNumber, $processResults);
+                
+                // Determine status based on results
+                $status = 'completed';
+                $message = 'Updated successfully';
+                
+                if ($processResults['errors'] > 0) {
+                    $status = 'error';
+                    $message = implode(', ', $processResults['details']);
+                    $results['errors']++;
+                } elseif ($processResults['success'] > 0) {
+                    $status = 'completed';
+                    $message = 'Updated successfully';
+                    $results['success']++;
+                } else {
+                    $status = 'skipped';
+                    $message = 'No changes (same values)';
+                    $results['skipped']++;
+                }
+                
+                $results['processed_rows'][] = [
+                    'row_number' => $rowNumber,
+                    'post_id' => intval($rowData['ID'] ?? 0),
+                    'status' => $status,
+                    'message' => $message,
+                    'details' => $processResults['details']
+                ];
+                
+            } catch (\Exception $e) {
+                $results['processed_rows'][] = [
+                    'row_number' => $rowNumber,
+                    'post_id' => intval($rowData['ID'] ?? 0),
+                    'status' => 'error',
+                    'message' => $e->getMessage(),
+                    'details' => []
+                ];
+                $results['errors']++;
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Get post title by ID
+     */
+    private function getPostTitle(int $postId): string
+    {
+        if (!$postId) {
+            return 'Invalid ID';
+        }
+        
+        $post = get_post($postId);
+        return $post ? $post->post_title : 'Post not found';
+    }
+
+    /**
+     * Validate uploaded file for AJAX requests (without framework dependencies)
+     */
+    private function validateUploadedFileForAjax(string $fieldName): ?array
+    {
+        if (!isset($_FILES[$fieldName]) || $_FILES[$fieldName]['error'] !== UPLOAD_ERR_OK) {
+            return null;
+        }
+
+        $file = $_FILES[$fieldName];
+        $fileType = wp_check_filetype($file['name']);
+        
+        if ($fileType['ext'] !== 'csv') {
+            throw new \Exception('Please upload a valid CSV file.');
+        }
+
+        return $file;
+    }
+
+    /**
      * Process unified CSV file that matches export format
      */
     private function processUnifiedCsv(string $filePath): array
@@ -150,6 +331,7 @@ class CsvImportService extends Service
 
         $updated = [];
         $errors = [];
+        $skipped = [];
 
         // Process each column
         foreach ($columnMap as $columnName => $index) {
@@ -163,8 +345,20 @@ class CsvImportService extends Service
             }
 
             try {
-                $this->updatePostField($post, $columnName, $value, $updated);
+                // Debug log for ACF fields
+                if ($this->isAcfField($columnName)) {
+                    error_log("AMFM DEBUG: Processing ACF field - Column: '{$columnName}', Value: '{$value}', Post ID: {$post->ID}");
+                }
+                
+                $updateResult = $this->updatePostField($post, $columnName, $value, $updated);
+                
+                // If updatePostField returns false, it means the value was the same
+                if ($updateResult === false) {
+                    $skipped[] = $columnName;
+                }
+                
             } catch (\Exception $e) {
+                error_log("AMFM DEBUG: Failed to update {$columnName} for post {$post->ID}: " . $e->getMessage());
                 $errors[] = "Failed to update {$columnName}: " . $e->getMessage();
             }
         }
@@ -189,61 +383,79 @@ class CsvImportService extends Service
 
     /**
      * Update a specific field on a post
+     * Returns true if updated, false if same value (skipped), throws exception on error
      */
-    private function updatePostField(\WP_Post $post, string $fieldName, string $value, array &$updated): void
+    private function updatePostField(\WP_Post $post, string $fieldName, string $value, array &$updated): bool
     {
         switch ($fieldName) {
             case 'Post Title':
+                $currentValue = $post->post_title;
+                $newValue = sanitize_text_field($value);
+                if ($currentValue === $newValue) {
+                    return false; // Same value, skipped
+                }
                 wp_update_post([
                     'ID' => $post->ID,
-                    'post_title' => sanitize_text_field($value)
+                    'post_title' => $newValue
                 ]);
                 $updated[] = 'Title';
-                break;
+                return true;
 
             case 'Post Content':
+                $currentValue = $post->post_content;
+                $newValue = wp_kses_post($value);
+                if ($currentValue === $newValue) {
+                    return false; // Same value, skipped
+                }
                 wp_update_post([
                     'ID' => $post->ID,
-                    'post_content' => wp_kses_post($value)
+                    'post_content' => $newValue
                 ]);
                 $updated[] = 'Content';
-                break;
+                return true;
 
             case 'Post Excerpt':
+                $currentValue = $post->post_excerpt;
+                $newValue = sanitize_textarea_field($value);
+                if ($currentValue === $newValue) {
+                    return false; // Same value, skipped
+                }
                 wp_update_post([
                     'ID' => $post->ID,
-                    'post_excerpt' => sanitize_textarea_field($value)
+                    'post_excerpt' => $newValue
                 ]);
                 $updated[] = 'Excerpt';
-                break;
+                return true;
 
             case 'Featured Image URL':
+                // For featured images, we'll always try to update (hard to compare URLs)
                 $this->setFeaturedImageFromUrl($post->ID, $value);
                 $updated[] = 'Featured Image';
-                break;
+                return true;
 
             default:
                 // Check if it's a taxonomy
                 if (taxonomy_exists($fieldName)) {
-                    $this->updatePostTaxonomy($post->ID, $fieldName, $value, $updated);
+                    return $this->updatePostTaxonomy($post->ID, $fieldName, $value, $updated);
                 } elseif ($this->isAcfField($fieldName)) {
                     // Handle ACF field
-                    $this->updateAcfField($post->ID, $fieldName, $value, $updated);
+                    return $this->updateAcfField($post->ID, $fieldName, $value, $updated);
                 } else {
                     // Try to match by taxonomy label
                     $taxonomy = $this->getTaxonomyByLabel($fieldName);
                     if ($taxonomy) {
-                        $this->updatePostTaxonomy($post->ID, $taxonomy->name, $value, $updated);
+                        return $this->updatePostTaxonomy($post->ID, $taxonomy->name, $value, $updated);
                     }
                 }
-                break;
+                return false; // Unknown field type, skip
         }
     }
 
     /**
      * Update post taxonomy
+     * Returns true if updated, false if same value (skipped)
      */
-    private function updatePostTaxonomy(int $postId, string $taxonomy, string $value, array &$updated): void
+    private function updatePostTaxonomy(int $postId, string $taxonomy, string $value, array &$updated): bool
     {
         $terms = array_map('trim', explode(',', $value));
         $termIds = [];
@@ -263,30 +475,67 @@ class CsvImportService extends Service
             }
         }
 
+        // Check if current terms are the same
+        $currentTerms = wp_get_post_terms($postId, $taxonomy, ['fields' => 'ids']);
+        if (!is_wp_error($currentTerms)) {
+            sort($termIds);
+            sort($currentTerms);
+            if ($termIds === $currentTerms) {
+                return false; // Same terms, skipped
+            }
+        }
+
         if (!empty($termIds)) {
             wp_set_post_terms($postId, $termIds, $taxonomy);
             $taxonomyObj = get_taxonomy($taxonomy);
             $updated[] = $taxonomyObj->label ?? $taxonomy;
+            return true;
         }
+        
+        return false;
     }
 
     /**
      * Update ACF field
+     * Returns true if updated, false if same value (skipped)
      */
-    private function updateAcfField(int $postId, string $fieldName, string $value, array &$updated): void
+    private function updateAcfField(int $postId, string $fieldName, string $value, array &$updated): bool
     {
-        if (function_exists('update_field')) {
-            // Try to detect if it's JSON data
-            if ((str_starts_with($value, '{') && str_ends_with($value, '}')) || 
-                (str_starts_with($value, '[') && str_ends_with($value, ']'))) {
-                $decodedValue = json_decode($value, true);
-                if (json_last_error() === JSON_ERROR_NONE) {
-                    $value = $decodedValue;
-                }
+        if (!function_exists('update_field')) {
+            throw new \Exception('ACF is not available');
+        }
+        
+        error_log("AMFM DEBUG: Updating ACF field - Name: '{$fieldName}', Value: '{$value}', Post ID: {$postId}");
+        
+        // Get current value for comparison
+        $currentValue = get_field($fieldName, $postId);
+        
+        // Try to detect if it's JSON data
+        $processedValue = $value;
+        if ((str_starts_with($value, '{') && str_ends_with($value, '}')) || 
+            (str_starts_with($value, '[') && str_ends_with($value, ']'))) {
+            $decodedValue = json_decode($value, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $processedValue = $decodedValue;
             }
-            
-            update_field($fieldName, $value, $postId);
+        }
+        
+        // Compare values (handle arrays and strings)
+        if (is_array($processedValue) && is_array($currentValue)) {
+            if ($processedValue === $currentValue) {
+                return false; // Same value, skipped
+            }
+        } elseif ((string)$processedValue === (string)$currentValue) {
+            return false; // Same value, skipped
+        }
+        
+        $result = update_field($fieldName, $processedValue, $postId);
+        if ($result !== false) {
             $updated[] = "ACF: {$fieldName}";
+            error_log("AMFM DEBUG: Successfully updated ACF field '{$fieldName}' for post {$postId}");
+            return true;
+        } else {
+            throw new \Exception("Failed to update ACF field '{$fieldName}'");
         }
     }
 
@@ -311,7 +560,7 @@ class CsvImportService extends Service
     }
 
     /**
-     * Check if field name is an ACF field
+     * Check if field name is an ACF field (by field name)
      */
     private function isAcfField(string $fieldName): bool
     {
@@ -324,7 +573,7 @@ class CsvImportService extends Service
             $fields = acf_get_fields($group);
             if ($fields) {
                 foreach ($fields as $field) {
-                    if ($field['label'] === $fieldName || $field['name'] === $fieldName) {
+                    if ($field['name'] === $fieldName) {
                         return true;
                     }
                 }
@@ -332,6 +581,7 @@ class CsvImportService extends Service
         }
         return false;
     }
+
 
     /**
      * Get taxonomy by label
@@ -556,7 +806,7 @@ class CsvImportService extends Service
     /**
      * Open CSV file with validation
      */
-    private function openCsvFile(string $filePath): \SplFileObject
+    private function openCsvFile(string $filePath)
     {
         if (!file_exists($filePath)) {
             throw new \Exception('File does not exist');

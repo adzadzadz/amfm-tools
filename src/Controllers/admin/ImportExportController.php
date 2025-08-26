@@ -178,6 +178,13 @@ class ImportExportController extends Controller
                 color: #2c3e50;
             }
 
+            .amfm-form-group-label {
+                display: block;
+                font-weight: 600;
+                margin-bottom: 8px;
+                color: #2c3e50;
+            }
+
             .amfm-form-group select {
                 width: 100%;
                 padding: 10px;
@@ -263,18 +270,142 @@ class ImportExportController extends Controller
                 color: #5a6c7d;
             }
 
-            .amfm-file-input {
-                width: 100%;
-                padding: 10px;
-                border: 2px dashed #d1d5db;
-                border-radius: 8px;
-                background: #f9fafb;
-                transition: border-color 0.3s ease;
+            /* File upload styling */
+            .amfm-file-upload-wrapper {
+                position: relative;
+                display: block;
             }
 
-            .amfm-file-input:focus {
+            .amfm-file-input {
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                opacity: 0;
+                overflow: hidden;
+                clip: rect(0, 0, 0, 0);
+            }
+
+            .amfm-file-upload-display {
+                display: flex;
+                align-items: center;
+                gap: 15px;
+                padding: 20px;
+                border: 2px dashed #d1d5db;
+                border-radius: 12px;
+                background: #f9fafb;
+                transition: all 0.3s ease;
+                cursor: pointer;
+                min-height: 80px;
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            .amfm-file-upload-display:hover {
                 border-color: #667eea;
-                outline: none;
+                background: #f0f9ff;
+            }
+
+            .amfm-file-upload-wrapper.dragover .amfm-file-upload-display {
+                border-color: #667eea;
+                background: #e0f2fe;
+                transform: scale(1.02);
+            }
+
+            .amfm-file-upload-wrapper.file-selected .amfm-file-upload-display {
+                border-color: #10b981;
+                background: #ecfdf5;
+            }
+
+            .amfm-file-upload-icon {
+                font-size: 2rem;
+                color: #667eea;
+                flex-shrink: 0;
+            }
+
+            .amfm-file-upload-text {
+                flex-grow: 1;
+            }
+
+            .amfm-file-placeholder {
+                display: block;
+                color: #6b7280;
+                font-size: 1rem;
+                font-weight: 500;
+            }
+
+            .amfm-file-selected {
+                display: block;
+                color: #059669;
+                font-weight: 600;
+                margin-top: 5px;
+            }
+
+            /* Import results styling */
+            .amfm-import-results {
+                margin-top: 30px;
+                padding: 25px;
+                background: #f8fafc;
+                border-radius: 12px;
+                border: 1px solid #e2e8f0;
+            }
+
+            .amfm-import-results h3 {
+                margin: 0 0 15px 0;
+                color: #2c3e50;
+                font-size: 1.25rem;
+                font-weight: 600;
+            }
+
+            .amfm-import-success {
+                background: #d1fae5;
+                border-color: #10b981;
+                color: #065f46;
+            }
+
+            .amfm-import-error {
+                background: #fee2e2;
+                border-color: #ef4444;
+                color: #991b1b;
+            }
+
+            .amfm-import-results-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 15px;
+            }
+
+            .amfm-import-results-table th,
+            .amfm-import-results-table td {
+                padding: 10px 15px;
+                text-align: left;
+                border-bottom: 1px solid #e2e8f0;
+            }
+
+            .amfm-import-results-table th {
+                background: #f1f5f9;
+                font-weight: 600;
+                color: #334155;
+            }
+
+            .amfm-loading {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                color: #6b7280;
+            }
+
+            .amfm-loading-spinner {
+                width: 20px;
+                height: 20px;
+                border: 2px solid #e5e7eb;
+                border-top: 2px solid #667eea;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+            }
+
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
             }
         ');
 
@@ -405,7 +536,7 @@ class ImportExportController extends Controller
                                 </label>
                             </div>
                             <div class="amfm-specific-taxonomies amfm-checkbox-grid" style="display:none;">
-                                <!-- Will be populated by JavaScript -->
+                                ' . $this->getAllTaxonomiesCheckboxes() . '
                             </div>
                         </div>
 
@@ -449,41 +580,31 @@ class ImportExportController extends Controller
                     <form method="post" action="" enctype="multipart/form-data" class="amfm-form" id="amfm-import-form">
                         <input type="hidden" name="amfm_csv_import_nonce" value="' . wp_create_nonce('amfm_csv_import') . '" />
                         
-                        <div class="amfm-info-box">
-                            <h4>📋 Import Requirements</h4>
-                            <p>Your CSV file should match the columns from the Export Data function. The system will automatically detect and import the following data:</p>
-                            <ul class="amfm-requirements-list">
-                                <li><strong>ID</strong> - Post ID (required)</li>
-                                <li><strong>Post Title</strong> - Will update post title if provided</li>
-                                <li><strong>Post Content</strong> - Will update post content if provided</li>
-                                <li><strong>Post Excerpt</strong> - Will update post excerpt if provided</li>
-                                <li><strong>Taxonomies</strong> - Will assign categories/tags based on column names</li>
-                                <li><strong>ACF Fields</strong> - Will update ACF fields based on column names</li>
-                                <li><strong>Featured Image URL</strong> - Will set featured image from URL</li>
-                            </ul>
-                        </div>
-
                         <div class="amfm-form-group">
-                            <label for="csv_file">Select CSV File:</label>
-                            <input type="file" name="csv_file" id="csv_file" accept=".csv" required class="amfm-file-input">
-                        </div>
-
-                        <div class="amfm-info-box">
-                            <h4>💡 Pro Tips</h4>
-                            <ul class="amfm-requirements-list">
-                                <li>Export first to see the exact column format</li>
-                                <li>Keep the ID column - it\'s required to identify posts</li>
-                                <li>Leave cells empty to skip updating that field</li>
-                                <li>Use the same column names as the export</li>
-                            </ul>
+                            <div class="amfm-file-upload-wrapper">
+                                <input type="file" name="csv_file" id="csv_file" accept=".csv" required class="amfm-file-input">
+                                <label for="csv_file" class="amfm-file-upload-display">
+                                    <div class="amfm-file-upload-icon">📎</div>
+                                    <div class="amfm-file-upload-text">
+                                        <span class="amfm-file-placeholder">Choose CSV file or drag & drop here</span>
+                                        <span class="amfm-file-selected" style="display:none;"></span>
+                                    </div>
+                                </label>
+                            </div>
                         </div>
 
                         <div class="amfm-form-actions">
-                            <button type="submit" class="button button-primary">
+                            <button type="submit" class="button button-primary" id="amfm-import-submit">
                                 Import Data
                             </button>
                         </div>
                     </form>
+                    
+                    <!-- Import Results Section -->
+                    <div id="amfm-import-results" class="amfm-import-results" style="display:none;">
+                        <h3>Import Results</h3>
+                        <div id="amfm-import-results-content"></div>
+                    </div>
                 </div>
             </div>
         </div>';
@@ -503,7 +624,7 @@ class ImportExportController extends Controller
 
         // Render the page using template
         $templateService->displayPage([
-            'page_title' => 'Import/Export',
+            'page_title' => 'Export/Import',
             'page_subtitle' => 'Data Management Tools',
             'page_icon' => '📊',
             'page_content' => $page_content,
@@ -564,41 +685,57 @@ class ImportExportController extends Controller
     }
 
     /**
-     * AJAX handler to get post type taxonomies
+     * Get all available taxonomies checkboxes
      */
-    public function ajaxGetPostTypeTaxonomies(): void
+    private function getAllTaxonomiesCheckboxes(): string
     {
-        check_ajax_referer('amfm_ajax', 'nonce');
-
-        $post_type = sanitize_key($_POST['post_type']);
-        $taxonomies = get_object_taxonomies($post_type, 'objects');
-        
         $html = '';
-        foreach ($taxonomies as $taxonomy) {
-            $html .= sprintf(
-                '<label class="amfm-checkbox"><input type="checkbox" name="specific_taxonomies[]" value="%s"> %s</label>',
-                esc_attr($taxonomy->name),
-                esc_html($taxonomy->label)
-            );
+        
+        // Get all public taxonomies
+        $taxonomies = get_taxonomies(['public' => true], 'objects');
+        
+        if (!empty($taxonomies)) {
+            foreach ($taxonomies as $taxonomy) {
+                $html .= sprintf(
+                    '<label class="amfm-checkbox-item"><input type="checkbox" name="specific_taxonomies[]" value="%s"> <span>%s</span></label>',
+                    esc_attr($taxonomy->name),
+                    esc_html($taxonomy->label)
+                );
+            }
+        } else {
+            $html = '<p class="amfm-no-fields">No taxonomies found.</p>';
         }
-
-        wp_send_json_success($html);
+        
+        return $html;
     }
+
 
     /**
      * Add admin menu - framework auto-hook
      */
     public function actionAdminMenu()
     {
-        // Add Import/Export submenu under AMFM Tools
+        // Add Export/Import submenu under AMFM Tools
         add_submenu_page(
             'amfm-tools',
-            __('Import/Export', 'amfm-tools'),
-            __('Import/Export', 'amfm-tools'),
+            __('Export/Import', 'amfm-tools'),
+            __('Export/Import', 'amfm-tools'),
             'manage_options',
             'amfm-tools-import-export',
             [$this, 'displayPage']
         );
+
+        // Add Debug submenu (only in development/debug mode)
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            add_submenu_page(
+                'amfm-tools',
+                __('Export/Import Debug', 'amfm-tools'),
+                __('Debug Tests', 'amfm-tools'),
+                'manage_options',
+                'amfm-tools-debug',
+                [$this, 'displayDebugPage']
+            );
+        }
     }
 
     /**
@@ -606,6 +743,208 @@ class ImportExportController extends Controller
      */
     public function actionInit()
     {
-        add_action('wp_ajax_amfm_get_post_type_taxonomies', [$this, 'ajaxGetPostTypeTaxonomies']);
+        // AJAX handlers for import functionality
+        add_action('wp_ajax_amfm_csv_import', [$this, 'ajaxCsvImport']);
+        add_action('wp_ajax_amfm_csv_preview', [$this, 'ajaxCsvPreview']);
+        add_action('wp_ajax_amfm_csv_import_batch', [$this, 'ajaxCsvImportBatch']);
+        add_action('wp_ajax_amfm_get_test_posts_for_csv', [$this, 'ajaxGetTestPostsForCsv']);
+        add_action('wp_ajax_amfm_debug_system_info', [$this, 'ajaxDebugSystemInfo']);
+        add_action('wp_ajax_amfm_test_connection', [$this, 'ajaxTestConnection']);
+    }
+
+    /**
+     * AJAX handler for CSV import
+     */
+    public function ajaxCsvImport(): void
+    {
+        // Verify nonce and user capabilities
+        if (!wp_verify_nonce($_POST['amfm_csv_import_nonce'] ?? '', 'amfm_csv_import') ||
+            !current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied or invalid nonce.');
+            return;
+        }
+
+        // Check if file was uploaded
+        if (!isset($_FILES['csv_file']) || $_FILES['csv_file']['error'] !== UPLOAD_ERR_OK) {
+            wp_send_json_error('No file uploaded or upload error occurred.');
+            return;
+        }
+
+        try {
+            // Use direct instantiation instead of framework service method
+            require_once plugin_dir_path(dirname(__DIR__, 2)) . 'src/Services/CsvImportService.php';
+            $importService = new \App\Services\CsvImportService();
+            
+            if (!$importService) {
+                wp_send_json_error('Import service not available.');
+                return;
+            }
+
+            // Process the import using AJAX-specific method
+            $result = $importService->processUnifiedCsvForAjax();
+            
+            if ($result) {
+                wp_send_json_success([
+                    'message' => 'Import completed successfully!',
+                    'total_processed' => $result['success'] + $result['errors'],
+                    'updated' => $result['success'],
+                    'errors' => $result['details'] ?? []
+                ]);
+            } else {
+                wp_send_json_error('Import failed - no data processed.');
+            }
+            
+        } catch (\Exception $e) {
+            wp_send_json_error('Import failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * AJAX handler to get test posts for CSV generation
+     */
+    public function ajaxGetTestPostsForCsv(): void
+    {
+        check_ajax_referer('amfm_ajax', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied.');
+            return;
+        }
+
+        $posts = get_posts([
+            'post_type' => ['post', 'page'],
+            'posts_per_page' => 5,
+            'post_status' => 'any',
+            'orderby' => 'ID',
+            'order' => 'ASC'
+        ]);
+
+        if (empty($posts)) {
+            wp_send_json_error('No posts found for testing.');
+            return;
+        }
+
+        $testPosts = array_map(function($post) {
+            return [
+                'ID' => $post->ID,
+                'post_title' => $post->post_title,
+                'post_content' => wp_trim_words($post->post_content, 10)
+            ];
+        }, $posts);
+
+        wp_send_json_success($testPosts);
+    }
+
+    /**
+     * AJAX handler for debug system information
+     */
+    public function ajaxDebugSystemInfo(): void
+    {
+        check_ajax_referer('amfm_ajax', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied.');
+            return;
+        }
+
+        $systemInfo = [
+            'CSV Import Service Available' => $this->service('csv_import') !== null,
+            'CSV Export Service Available' => $this->service('csv_export') !== null,
+            'ACF Plugin Active' => function_exists('acf_get_field_groups'),
+            'WordPress AJAX Available' => defined('DOING_AJAX'),
+            'File Upload Enabled' => ini_get('file_uploads'),
+            'Max Upload Size' => ini_get('upload_max_filesize'),
+            'Post Max Size' => ini_get('post_max_size'),
+            'Memory Limit' => ini_get('memory_limit'),
+            'WordPress Debug Mode' => defined('WP_DEBUG') && WP_DEBUG,
+            'Current User Can Manage Options' => current_user_can('manage_options'),
+            'Plugin Directory Writable' => is_writable(plugin_dir_path(dirname(__DIR__, 2)))
+        ];
+
+        wp_send_json_success($systemInfo);
+    }
+
+    /**
+     * Display debug page
+     */
+    public function displayDebugPage(): void
+    {
+        wp_enqueue_script('jquery');
+        include plugin_dir_path(dirname(__DIR__, 2)) . 'debug-export-import.php';
+    }
+
+    /**
+     * Simple AJAX test endpoint
+     */
+    public function ajaxTestConnection(): void
+    {
+        error_log('AMFM Test: Connection test called');
+        wp_send_json_success([
+            'message' => 'Connection test successful!',
+            'timestamp' => current_time('mysql'),
+            'user_id' => get_current_user_id()
+        ]);
+    }
+
+    /**
+     * AJAX handler for CSV preview
+     */
+    public function ajaxCsvPreview(): void
+    {
+        // Verify nonce and user capabilities
+        if (!wp_verify_nonce($_POST['amfm_csv_import_nonce'] ?? '', 'amfm_csv_import') ||
+            !current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied or invalid nonce.');
+            return;
+        }
+
+        // Check if file was uploaded
+        if (!isset($_FILES['csv_file']) || $_FILES['csv_file']['error'] !== UPLOAD_ERR_OK) {
+            wp_send_json_error('No file uploaded or upload error occurred.');
+            return;
+        }
+
+        try {
+            require_once plugin_dir_path(dirname(__DIR__, 2)) . 'src/Services/CsvImportService.php';
+            $importService = new \App\Services\CsvImportService();
+            
+            $result = $importService->previewCsvForAjax();
+            
+            wp_send_json_success($result);
+            
+        } catch (\Exception $e) {
+            wp_send_json_error('Preview failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * AJAX handler for CSV batch import
+     */
+    public function ajaxCsvImportBatch(): void
+    {
+        // Verify nonce and user capabilities
+        if (!wp_verify_nonce($_POST['amfm_csv_import_nonce'] ?? '', 'amfm_csv_import') ||
+            !current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied or invalid nonce.');
+            return;
+        }
+
+        $batchData = json_decode(stripslashes($_POST['batch_data'] ?? ''), true);
+        if (!$batchData || !isset($batchData['rows'])) {
+            wp_send_json_error('Invalid batch data.');
+            return;
+        }
+
+        try {
+            require_once plugin_dir_path(dirname(__DIR__, 2)) . 'src/Services/CsvImportService.php';
+            $importService = new \App\Services\CsvImportService();
+            
+            $result = $importService->processBatch($batchData);
+            
+            wp_send_json_success($result);
+            
+        } catch (\Exception $e) {
+            wp_send_json_error('Batch import failed: ' . $e->getMessage());
+        }
     }
 }

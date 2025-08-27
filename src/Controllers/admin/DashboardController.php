@@ -94,6 +94,7 @@ class DashboardController extends Controller
 
         // Prepare data for dashboard view
         $view_data = [
+            'title' => 'Dashboard',
             'active_tab' => 'dashboard',
             'plugin_url' => AMFM_TOOLS_URL,
             'plugin_version' => AMFM_TOOLS_VERSION,

@@ -38,7 +38,7 @@ $active_tab = $active_tab ?? 'dashboard';
                     </div>
                     <div class="amfm-header-text">
                         <h1><?php echo esc_html(isset($title) && !empty($title) ? $title : $plugin_name); ?></h1>
-                        <p class="amfm-subtitle">Advanced Features Management</p>
+                        <p class="amfm-subtitle"><?php echo esc_html(isset($subtitle) && !empty($subtitle) ? $subtitle : 'Advanced Features Management'); ?></p>
                     </div>
                 </div>
                 <div class="amfm-header-actions">

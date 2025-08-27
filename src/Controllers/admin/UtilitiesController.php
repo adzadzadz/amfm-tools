@@ -54,31 +54,19 @@ class UtilitiesController extends Controller
             'acf_helper' => [
                 'name' => 'ACF Helper',
                 'description' => 'Manages ACF keyword cookies and enhances ACF functionality for dynamic content delivery.',
-                'icon' => '🔧',
-                'status' => 'Core Feature'
-            ],
-            'import_export' => [
-                'name' => 'Import/Export Tools',
-                'description' => 'Comprehensive data management for importing keywords, categories, and exporting posts with ACF fields.',
-                'icon' => '📊',
+                'icon' => 'fas fa-cookie-bite',
                 'status' => 'Core Feature'
             ],
             'optimization' => [
                 'name' => 'Performance Optimization',
                 'description' => 'Gravity Forms optimization and performance enhancements for faster page loading.',
-                'icon' => '⚡',
+                'icon' => 'fas fa-tachometer-alt',
                 'status' => 'Available'
             ]
         ];
         
         $settingsService = new SettingsService();
         $enabled_utilities = $settingsService->getEnabledComponents();
-        
-        // Ensure performance optimization is enabled by default
-        if (!in_array('optimization', $enabled_utilities)) {
-            $enabled_utilities[] = 'optimization';
-            $settingsService->updateComponentSettings($enabled_utilities);
-        }
         
         return array_merge($base_data, [
             'available_utilities' => $available_utilities,

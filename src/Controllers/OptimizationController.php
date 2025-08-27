@@ -18,7 +18,14 @@ class OptimizationController extends Controller
 
     protected function bootstrap()
     {
-        // Additional initialization if needed
+        // Only initialize if optimization is enabled in config
+        $config = \Adz::config();
+        if (!$config->get('components.optimization', true)) {
+            // Disable all hooks if optimization is disabled
+            $this->actions = [];
+            $this->filters = [];
+            return;
+        }
     }
 
     public function initialize()

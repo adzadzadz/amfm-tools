@@ -15,6 +15,15 @@ class ACFController extends Controller
 
     protected function bootstrap()
     {
+        // Check if ACF Helper is enabled in config
+        $config = \Adz::config();
+        if (!$config->get('components.acf_helper', true)) {
+            // Disable all hooks if ACF helper is disabled
+            $this->actions = [];
+            $this->filters = [];
+            return;
+        }
+
         // Check if ACF is active
         if (!class_exists('ACF')) {
             error_log('ACF_Helper: Advanced Custom Fields is not active.');

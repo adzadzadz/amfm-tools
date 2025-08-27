@@ -84,10 +84,16 @@ class ShortcodesController extends Controller
             ]
         ];
         
-        // Get current excluded keywords and enabled shortcodes from service
+        // Get current excluded keywords and shortcode status from config
         $settingsService = new SettingsService();
         $excluded_keywords = $settingsService->getExcludedKeywords();
-        $enabled_shortcodes = $settingsService->getEnabledComponents();
+        $config = \Adz::config();
+        
+        // Get enabled shortcodes from config
+        $enabled_shortcodes = [];
+        if ($config->get('shortcodes.dkv', true)) $enabled_shortcodes[] = 'dkv_shortcode';
+        if ($config->get('shortcodes.limit_words', true)) $enabled_shortcodes[] = 'limit_words';
+        if ($config->get('shortcodes.text_util', true)) $enabled_shortcodes[] = 'text_utilities';
         
         if (empty($excluded_keywords)) {
             // Initialize with defaults if not set

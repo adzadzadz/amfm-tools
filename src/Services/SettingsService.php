@@ -22,9 +22,6 @@ class SettingsService extends Service
     public function updateComponentSettings(array $components): bool
     {
         $components = array_map('sanitize_text_field', $components);
-        
-        // Always ensure core components are included
-        $components = array_merge($components, self::CORE_COMPONENTS);
         $components = array_unique($components);
         
         return update_option('amfm_enabled_components', $components) !== false;
@@ -61,8 +58,8 @@ class SettingsService extends Service
      */
     public function getEnabledComponents(): array
     {
-        // Default to all available components being enabled on first install
-        $default_enabled = ['acf_helper', 'import_export', 'text_utilities', 'optimization', 'shortcodes'];
+        $default_enabled = ['acf_helper', 'import_export', 'text_utilities', 'optimization', 'dkv_shortcode', 'limit_words'];
+        $core_components = ['acf_helper', 'import_export'];
         $components = get_option('amfm_enabled_components');
         
         // If option doesn't exist, initialize it with all components enabled
@@ -72,7 +69,7 @@ class SettingsService extends Service
         }
         
         // Ensure core components are always included
-        return array_unique(array_merge($components, self::CORE_COMPONENTS));
+        return array_unique(array_merge($components, $core_components));
     }
 
     /**
@@ -89,6 +86,16 @@ class SettingsService extends Service
     public function getExcludedKeywords(): array
     {
         return get_option('amfm_excluded_keywords', []);
+    }
+
+    /**
+     * Get toggleable components (excludes core components)
+     */
+    public function getToggleableComponents(): array
+    {
+        $all_components = ['acf_helper', 'import_export', 'text_utilities', 'optimization', 'dkv_shortcode', 'limit_words'];
+        $core_components = ['acf_helper', 'import_export'];
+        return array_diff($all_components, $core_components);
     }
 
     /**
@@ -300,24 +307,27 @@ class SettingsService extends Service
             wp_send_json_error('Invalid component');
         }
 
-        // Core components cannot be disabled
-        if (in_array($componentKey, self::CORE_COMPONENTS, true)) {
-            wp_send_json_error('Core components cannot be disabled');
-        }
-
-        $enabledComponents = $this->getEnabledComponents();
+        // Use framework config system with WordPress options persistence
+        $config = \Adz::config();
         
-        if ($enabled && !in_array($componentKey, $enabledComponents, true)) {
-            $enabledComponents[] = $componentKey;
-        } elseif (!$enabled) {
-            $enabledComponents = array_diff($enabledComponents, [$componentKey]);
+        // Determine config path and WordPress option name based on component type
+        if (in_array($componentKey, ['dkv', 'limit_words', 'text_util'])) {
+            $config->set("shortcodes.{$componentKey}", $enabled);
+            update_option("amfm_shortcodes_{$componentKey}", $enabled);
+        } elseif (strpos($componentKey, '_widget') !== false) {
+            $config->set("elementor.widgets.{$componentKey}", $enabled);
+            update_option("amfm_elementor_widgets_{$componentKey}", $enabled);
+        } else {
+            $config->set("components.{$componentKey}", $enabled);
+            update_option("amfm_components_{$componentKey}", $enabled);
         }
 
-        if ($this->updateComponentSettings($enabledComponents)) {
-            wp_send_json_success('Component status updated');
-        } else {
-            wp_send_json_error('Failed to update component status');
+        // Trigger shortcode re-registration if needed
+        if (in_array($componentKey, ['dkv', 'limit_words', 'text_util'])) {
+            do_action('amfm_shortcodes_changed');
         }
+
+        wp_send_json_success('Component status updated');
     }
 
     /**

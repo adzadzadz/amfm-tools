@@ -34,6 +34,25 @@ add_action('plugins_loaded', function() {
     $framework->set('plugin.url', AMFM_TOOLS_URL);
     $framework->set('plugin.version', AMFM_TOOLS_VERSION);
     
+    // Set up default configuration for features (only if not already set)
+    // Use WordPress options for persistence
+    if (get_option('amfm_shortcodes_dkv') === false) add_option('amfm_shortcodes_dkv', true);
+    if (get_option('amfm_shortcodes_limit_words') === false) add_option('amfm_shortcodes_limit_words', true);
+    if (get_option('amfm_shortcodes_text_util') === false) add_option('amfm_shortcodes_text_util', true);
+    if (get_option('amfm_elementor_widgets_dkv_widget') === false) add_option('amfm_elementor_widgets_dkv_widget', true);
+    if (get_option('amfm_components_acf_helper') === false) add_option('amfm_components_acf_helper', true);
+    if (get_option('amfm_components_import_export') === false) add_option('amfm_components_import_export', true);
+    if (get_option('amfm_components_optimization') === false) add_option('amfm_components_optimization', true);
+    
+    // Load persisted values into framework config (convert to boolean)
+    $framework->set('shortcodes.dkv', (bool) get_option('amfm_shortcodes_dkv', true));
+    $framework->set('shortcodes.limit_words', (bool) get_option('amfm_shortcodes_limit_words', true));
+    $framework->set('shortcodes.text_util', (bool) get_option('amfm_shortcodes_text_util', true));
+    $framework->set('elementor.widgets.dkv_widget', (bool) get_option('amfm_elementor_widgets_dkv_widget', true));
+    $framework->set('components.acf_helper', (bool) get_option('amfm_components_acf_helper', true));
+    $framework->set('components.import_export', (bool) get_option('amfm_components_import_export', true));
+    $framework->set('components.optimization', (bool) get_option('amfm_components_optimization', true));
+    
     // Set up view template paths
     \AdzWP\Core\View::addTemplatePath(AMFM_TOOLS_PATH . 'src/Views/');
 
@@ -57,89 +76,30 @@ add_action('plugins_loaded', function() {
 
     // Set up plugin lifecycle hooks
     $pluginManager
-        // Install hook - runs when plugin is first installed
-        ->onInstall(function() {
-            // Create custom database tables
-            // Set up default options
-            // Any one-time setup tasks
-        })
-        
-        // Activate hook - runs when plugin is activated
-        ->onActivate(function() {
-            // Check system requirements
-            // Create/update database schema
-            // Set up cron jobs
-            // Clear caches
-        })
-        
-        // Deactivate hook - runs when plugin is deactivated
-        ->onDeactivate(function() {
-            // Clear cron jobs
-            // Clear caches
-            // Temporary cleanup (don't delete data)
-        })
-        
-        // Uninstall hook - runs when plugin is deleted
-        ->onUninstall(function() {
-            // Remove database tables
-            // Remove options
-            // Complete cleanup
-        })
-        
-        // Helper methods for common tasks
-        ->setupOptions([
-            'amfm_enabled_components' => ['acf_helper', 'text_utilities', 'optimization', 'shortcodes', 'import_export'],
-            'amfm_keywords' => '',
-            'amfm_other_keywords' => ''
-        ])
         ->setupCapabilities([
             'manage_amfm_tools',
             'edit_amfm_data'
         ]);
 
-    // Initialize controllers based on enabled components
-    $enabled_components = get_option('amfm_enabled_components', [
-        'acf_helper', 
-        'text_utilities', 
-        'optimization', 
-        'shortcodes', 
-        'import_export'
-    ]);
-
-    // Services - Initialize first so controllers can access them
+    // Initialize Services
     new \App\Services\CsvExportService();
     new \App\Services\CsvImportService();
     new \App\Services\SettingsService();
 
-    // Dashboard Controller - Always enabled
+    // Initialize Controllers
+    // Admin Controllers
     new \App\Controllers\Admin\DashboardController();
-
-    // Admin controllers - Always enabled for admin interface
     new \App\Controllers\Admin\ElementorController();
     new \App\Controllers\Admin\ShortcodesController();
     new \App\Controllers\Admin\UtilitiesController();
-    new \App\Controllers\Admin\ACFController(); // ACF Fields management
-    new \App\Controllers\Admin\ImportExportController(); // Load last to appear last in menu
-    new \App\Controllers\Admin\AjaxController(); // AJAX handlers for all admin functionality
+    new \App\Controllers\Admin\ACFController();
+    new \App\Controllers\Admin\ImportExportController();
+    new \App\Controllers\Admin\AjaxController();
 
-    // ACF Fields - Always enabled (manages field groups and post types)
+    // Feature Controllers (check their own config for enabling/disabling features)
     new \App\Controllers\ACFFieldsController();
-    
-    // ACF Helper - Core component (always enabled)
-    if (in_array('acf_helper', $enabled_components)) {
-        new \App\Controllers\ACFController();
-    }
-
-    // Performance Optimization - Optional
-    if (in_array('optimization', $enabled_components)) {
-        new \App\Controllers\OptimizationController();
-    }
-
-    // Shortcode System - Optional
-    if (in_array('shortcodes', $enabled_components)) {
-        new \App\Controllers\ShortcodeController();
-    }
-
-    // Elementor Widgets - Always enabled (individual widgets controlled separately)
+    new \App\Controllers\ACFController();
+    new \App\Controllers\OptimizationController();
+    new \App\Controllers\ShortcodeController();
     new \App\Controllers\ElementorController();
 });

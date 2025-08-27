@@ -20,8 +20,8 @@ class ShortcodeController extends Controller
     {
         $this->settingsService = new SettingsService();
         
-        // Listen for component changes to re-register shortcodes
-        \add_action('update_option_amfm_enabled_components', [$this, 'onComponentsChanged'], 10, 2);
+        // Listen for shortcode config changes
+        \add_action('amfm_shortcodes_changed', [$this, 'registerShortcodes']);
         
         // Clean up on plugin deactivation
         \register_deactivation_hook(AMFM_TOOLS_PATH . 'amfm-tools.php', [$this, 'onPluginDeactivation']);
@@ -36,23 +36,25 @@ class ShortcodeController extends Controller
     }
 
     /**
-     * Register shortcodes based on enabled components
+     * Register shortcodes based on config
      */
     public function registerShortcodes()
     {
         // Unregister all existing shortcodes first
         $this->unregisterAllShortcodes();
 
-        // Get enabled components
-        $enabledComponents = $this->settingsService->getEnabledComponents();
+        $config = \Adz::config();
 
-        // Register shortcodes based on enabled components
-        if (in_array('shortcodes', $enabledComponents)) {
+        // Register shortcodes based on config
+        if ($config->get('shortcodes.dkv', true)) {
             $this->registerShortcode('dkv', \App\Shortcodes\DkvShortcode::class);
         }
 
-        if (in_array('text_utilities', $enabledComponents)) {
+        if ($config->get('shortcodes.limit_words', true)) {
             $this->registerShortcode('limit_words', \App\Shortcodes\LimitWordsShortcode::class);
+        }
+
+        if ($config->get('shortcodes.text_util', true)) {
             $this->registerShortcode('text_util', \App\Shortcodes\TextUtilShortcode::class);
         }
     }
@@ -98,7 +100,7 @@ class ShortcodeController extends Controller
             'dkv' => [
                 'name' => 'Dynamic Keyword Value',
                 'description' => 'Display random keywords with filtering options',
-                'component' => 'shortcodes',
+                'component' => 'dkv_shortcode',
                 'handler' => \App\Shortcodes\DkvShortcode::class
             ],
             'limit_words' => [

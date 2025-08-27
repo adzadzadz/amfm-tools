@@ -56,6 +56,11 @@ class ACFController extends Controller
      */
     public function addAdminMenu()
     {
+        // Only add the ACF menu if ACF plugin is active
+        if (!function_exists('acf_get_field_groups')) {
+            return;
+        }
+        
         add_submenu_page(
             'amfm-tools',
             'ACF',

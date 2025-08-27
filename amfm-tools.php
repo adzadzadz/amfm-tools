@@ -118,9 +118,13 @@ add_action('plugins_loaded', function() {
     new \App\Controllers\Admin\ElementorController();
     new \App\Controllers\Admin\ShortcodesController();
     new \App\Controllers\Admin\UtilitiesController();
+    new \App\Controllers\Admin\ACFController(); // ACF Fields management
     new \App\Controllers\Admin\ImportExportController(); // Load last to appear last in menu
     new \App\Controllers\Admin\AjaxController(); // AJAX handlers for all admin functionality
 
+    // ACF Fields - Always enabled (manages field groups and post types)
+    new \App\Controllers\ACFFieldsController();
+    
     // ACF Helper - Core component (always enabled)
     if (in_array('acf_helper', $enabled_components)) {
         new \App\Controllers\ACFController();

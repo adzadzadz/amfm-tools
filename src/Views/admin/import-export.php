@@ -226,6 +226,62 @@ $results = $results ?? null;
     margin-top: 5px;
 }
 
+/* File selection status styling */
+.amfm-file-selection-status {
+    margin-top: 15px;
+    padding: 0;
+}
+
+.amfm-selected-file-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: #f0f9ff;
+    border: 2px solid #10b981;
+    border-radius: 8px;
+    position: relative;
+}
+
+.amfm-file-icon {
+    font-size: 1.5rem;
+    color: #10b981;
+    flex-shrink: 0;
+}
+
+.amfm-file-details {
+    flex-grow: 1;
+}
+
+.amfm-file-name {
+    font-weight: 600;
+    color: #065f46;
+    font-size: 1rem;
+    margin-bottom: 2px;
+}
+
+.amfm-file-size {
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.amfm-remove-file {
+    background: none;
+    border: none;
+    color: #dc2626;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.amfm-remove-file:hover {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
 /* Import results styling */
 .amfm-import-results {
     margin-top: 30px;
@@ -325,7 +381,7 @@ $results = $results ?? null;
                     <label>Post Data Selection:</label>
                     <div class="amfm-radio-group">
                         <label class="amfm-radio-item">
-                            <input type="radio" name="post_data_selection" value="all" checked>
+                            <input type="radio" name="post_data_selection" value="all">
                             <span>All Post Columns</span>
                         </label>
                         <label class="amfm-radio-item">
@@ -335,7 +391,7 @@ $results = $results ?? null;
                     </div>
                     <div class="amfm-specific-post-columns amfm-checkbox-grid" style="display:none;">
                         <label class="amfm-checkbox-item">
-                            <input type="checkbox" name="specific_post_columns[]" value="post_title" checked>
+                            <input type="checkbox" name="specific_post_columns[]" value="post_title">
                             <span>Post Title</span>
                         </label>
                         <label class="amfm-checkbox-item">
@@ -389,7 +445,7 @@ $results = $results ?? null;
                     <label>Taxonomy Selection:</label>
                     <div class="amfm-radio-group">
                         <label class="amfm-radio-item">
-                            <input type="radio" name="taxonomy_selection" value="all" checked>
+                            <input type="radio" name="taxonomy_selection" value="all">
                             <span>All Taxonomies</span>
                         </label>
                         <label class="amfm-radio-item">
@@ -407,7 +463,7 @@ $results = $results ?? null;
                     <label>ACF Field Selection:</label>
                     <div class="amfm-radio-group">
                         <label class="amfm-radio-item">
-                            <input type="radio" name="acf_selection" value="all" checked>
+                            <input type="radio" name="acf_selection" value="all">
                             <span>All ACF Fields</span>
                         </label>
                         <label class="amfm-radio-item">
@@ -449,9 +505,19 @@ $results = $results ?? null;
                             <div class="amfm-file-upload-icon">📎</div>
                             <div class="amfm-file-upload-text">
                                 <span class="amfm-file-placeholder">Choose CSV file or drag & drop here</span>
-                                <span class="amfm-file-selected" style="display:none;"></span>
                             </div>
                         </label>
+                    </div>
+                    <!-- File selection status - appears below the upload box -->
+                    <div class="amfm-file-selection-status" style="display:none;">
+                        <div class="amfm-selected-file-info">
+                            <span class="amfm-file-icon">📄</span>
+                            <div class="amfm-file-details">
+                                <div class="amfm-file-name"></div>
+                                <div class="amfm-file-size"></div>
+                            </div>
+                            <button type="button" class="amfm-remove-file" title="Remove file">✖</button>
+                        </div>
                     </div>
                 </div>
 
@@ -485,3 +551,454 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <?php endif; ?>
+
+<script>
+// Inline initialization as fallback
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('AMFM Export: Inline initialization');
+    
+    // Wait for jQuery to be available
+    function initWhenReady() {
+        if (window.jQuery) {
+            const $ = window.jQuery;
+            console.log('AMFM Export: jQuery available, setting up handlers');
+            
+            // Export post type change handler
+            $('#export_post_type').on('change', function() {
+                const postType = $(this).val();
+                console.log('AMFM Export: Post type changed to:', postType);
+                
+                if (postType) {
+                    $('.amfm-export-options').show();
+                    console.log('AMFM Export: Showing export options');
+                    
+                    // Don't auto-check options - ensure sub-options are hidden
+                    $('.amfm-post-data-selection').hide();
+                    $('.amfm-taxonomy-selection').hide();
+                    $('.amfm-acf-selection').hide();
+                } else {
+                    $('.amfm-export-options').hide();
+                    $('.amfm-post-data-selection').hide();
+                    $('.amfm-taxonomy-selection').hide();
+                    $('.amfm-acf-selection').hide();
+                    $('input[name="export_options[]"]').prop('checked', false);
+                }
+            });
+            
+            // Add handlers for export option checkboxes
+            $('input[name="export_options[]"][value="post_data"]').on('change', function() {
+                if ($(this).is(':checked')) {
+                    $('.amfm-post-data-selection').show();
+                } else {
+                    $('.amfm-post-data-selection').hide();
+                }
+            });
+            
+            $('input[name="export_options[]"][value="taxonomies"]').on('change', function() {
+                if ($(this).is(':checked')) {
+                    $('.amfm-taxonomy-selection').show();
+                } else {
+                    $('.amfm-taxonomy-selection').hide();
+                }
+            });
+            
+            $('input[name="export_options[]"][value="acf_fields"]').on('change', function() {
+                if ($(this).is(':checked')) {
+                    $('.amfm-acf-selection').show();
+                } else {
+                    $('.amfm-acf-selection').hide();
+                }
+            });
+            
+            // Add handlers for sub-selection radio buttons
+            $('input[name="post_data_selection"]').on('change', function() {
+                if ($(this).val() === 'selected') {
+                    $('.amfm-specific-post-columns').show();
+                } else {
+                    $('.amfm-specific-post-columns').hide();
+                }
+            });
+            
+            $('input[name="taxonomy_selection"]').on('change', function() {
+                if ($(this).val() === 'selected') {
+                    $('.amfm-specific-taxonomies').show();
+                } else {
+                    $('.amfm-specific-taxonomies').hide();
+                }
+            });
+            
+            $('input[name="acf_selection"]').on('change', function() {
+                if ($(this).val() === 'selected') {
+                    $('.amfm-specific-acf-groups').show();
+                } else {
+                    $('.amfm-specific-acf-groups').hide();
+                }
+            });
+            
+            // Trigger change if post type already selected
+            if ($('#export_post_type').val()) {
+                $('#export_post_type').trigger('change');
+            }
+            
+            // Import file handling
+            const fileInput = $('#csv_file');
+            const fileWrapper = $('.amfm-file-upload-wrapper');
+            const filePlaceholder = $('.amfm-file-placeholder');
+            const fileStatus = $('.amfm-file-selection-status');
+            const fileName = $('.amfm-file-name');
+            const fileSize = $('.amfm-file-size');
+            
+            // Format file size utility
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+            
+            // Handle file selection
+            fileInput.on('change', function() {
+                const file = this.files[0];
+                console.log('File selected:', file ? file.name : 'none');
+                if (file) {
+                    // Update file display
+                    filePlaceholder.text('File selected - choose a different file or drag & drop to replace');
+                    fileWrapper.addClass('file-selected');
+                    
+                    // Show file details below
+                    fileName.text(file.name);
+                    fileSize.text(formatFileSize(file.size));
+                    fileStatus.show();
+                } else {
+                    // Reset to initial state
+                    filePlaceholder.text('Choose CSV file or drag & drop here');
+                    fileWrapper.removeClass('file-selected');
+                    fileStatus.hide();
+                }
+            });
+            
+            // Handle remove file button
+            $('.amfm-remove-file').on('click', function() {
+                fileInput.val('');
+                fileInput.trigger('change');
+            });
+            
+            // Inline display functions for CSV table and batch import
+            function displayCsvTableInline(csvData, container) {
+                const headers = csvData.headers;
+                const rows = csvData.rows;
+                
+                let html = '<div class="amfm-csv-preview">';
+                html += '<h3>CSV Preview (' + rows.length + ' rows)</h3>';
+                html += '<div class="amfm-csv-table-wrapper" style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px;">';
+                html += '<table class="amfm-csv-table" style="width: 100%; border-collapse: collapse; font-size: 12px;">';
+                
+                // Headers
+                html += '<thead style="position: sticky; top: 0; background: #f8f9fa; z-index: 10;">';
+                html += '<tr>';
+                html += '<th style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Status</th>';
+                headers.forEach(header => {
+                    html += '<th style="padding: 8px; border: 1px solid #ddd; font-weight: bold; max-width: 150px; overflow: hidden; text-overflow: ellipsis;">' + header + '</th>';
+                });
+                // Only add Post Title column if it doesn't already exist in headers
+                if (!headers.includes('Post Title')) {
+                    html += '<th style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Post Title</th>';
+                }
+                html += '</tr>';
+                html += '</thead>';
+                
+                // Rows
+                html += '<tbody>';
+                rows.forEach(function(row) {
+                    html += '<tr data-row-number="' + row.row_number + '" data-post-id="' + row.post_id + '">';
+                    html += '<td class="status-cell" style="padding: 8px; border: 1px solid #ddd; width: 80px; text-align: center;">';
+                    html += '<span class="status-badge status-pending" style="padding: 2px 8px; border-radius: 12px; font-size: 11px; background: #ffc107; color: #000;">Pending</span>';
+                    html += '</td>';
+                    
+                    headers.forEach(header => {
+                        const cellValue = row.data[header] || '';
+                        html += '<td style="padding: 8px; border: 1px solid #ddd; max-width: 150px; overflow: hidden; text-overflow: ellipsis;" title="' + cellValue + '">' + cellValue + '</td>';
+                    });
+                    
+                    // Only add separate Post Title column if it doesn't already exist in headers
+                    if (!headers.includes('Post Title')) {
+                        html += '<td style="padding: 8px; border: 1px solid #ddd; max-width: 200px; overflow: hidden; text-overflow: ellipsis;">' + row.post_title + '</td>';
+                    }
+                    html += '</tr>';
+                });
+                html += '</tbody>';
+                html += '</table>';
+                html += '</div>';
+                html += '</div>';
+                
+                container.html(html);
+            }
+            
+            function startBatchImportInline(csvData, container) {
+                const batchSize = 10;
+                const rows = csvData.rows;
+                const headers = csvData.headers;
+                let currentBatch = 0;
+                let totalBatches = Math.ceil(rows.length / batchSize);
+                let processedRows = 0;
+                let successCount = 0;
+                let errorCount = 0;
+                let skippedCount = 0;
+                let importStopped = false;
+                
+                // Add progress summary above table
+                const progressHtml = '<div class="amfm-import-progress" style="margin-bottom: 20px; padding: 15px; background: #f0f9ff; border-radius: 8px; border-left: 4px solid #2196F3;">' +
+                    '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">' +
+                    '<h4 style="margin: 0;">Import Progress</h4>' +
+                    '<button id="amfm-stop-import" class="button button-secondary" style="background: #dc3545; color: white; border: none; padding: 6px 15px; border-radius: 4px; cursor: pointer;">Stop Import</button>' +
+                    '</div>' +
+                    '<div class="progress-stats">' +
+                    '<span class="processed-count">Processed: <strong>0</strong> / <strong>' + rows.length + '</strong></span> | ' +
+                    '<span class="success-count">Updated: <strong>0</strong></span> | ' +
+                    '<span class="skipped-count">Skipped: <strong>0</strong></span> | ' +
+                    '<span class="error-count">Errors: <strong>0</strong></span>' +
+                    '</div>' +
+                    '<div class="progress-bar-wrapper" style="margin-top: 10px; background: #e0e0e0; border-radius: 10px; height: 20px;">' +
+                    '<div class="progress-bar" style="background: linear-gradient(90deg, #4CAF50, #2196F3); height: 100%; border-radius: 10px; width: 0%; transition: width 0.3s ease;"></div>' +
+                    '</div>' +
+                    '</div>';
+                
+                container.prepend(progressHtml);
+                
+                // Add stop button event handler
+                container.find('#amfm-stop-import').on('click', function() {
+                    importStopped = true;
+                    $(this).prop('disabled', true).text('Stopping...');
+                    
+                    // Show stopped message
+                    const stoppedHtml = '<div class="amfm-stopped-message" style="margin-top: 15px; padding: 12px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; color: #856404;">' +
+                        '<strong>⏹️ Import Stopped</strong> - Import was stopped by user. Processed <strong>' + processedRows + '</strong> rows before stopping.' +
+                        '</div>';
+                    container.find('.amfm-import-progress').after(stoppedHtml);
+                    
+                    // Re-enable the import button
+                    $('#amfm-import-submit').prop('disabled', false);
+                });
+                
+                function processBatch() {
+                    // Check if import was stopped
+                    if (importStopped) {
+                        return;
+                    }
+                    
+                    const startIdx = currentBatch * batchSize;
+                    const endIdx = Math.min(startIdx + batchSize, rows.length);
+                    const batchRows = rows.slice(startIdx, endIdx);
+                    
+                    console.log('Processing batch', currentBatch + 1, 'of', totalBatches, '- rows', startIdx + 1, 'to', endIdx);
+                    
+                    // Update status to "Saving" for current batch
+                    batchRows.forEach(row => {
+                        const rowElement = container.find('tr[data-row-number="' + row.row_number + '"]');
+                        const statusCell = rowElement.find('.status-cell .status-badge');
+                        statusCell.removeClass('status-pending').addClass('status-saving')
+                            .css({background: '#17a2b8', color: 'white'})
+                            .text('Saving...');
+                    });
+                    
+                    // Send batch to server
+                    const ajaxUrlForBatch = window.amfmData?.ajaxUrl || window.ajaxurl || '/wp-admin/admin-ajax.php';
+                    $.ajax({
+                        url: ajaxUrlForBatch,
+                        type: 'POST',
+                        data: {
+                            action: 'amfm_csv_import_batch',
+                            amfm_csv_import_nonce: $('input[name="amfm_csv_import_nonce"]').val(),
+                            batch_data: JSON.stringify({
+                                headers: headers,
+                                rows: batchRows
+                            })
+                        },
+                        timeout: 30000,
+                        success: function(response) {
+                            console.log('Batch response:', response);
+                            if (response.success) {
+                                const results = response.data;
+                                
+                                // Update status for each processed row
+                                results.processed_rows.forEach(processedRow => {
+                                    const rowElement = container.find('tr[data-row-number="' + processedRow.row_number + '"]');
+                                    const statusCell = rowElement.find('.status-cell .status-badge');
+                                    
+                                    if (processedRow.status === 'completed') {
+                                        statusCell.removeClass('status-saving').addClass('status-completed')
+                                            .css({background: '#28a745', color: 'white'})
+                                            .text('Updated');
+                                        successCount++;
+                                    } else if (processedRow.status === 'skipped') {
+                                        statusCell.removeClass('status-saving').addClass('status-skipped')
+                                            .css({background: '#6c757d', color: 'white'})
+                                            .text('Skipped')
+                                            .attr('title', processedRow.message);
+                                        skippedCount++;
+                                    } else {
+                                        statusCell.removeClass('status-saving').addClass('status-error')
+                                            .css({background: '#dc3545', color: 'white'})
+                                            .text('Error')
+                                            .attr('title', processedRow.message);
+                                        errorCount++;
+                                    }
+                                    processedRows++;
+                                });
+                                
+                                // Update progress
+                                updateProgress();
+                                
+                                // Process next batch
+                                currentBatch++;
+                                if (currentBatch < totalBatches && !importStopped) {
+                                    setTimeout(processBatch, 500);
+                                } else {
+                                    onImportComplete();
+                                }
+                                
+                            } else {
+                                console.error('Batch failed:', response.data);
+                                // Mark all rows in this batch as error
+                                batchRows.forEach(row => {
+                                    const rowElement = container.find('tr[data-row-number="' + row.row_number + '"]');
+                                    const statusCell = rowElement.find('.status-cell .status-badge');
+                                    statusCell.removeClass('status-saving').addClass('status-error')
+                                        .css({background: '#dc3545', color: 'white'})
+                                        .text('Error')
+                                        .attr('title', response.data || 'Batch processing failed');
+                                    errorCount++;
+                                    processedRows++;
+                                });
+                                
+                                updateProgress();
+                                currentBatch++;
+                                if (currentBatch < totalBatches && !importStopped) {
+                                    setTimeout(processBatch, 500);
+                                } else {
+                                    onImportComplete();
+                                }
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('Batch AJAX error:', {status, error, xhr});
+                            // Mark all rows in this batch as error
+                            batchRows.forEach(row => {
+                                const rowElement = container.find('tr[data-row-number="' + row.row_number + '"]');
+                                const statusCell = rowElement.find('.status-cell .status-badge');
+                                statusCell.removeClass('status-saving').addClass('status-error')
+                                    .css({background: '#dc3545', color: 'white'})
+                                    .text('Error')
+                                    .attr('title', 'Network error: ' + error);
+                                errorCount++;
+                                processedRows++;
+                            });
+                            
+                            updateProgress();
+                            currentBatch++;
+                            if (currentBatch < totalBatches && !importStopped) {
+                                setTimeout(processBatch, 500);
+                            } else {
+                                onImportComplete();
+                            }
+                        }
+                    });
+                }
+                
+                function updateProgress() {
+                    const progressPercent = Math.round((processedRows / rows.length) * 100);
+                    container.find('.processed-count strong').first().text(processedRows);
+                    container.find('.success-count strong').text(successCount);
+                    container.find('.skipped-count strong').text(skippedCount);
+                    container.find('.error-count strong').text(errorCount);
+                    container.find('.progress-bar').css('width', progressPercent + '%');
+                }
+                
+                function onImportComplete() {
+                    $('#amfm-import-submit').prop('disabled', false);
+                    
+                    // Hide stop button since import is done
+                    container.find('#amfm-stop-import').hide();
+                    
+                    // Show completion message
+                    let completionHtml;
+                    if (importStopped) {
+                        completionHtml = '<div class="amfm-completion-message" style="margin-top: 20px; padding: 15px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; color: #856404;">' +
+                            '<h4 style="margin: 0 0 10px 0;">⏹️ Import Stopped</h4>' +
+                            '<p style="margin: 0;">Import was stopped by user. Processed <strong>' + processedRows + '</strong> rows with <strong>' + successCount + '</strong> updates, <strong>' + skippedCount + '</strong> skipped (same values), and <strong>' + errorCount + '</strong> errors before stopping.</p>' +
+                            '</div>';
+                    } else {
+                        completionHtml = '<div class="amfm-completion-message" style="margin-top: 20px; padding: 15px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 8px; color: #155724;">' +
+                            '<h4 style="margin: 0 0 10px 0;">✅ Import Completed!</h4>' +
+                            '<p style="margin: 0;">Successfully processed <strong>' + processedRows + '</strong> rows with <strong>' + successCount + '</strong> updates, <strong>' + skippedCount + '</strong> skipped (same values), and <strong>' + errorCount + '</strong> errors.</p>' +
+                            '</div>';
+                    }
+                    
+                    container.find('.amfm-csv-preview').after(completionHtml);
+                }
+                
+                // Start processing
+                setTimeout(processBatch, 1000);
+            }
+            
+            // Import form submission
+            $('#amfm-import-form').on('submit', function(e) {
+                e.preventDefault();
+                console.log('Import form submitted');
+                
+                const formData = new FormData(this);
+                const submitButton = $('#amfm-import-submit');
+                const resultsSection = $('#amfm-import-results');
+                const resultsContent = $('#amfm-import-results-content');
+                
+                // Show loading state
+                submitButton.prop('disabled', true).text('Loading CSV...');
+                resultsSection.show();
+                resultsContent.html('<div class="amfm-loading"><div class="amfm-loading-spinner"></div>Reading CSV file...</div>');
+                
+                // First, get CSV preview to show table
+                formData.append('action', 'amfm_csv_preview');
+                
+                // Try to get ajax URL
+                const ajaxUrl = window.amfmData?.ajaxUrl || window.ajaxurl || '/wp-admin/admin-ajax.php';
+                console.log('Using AJAX URL:', ajaxUrl);
+                
+                $.ajax({
+                    url: ajaxUrl,
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    timeout: 30000,
+                    success: function(response) {
+                        console.log('Preview response:', response);
+                        if (response.success) {
+                            // Use inline display functions as fallback
+                            displayCsvTableInline(response.data, resultsContent);
+                            startBatchImportInline(response.data, resultsContent);
+                            submitButton.text('Import Data');
+                        } else {
+                            resultsSection.removeClass('amfm-import-success').addClass('amfm-import-error');
+                            resultsContent.html('<p><strong>Preview Failed:</strong> ' + (response.data || 'Unknown error occurred.') + '</p>');
+                            submitButton.prop('disabled', false).text('Import Data');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('AJAX error:', {status, error, xhr});
+                        resultsSection.removeClass('amfm-import-success').addClass('amfm-import-error');
+                        resultsContent.html('<p><strong>Preview Failed:</strong> ' + error + '</p>');
+                        submitButton.prop('disabled', false).text('Import Data');
+                    }
+                });
+            });
+            
+        } else {
+            console.log('AMFM Export: jQuery not ready, retrying...');
+            setTimeout(initWhenReady, 100);
+        }
+    }
+    
+    initWhenReady();
+});
+</script>

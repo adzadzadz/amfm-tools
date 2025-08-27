@@ -114,6 +114,11 @@ class CsvImportService extends Service
         $handle = $this->openCsvFile($file['tmp_name']);
         $headers = fgetcsv($handle);
         
+        // Clean headers and check for ID column
+        if ($headers) {
+            $headers = array_map('trim', $headers);
+        }
+        
         if (!$headers || !in_array('ID', $headers)) {
             fclose($handle);
             throw new \Exception('Invalid CSV format. ID column is required.');
@@ -164,6 +169,11 @@ class CsvImportService extends Service
         $headers = $batchData['headers'] ?? [];
         $rows = $batchData['rows'] ?? [];
 
+        // Clean headers before validation
+        if (!empty($headers)) {
+            $headers = array_map('trim', $headers);
+        }
+        
         if (empty($headers) || !in_array('ID', $headers)) {
             throw new \Exception('Invalid headers - ID column required.');
         }
@@ -281,7 +291,11 @@ class CsvImportService extends Service
         $handle = $this->openCsvFile($filePath);
         $headers = fgetcsv($handle);
         
-        // Validate headers - must have ID column at minimum
+        // Clean headers and validate - must have ID column at minimum
+        if ($headers) {
+            $headers = array_map('trim', $headers);
+        }
+        
         if (!$headers || !in_array('ID', $headers)) {
             throw new \Exception('Invalid CSV format. ID column is required.');
         }
@@ -428,19 +442,25 @@ class CsvImportService extends Service
                 return true;
 
             default:
+                error_log("AMFM Import Debug - Processing field: {$fieldName} with value: {$value}");
+                
                 // Check if it's a taxonomy
                 if (taxonomy_exists($fieldName)) {
+                    error_log("Field {$fieldName} identified as taxonomy");
                     return $this->updatePostTaxonomy($post->ID, $fieldName, $value, $updated);
                 } elseif ($this->isAcfField($fieldName)) {
                     // Handle ACF field
+                    error_log("Field {$fieldName} identified as ACF field");
                     return $this->updateAcfField($post->ID, $fieldName, $value, $updated);
                 } else {
                     // Try to match by taxonomy label
                     $taxonomy = $this->getTaxonomyByLabel($fieldName);
                     if ($taxonomy) {
+                        error_log("Field {$fieldName} identified as taxonomy by label: {$taxonomy->name}");
                         return $this->updatePostTaxonomy($post->ID, $taxonomy->name, $value, $updated);
                     }
                 }
+                error_log("Field {$fieldName} - Unknown field type, skipping");
                 return false; // Unknown field type, skip
         }
     }
@@ -512,14 +532,23 @@ class CsvImportService extends Service
             }
         }
         
+        // Debug logging for comparison
+        error_log("AMFM Import Debug - Field: {$fieldName}, Post ID: {$postId}");
+        error_log("Current Value: " . var_export($currentValue, true));
+        error_log("New Value: " . var_export($processedValue, true));
+        
         // Compare values (handle arrays and strings)
         if (is_array($processedValue) && is_array($currentValue)) {
             if ($processedValue === $currentValue) {
+                error_log("Skipped - Arrays are identical");
                 return false; // Same value, skipped
             }
         } elseif ((string)$processedValue === (string)$currentValue) {
+            error_log("Skipped - String values are identical: '{$processedValue}' === '{$currentValue}'");
             return false; // Same value, skipped
         }
+        
+        error_log("Values are different - proceeding with update");
         
         $result = update_field($fieldName, $processedValue, $postId);
         if ($result !== false) {
@@ -807,6 +836,14 @@ class CsvImportService extends Service
         if (!$handle) {
             throw new \Exception('Could not open file for reading');
         }
+
+        // Check for and skip BOM (Byte Order Mark) if present
+        $bom = fread($handle, 3);
+        if ($bom !== "\xEF\xBB\xBF") {
+            // No BOM found, rewind to beginning
+            rewind($handle);
+        }
+        // If BOM was found, we've already skipped it by reading 3 bytes
 
         return $handle;
     }

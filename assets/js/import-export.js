@@ -3,6 +3,15 @@
  * Simplified version without drawer functionality
  */
 
+// Utility function to format file size
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
 // Initialize form handlers
 function initializeFormHandlers() {
     const $ = window.jQuery;
@@ -12,6 +21,13 @@ function initializeFormHandlers() {
     }
 
     $(() => {
+        console.log('AMFM Export/Import: Initializing form handlers');
+        
+        // Ensure elements exist
+        if (!$('#export_post_type').length) {
+            console.error('Export post type select not found');
+            return;
+        }
         // Toggle post data selection
         $('input[name="export_options[]"][value="post_data"]').off('change').on('change', function() {
             if ($(this).is(':checked')) {
@@ -73,33 +89,61 @@ function initializeFormHandlers() {
             // Show or hide export options section
             if (postType) {
                 $('.amfm-export-options').show();
+                
+                // Don't auto-check any options - let user choose
+                // Just ensure the sub-options are properly hidden initially
+                $('.amfm-post-data-selection').hide();
+                $('.amfm-taxonomy-selection').hide();
+                $('.amfm-acf-selection').hide();
             } else {
                 $('.amfm-export-options').hide();
                 $('.amfm-post-data-selection').hide();
                 $('.amfm-taxonomy-selection').hide();
                 $('.amfm-acf-selection').hide();
+                
+                // Uncheck all export options when no post type is selected
+                $('input[name="export_options[]"]').prop('checked', false);
             }
         });
+        
+        // Trigger change event on page load if a post type is already selected
+        if ($('#export_post_type').val()) {
+            $('#export_post_type').trigger('change');
+        }
 
         // File upload handling
         const fileInput = $('#csv_file');
         const fileWrapper = $('.amfm-file-upload-wrapper');
         const fileDisplay = $('.amfm-file-upload-display');
         const filePlaceholder = $('.amfm-file-placeholder');
-        const fileSelected = $('.amfm-file-selected');
+        const fileStatus = $('.amfm-file-selection-status');
+        const fileName = $('.amfm-file-name');
+        const fileSize = $('.amfm-file-size');
 
         // Handle file selection
         fileInput.on('change', function() {
             const file = this.files[0];
             if (file) {
-                filePlaceholder.hide();
-                fileSelected.text(`Selected: ${file.name}`).show();
+                // Update file display
+                filePlaceholder.text('File selected - choose a different file or drag & drop to replace');
                 fileWrapper.addClass('file-selected');
+                
+                // Show file details below
+                fileName.text(file.name);
+                fileSize.text(formatFileSize(file.size));
+                fileStatus.show();
             } else {
-                filePlaceholder.show();
-                fileSelected.hide();
+                // Reset to initial state
+                filePlaceholder.text('Choose CSV file or drag & drop here');
                 fileWrapper.removeClass('file-selected');
+                fileStatus.hide();
             }
+        });
+        
+        // Handle remove file button
+        $('.amfm-remove-file').on('click', function() {
+            fileInput.val('');
+            fileInput.trigger('change');
         });
 
         // Drag and drop functionality on the display label
@@ -131,6 +175,9 @@ function initializeFormHandlers() {
                     
                     // Trigger change event
                     fileInput.trigger('change');
+                } else {
+                    // Show error for invalid file type
+                    alert('Please select a CSV file.');
                 }
             }
         });
@@ -145,9 +192,15 @@ function initializeFormHandlers() {
             const resultsSection = $('#amfm-import-results');
             const resultsContent = $('#amfm-import-results-content');
             
+            // Validate file exists
+            if (!fileInput[0].files || !fileInput[0].files[0]) {
+                alert('Please select a CSV file first.');
+                return;
+            }
+            
             // Show loading state
             submitButton.prop('disabled', true).text('Loading CSV...');
-            resultsSection.show();
+            resultsSection.show().removeClass('amfm-import-error amfm-import-success');
             resultsContent.html('<div class="amfm-loading"><div class="amfm-loading-spinner"></div>Reading CSV file...</div>');
             
             // First, get CSV preview to show table
@@ -204,7 +257,10 @@ function displayCsvTable(csvData, container) {
     headers.forEach(header => {
         html += '<th style="padding: 8px; border: 1px solid #ddd; font-weight: bold; max-width: 150px; overflow: hidden; text-overflow: ellipsis;">' + header + '</th>';
     });
-    html += '<th style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Post Title</th>';
+    // Only add Post Title column if it doesn't already exist in headers
+    if (!headers.includes('Post Title')) {
+        html += '<th style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Post Title</th>';
+    }
     html += '</tr>';
     html += '</thead>';
     
@@ -221,7 +277,10 @@ function displayCsvTable(csvData, container) {
             html += '<td style="padding: 8px; border: 1px solid #ddd; max-width: 150px; overflow: hidden; text-overflow: ellipsis;" title="' + cellValue + '">' + cellValue + '</td>';
         });
         
-        html += '<td style="padding: 8px; border: 1px solid #ddd; max-width: 200px; overflow: hidden; text-overflow: ellipsis;">' + row.post_title + '</td>';
+        // Only add separate Post Title column if it doesn't already exist in headers
+        if (!headers.includes('Post Title')) {
+            html += '<td style="padding: 8px; border: 1px solid #ddd; max-width: 200px; overflow: hidden; text-overflow: ellipsis;">' + row.post_title + '</td>';
+        }
         html += '</tr>';
     });
     html += '</tbody>';
@@ -478,6 +537,27 @@ function formatImportResults(data) {
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('AMFM Export/Import: DOM Content Loaded');
     // Initialize form handlers immediately since forms are already in the DOM
     initializeFormHandlers();
 });
+
+// Also initialize on window load as a fallback
+window.addEventListener('load', function() {
+    console.log('AMFM Export/Import: Window Load - checking initialization');
+    // Check if handlers are working
+    const $ = window.jQuery;
+    if ($) {
+        // Test if export post type select has change handler
+        const exportSelect = $('#export_post_type');
+        if (exportSelect.length && !$._data(exportSelect[0], 'events')) {
+            console.log('AMFM Export/Import: Re-initializing handlers');
+            initializeFormHandlers();
+        }
+    }
+});
+
+// Expose functions globally for fallback usage
+window.displayCsvTable = displayCsvTable;
+window.startBatchImport = startBatchImport;
+window.formatFileSize = formatFileSize;

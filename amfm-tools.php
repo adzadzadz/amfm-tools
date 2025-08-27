@@ -106,6 +106,7 @@ add_action('plugins_loaded', function() {
     // Initialize Controllers
     // Admin Controllers
     new \App\Controllers\Admin\DashboardController();
+    new \App\Controllers\Admin\BylinesController();
     new \App\Controllers\Admin\ElementorController();
     new \App\Controllers\Admin\ShortcodesController();
     new \App\Controllers\Admin\UtilitiesController();

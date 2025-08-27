@@ -41,7 +41,7 @@ class UtilitiesController extends Controller
             'plugin_version' => AMFM_TOOLS_VERSION
         ];
 
-        echo View::render('admin/utilities', $this->getUtilitiesData($view_data));
+        echo View::render('admin/utilities', $this->getUtilitiesData($view_data), true, 'layouts/main');
     }
 
     /**

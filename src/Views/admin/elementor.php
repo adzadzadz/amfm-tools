@@ -7,41 +7,7 @@ $available_widgets = $available_widgets ?? [];
 $enabled_widgets = $enabled_widgets ?? [];
 ?>
 
-<div class="wrap amfm-admin-page">
-    <div class="amfm-container">
-        <!-- Enhanced Header -->
-        <div class="amfm-header">
-            <div class="amfm-header-content">
-                <div class="amfm-header-main">
-                    <div class="amfm-header-logo">
-                        <span class="amfm-icon">🛠️</span>
-                    </div>
-                    <div class="amfm-header-text">
-                        <h1>AMFM Tools</h1>
-                        <p class="amfm-subtitle">Advanced Features Management</p>
-                    </div>
-                </div>
-                <div class="amfm-header-actions">
-                    <div class="amfm-header-stats">
-                        <div class="amfm-header-stat">
-                            <span class="amfm-header-stat-number"><?php echo count($available_widgets); ?></span>
-                            <span class="amfm-header-stat-label">Widgets</span>
-                        </div>
-                        <div class="amfm-header-stat">
-                            <span class="amfm-header-stat-number"><?php echo count($enabled_widgets); ?></span>
-                            <span class="amfm-header-stat-label">Active</span>
-                        </div>
-                    </div>
-                    <div class="amfm-version-badge">
-                        v<?php echo esc_html(AMFM_TOOLS_VERSION); ?>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-
-        <!-- Elementor Tab Content -->
-        <div class="amfm-tab-content">
+<!-- Elementor Tab Content -->
             <div class="amfm-shortcodes-section">
                 <div class="amfm-shortcodes-header">
                     <h2>
@@ -101,9 +67,6 @@ $enabled_widgets = $enabled_widgets ?? [];
 
                 </form>
             </div>
-
-    </div>
-</div>
 
 <!-- Widget Documentation/Config Drawer -->
 <div id="amfm-widget-drawer" class="amfm-drawer">

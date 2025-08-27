@@ -105,7 +105,6 @@ add_action('plugins_loaded', function() {
     new \App\Services\CsvExportService();
     new \App\Services\CsvImportService();
     new \App\Services\SettingsService();
-    new \App\Services\PageTemplateService();
 
     // Dashboard Controller - Always enabled
     new \App\Controllers\Admin\DashboardController();

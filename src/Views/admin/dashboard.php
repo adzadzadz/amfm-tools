@@ -5,25 +5,8 @@ if (!defined('ABSPATH')) exit;
 $plugin_version = $plugin_version ?? AMFM_TOOLS_VERSION;
 ?>
 
-<div class="wrap amfm-admin-page">
-    <div class="amfm-container">
-        <!-- Simple Header -->
-        <div class="amfm-header">
-            <div class="amfm-header-content">
-                <div class="amfm-header-main">
-                    <div class="amfm-header-logo">
-                        <span class="amfm-icon">🛠️</span>
-                    </div>
-                    <div class="amfm-header-text">
-                        <h1>AMFM Tools Dashboard</h1>
-                        <p class="amfm-subtitle">Version <?php echo esc_html($plugin_version); ?></p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Dashboard Content -->
-        <div style="padding: 0 32px;">
+<!-- Dashboard Content -->
+<div style="padding: 0 32px;">
             <div class="amfm-dashboard-grid">
                 <!-- Plugin Status Card -->
                 <div class="amfm-dashboard-card amfm-status-card">
@@ -209,6 +192,4 @@ $plugin_version = $plugin_version ?? AMFM_TOOLS_VERSION;
             font-weight: 500;
         }
         </style>
-
-    </div>
 </div>

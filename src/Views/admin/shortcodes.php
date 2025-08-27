@@ -14,31 +14,7 @@ $currentFallback = $settingsService->getDkvDefaultFallback();
 $currentCacheDuration = $settingsService->getDkvCacheDuration();
 ?>
 
-<div class="wrap amfm-admin-page">
-    <div class="amfm-container">
-        <!-- Enhanced Header -->
-        <div class="amfm-header">
-            <div class="amfm-header-content">
-                <div class="amfm-header-main">
-                    <div class="amfm-header-logo">
-                        <span class="amfm-icon">🛠️</span>
-                    </div>
-                    <div class="amfm-header-text">
-                        <h1>AMFM Tools</h1>
-                        <p class="amfm-subtitle">Advanced Features Management</p>
-                    </div>
-                </div>
-                <div class="amfm-header-actions">
-                    <div class="amfm-version-badge">
-                        v<?php echo esc_html(AMFM_TOOLS_VERSION); ?>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-
-        <!-- Shortcodes Content -->
-        <div class="amfm-tab-content">
+<!-- Shortcodes Content -->
             <!-- Shortcode Management Section -->
             <div class="amfm-shortcodes-section">
                 <div class="amfm-shortcodes-header">
@@ -111,10 +87,6 @@ $currentCacheDuration = $settingsService->getDkvCacheDuration();
                     </div>
                 </form>
             </div>
-
-        </div>
-    </div>
-</div>
 
 <!-- Shortcode Documentation Drawer -->
 <div id="amfm-shortcode-drawer" class="amfm-drawer">

@@ -7,30 +7,7 @@ $available_utilities = $available_utilities ?? [];
 $enabled_utilities = $enabled_utilities ?? [];
 ?>
 
-<div class="wrap amfm-admin-page">
-    <div class="amfm-container">
-        <!-- Enhanced Header -->
-        <div class="amfm-header">
-            <div class="amfm-header-content">
-                <div class="amfm-header-main">
-                    <div class="amfm-header-logo">
-                        <span class="amfm-icon">🛠️</span>
-                    </div>
-                    <div class="amfm-header-text">
-                        <h1>AMFM Tools</h1>
-                        <p class="amfm-subtitle">Advanced Features Management</p>
-                    </div>
-                </div>
-                <div class="amfm-header-actions">
-                    <div class="amfm-version-badge">
-                        v<?php echo esc_html(AMFM_TOOLS_VERSION); ?>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Utilities Content -->
-        <div class="amfm-tab-content">
+<!-- Utilities Content -->
             <!-- Utility Management Section -->
             <div class="amfm-shortcodes-section">
                 <div class="amfm-shortcodes-header">

@@ -102,7 +102,7 @@ class DashboardController extends Controller
         ];
 
         // Render dashboard page
-        echo View::render('admin/dashboard', $view_data);
+        echo View::render('admin/dashboard', $view_data, true, 'layouts/main');
     }
 
     /**

@@ -41,7 +41,7 @@ class ElementorController extends Controller
             'plugin_version' => AMFM_TOOLS_VERSION
         ];
 
-        echo View::render('admin/elementor', $this->getElementorData($view_data));
+        echo View::render('admin/elementor', $this->getElementorData($view_data), true, 'layouts/main');
     }
 
     /**

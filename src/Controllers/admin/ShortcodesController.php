@@ -53,7 +53,7 @@ class ShortcodesController extends Controller
             'results' => $results
         ];
 
-        echo View::render('admin/shortcodes', $this->getShortcodesData($view_data));
+        echo View::render('admin/shortcodes', $this->getShortcodesData($view_data), true, 'layouts/main');
     }
 
     /**

@@ -36,7 +36,7 @@ class ElementorController extends Controller
     {
         // Prepare data for views
         $view_data = [
-            'title' => 'Elementor Widget Management',
+            'title' => 'Widgets',
             'active_tab' => 'elementor',
             'plugin_url' => AMFM_TOOLS_URL,
             'plugin_version' => AMFM_TOOLS_VERSION
@@ -68,32 +68,34 @@ class ElementorController extends Controller
     }
 
     /**
-     * Enqueue admin assets - framework auto-hook
+     * Initialize assets using AssetManager - framework auto-hook
      */
-    public function actionAdminEnqueueScripts($hook_suffix)
+    public function actionInit()
     {
-        if (strpos($hook_suffix, 'amfm-tools-elementor') !== false) {
-            \wp_enqueue_style(
-                'amfm-admin-style',
-                AMFM_TOOLS_URL . 'assets/css/admin-style.css',
-                [],
-                AMFM_TOOLS_VERSION
-            );
-            
-            \wp_enqueue_script(
-                'amfm-admin-script',
-                AMFM_TOOLS_URL . 'assets/js/admin-script.js',
-                ['jquery'],
-                AMFM_TOOLS_VERSION,
-                true
-            );
-
-            // Localize script for AJAX
-            \wp_localize_script('amfm-admin-script', 'amfm_ajax', [
-                'ajax_url' => \admin_url('admin-ajax.php'),
-                'elementor_nonce' => $this->createNonce('amfm_elementor_widgets_nonce')
-            ]);
-        }
+        // Register elementor admin styles with Bootstrap dependency
+        \AdzWP\Core\AssetManager::registerStyle('amfm-elementor-style', [
+            'url' => AMFM_TOOLS_URL . 'assets/css/admin-style.css',
+            'dependencies' => ['bootstrap-css'],
+            'version' => AMFM_TOOLS_VERSION,
+            'contexts' => ['plugin'],
+            'media' => 'all'
+        ]);
+        
+        // Register elementor admin script with Bootstrap and jQuery dependencies
+        \AdzWP\Core\AssetManager::registerScript('amfm-elementor-script', [
+            'url' => AMFM_TOOLS_URL . 'assets/js/admin-script.js',
+            'dependencies' => ['jquery', 'bootstrap-js'],
+            'version' => AMFM_TOOLS_VERSION,
+            'contexts' => ['plugin'],
+            'in_footer' => true,
+            'localize' => [
+                'object_name' => 'amfm_ajax',
+                'data' => [
+                    'ajax_url' => \admin_url('admin-ajax.php'),
+                    'elementor_nonce' => $this->createNonce('amfm_elementor_widgets_nonce')
+                ]
+            ]
+        ]);
     }
 
     /**
@@ -103,5 +105,14 @@ class ElementorController extends Controller
     {
         $settingsService = new SettingsService();
         $settingsService->ajaxElementorWidgetsUpdate();
+    }
+
+    /**
+     * AJAX: Toggle individual Elementor widget - framework auto-hook
+     */
+    public function actionWpAjaxAmfmToggleElementorWidget()
+    {
+        $settingsService = new SettingsService();
+        $settingsService->ajaxToggleElementorWidget();
     }
 }

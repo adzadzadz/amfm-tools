@@ -325,7 +325,7 @@ class SettingsService extends Service
      */
     public function ajaxToggleElementorWidget(): void
     {
-        if (!check_ajax_referer('amfm_elementor_widgets_nonce', 'nonce', false) || 
+        if (!check_ajax_referer('amfm_elementor_widgets_update', 'nonce', false) || 
             !current_user_can('manage_options')) {
             wp_send_json_error('Permission denied');
         }

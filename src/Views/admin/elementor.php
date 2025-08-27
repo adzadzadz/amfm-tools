@@ -7,74 +7,104 @@ $available_widgets = $available_widgets ?? [];
 $enabled_widgets = $enabled_widgets ?? [];
 ?>
 
-<!-- Elementor Tab Content -->
-            <div class="amfm-shortcodes-section">
-                <div class="amfm-shortcodes-header">
-                    <h2>
-                        <span class="amfm-shortcodes-icon">🎨</span>
-                        Elementor Widget Management
-                    </h2>
-                    <p>Enable or disable individual Elementor widgets provided by this plugin. Disabled widgets will not be loaded in the Elementor editor.</p>
-                </div>
-
-                <form method="post" class="amfm-component-settings-form">
-                    <?php wp_nonce_field('amfm_elementor_widgets_update', 'amfm_elementor_widgets_nonce'); ?>
-                    
-                    <div class="amfm-components-grid">
-                        <?php foreach ($available_widgets as $widget_key => $widget_info) : ?>
-                            <div class="amfm-component-card <?php echo in_array($widget_key, $enabled_widgets) ? 'amfm-component-enabled' : 'amfm-component-disabled'; ?>">
-                                <div class="amfm-component-header">
-                                    <div class="amfm-component-icon"><?php echo esc_html($widget_info['icon']); ?></div>
-                                    <div class="amfm-component-toggle">
-                                        <label class="amfm-toggle-switch">
-                                            <input type="checkbox" 
-                                                   name="enabled_widgets[]" 
-                                                   value="<?php echo esc_attr($widget_key); ?>"
-                                                   <?php checked(in_array($widget_key, $enabled_widgets)); ?>
-                                                   class="amfm-component-checkbox"
-                                                   data-widget="<?php echo esc_attr($widget_key); ?>">
-                                            <span class="amfm-toggle-slider"></span>
-                                        </label>
+<!-- Modern Bootstrap 5 Elementor Widgets Management -->
+<div class="container-fluid px-0">
+    <div class="row g-3">
+        <!-- Main Content -->
+        <div class="col-12">
+            <!-- Widgets Grid -->
+            <form method="post" id="amfm-elementor-form">
+                <?php wp_nonce_field('amfm_elementor_widgets_update', 'amfm_elementor_widgets_nonce'); ?>
+                
+                <div class="row g-3">
+                    <?php if (empty($available_widgets)): ?>
+                        <!-- No Widgets Available -->
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-body text-center py-5">
+                                    <div class="text-muted mb-4">
+                                        <i class="fas fa-puzzle-piece fs-1 opacity-25"></i>
                                     </div>
+                                    <h5 class="text-muted mb-2">No Elementor Widgets Available</h5>
+                                    <p class="text-muted small mb-0">No Elementor widgets are currently registered by this plugin.</p>
                                 </div>
-                                <div class="amfm-component-body">
-                                    <h3 class="amfm-component-title"><?php echo esc_html($widget_info['name']); ?></h3>
-                                    <p class="amfm-component-description"><?php echo esc_html($widget_info['description']); ?></p>
-                                    <div class="amfm-component-status">
-                                        <span class="amfm-status-indicator"></span>
-                                        <span class="amfm-status-text">
-                                            <?php echo in_array($widget_key, $enabled_widgets) ? 'Enabled' : 'Disabled'; ?>
-                                        </span>
-                                    </div>
-                                    <div class="amfm-component-actions">
-                                        <button type="button" 
-                                                class="amfm-info-button amfm-doc-button" 
-                                                data-widget="<?php echo esc_attr($widget_key); ?>"
-                                                onclick="openWidgetDrawer('<?php echo esc_attr($widget_key); ?>', 'documentation')">
-                                            Documentation
-                                        </button>
-                                        <button type="button" 
-                                                class="amfm-info-button amfm-config-button" 
-                                                data-widget="<?php echo esc_attr($widget_key); ?>"
-                                                onclick="openWidgetDrawer('<?php echo esc_attr($widget_key); ?>', 'config')">
-                                            Config
-                                        </button>
+                            </div>
+                        </div>
+                    <?php else: ?>
+                        <?php foreach ($available_widgets as $widget_key => $widget_info): 
+                            $is_enabled = in_array($widget_key, $enabled_widgets);
+                        ?>
+                            <div class="col-lg-6 col-xl-4">
+                                <div class="card border-0 shadow-sm h-100 hover-lift">
+                                    <div class="card-body p-4">
+                                        <!-- Widget Header -->
+                                        <div class="d-flex align-items-center justify-content-between mb-3">
+                                            <div class="d-flex align-items-center">
+                                                <div class="rounded bg-primary bg-opacity-10 p-2 me-3">
+                                                    <i class="fas fa-puzzle-piece text-primary" style="font-size: 1.25rem;"></i>
+                                                </div>
+                                                <div>
+                                                    <h5 class="fw-bold mb-0 text-dark"><?php echo esc_html($widget_info['name']); ?></h5>
+                                                </div>
+                                            </div>
+                                            <!-- Bootstrap 5 Form Switch -->
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input widget-toggle" 
+                                                       type="checkbox" 
+                                                       role="switch"
+                                                       id="widget-<?php echo esc_attr($widget_key); ?>"
+                                                       name="enabled_widgets[]" 
+                                                       value="<?php echo esc_attr($widget_key); ?>"
+                                                       <?php checked($is_enabled); ?>
+                                                       style="cursor: pointer;">
+                                            </div>
+                                        </div>
+
+                                        <!-- Widget Description -->
+                                        <p class="text-muted mb-3 small"><?php echo esc_html($widget_info['description']); ?></p>
+
+                                        <!-- Status Badge -->
+                                        <div class="mb-3">
+                                            <span class="badge <?php echo $is_enabled ? 'bg-success' : 'bg-secondary'; ?> bg-opacity-10 <?php echo $is_enabled ? 'text-success' : 'text-secondary'; ?> px-3 py-2">
+                                                <i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>
+                                                <?php echo $is_enabled ? 'Enabled' : 'Disabled'; ?>
+                                            </span>
+                                        </div>
+
+                                        <!-- Action Buttons -->
+                                        <div class="d-flex gap-2 mt-auto">
+                                            <button type="button" 
+                                                    class="btn btn-outline-primary btn-sm flex-fill"
+                                                    onclick="openWidgetDrawer('<?php echo esc_attr($widget_key); ?>', 'documentation')">
+                                                <i class="fas fa-book me-1"></i>
+                                                Docs
+                                            </button>
+                                            <button type="button" 
+                                                    class="btn btn-outline-success btn-sm flex-fill"
+                                                    onclick="openWidgetDrawer('<?php echo esc_attr($widget_key); ?>', 'config')">
+                                                <i class="fas fa-cog me-1"></i>
+                                                Config
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         <?php endforeach; ?>
-                    </div>
+                    <?php endif; ?>
+                </div>
 
-                </form>
-            </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <!-- Widget Documentation/Config Drawer -->
 <div id="amfm-widget-drawer" class="amfm-drawer">
     <div class="amfm-drawer-overlay" onclick="closeWidgetDrawer()"></div>
     <div class="amfm-drawer-content">
         <div class="amfm-drawer-header">
-            <h2 id="amfm-drawer-title">Widget Documentation</h2>
-            <button type="button" class="amfm-drawer-close" onclick="closeWidgetDrawer()">&times;</button>
+            <h4 id="amfm-drawer-title" class="mb-0 fw-bold">Widget Documentation</h4>
+            <button type="button" class="btn-close" onclick="closeWidgetDrawer()"></button>
         </div>
         <div class="amfm-drawer-body" id="amfm-drawer-body">
             <!-- Content will be loaded dynamically -->
@@ -83,204 +113,318 @@ $enabled_widgets = $enabled_widgets ?? [];
 </div>
 
 <script>
+// Localize AJAX data
+const amfm_ajax = {
+    ajax_url: '<?php echo admin_url('admin-ajax.php'); ?>',
+    elementor_nonce: '<?php echo wp_create_nonce('amfm_elementor_widgets_nonce'); ?>'
+};
+
 // Widget documentation and configuration data
 const widgetData = {
     'amfm_related_posts': {
         name: 'AMFM Related Posts',
         description: 'Display related posts based on ACF keywords with customizable layouts and styling options.',
         documentation: `
-            <div class="amfm-shortcode-docs">
-                <div class="amfm-shortcode-usage">
-                    <h3>Overview:</h3>
-                    <p>The AMFM Related Posts widget provides powerful content discovery features for your Elementor pages. It automatically finds and displays related posts based on ACF (Advanced Custom Fields) keywords.</p>
-                </div>
-
-                <div class="amfm-shortcode-attributes">
-                    <h3>Key Features:</h3>
-                    <div class="amfm-attributes-list">
-                        <div class="amfm-attribute">
-                            <strong>Keyword Matching</strong> - Automatically finds related posts based on ACF keywords
-                        </div>
-                        <div class="amfm-attribute">
-                            <strong>Multiple Layouts</strong> - Choose from grid, list, or carousel display options
-                        </div>
-                        <div class="amfm-attribute">
-                            <strong>Customizable Styling</strong> - Full control over typography, colors, and spacing
-                        </div>
-                        <div class="amfm-attribute">
-                            <strong>Query Controls</strong> - Filter by post type, category, tags, and custom taxonomies
-                        </div>
-                        <div class="amfm-attribute">
-                            <strong>Performance Optimized</strong> - Efficient queries with built-in caching
-                        </div>
-                        <div class="amfm-attribute">
-                            <strong>Responsive Design</strong> - Mobile-first approach with breakpoint controls
+            <div class="documentation-content">
+                <div class="alert alert-info border-0 mb-4">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-info-circle fs-4 me-3 text-info"></i>
+                        <div>
+                            <h6 class="alert-heading mb-1">Overview</h6>
+                            <p class="mb-0 small">The AMFM Related Posts widget provides powerful content discovery features for your Elementor pages. It automatically finds and displays related posts based on ACF (Advanced Custom Fields) keywords.</p>
                         </div>
                     </div>
                 </div>
 
-                <div class="amfm-shortcode-examples">
-                    <h3>How to Use:</h3>
-                    
-                    <div class="amfm-example">
-                        <div class="amfm-example-code">
-                            <strong>Step 1: Add Widget</strong>
-                        </div>
-                        <div class="amfm-example-result">
-                            → Open Elementor editor and search for "AMFM" in the widgets panel
-                        </div>
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-transparent border-0">
+                        <h5 class="mb-0 fw-bold text-dark">
+                            <i class="fas fa-star text-warning me-2"></i>
+                            Key Features
+                        </h5>
                     </div>
-
-                    <div class="amfm-example">
-                        <div class="amfm-example-code">
-                            <strong>Step 2: Configure Settings</strong>
-                        </div>
-                        <div class="amfm-example-result">
-                            → Set keyword source, number of posts, layout options in the Content tab
-                        </div>
-                    </div>
-
-                    <div class="amfm-example">
-                        <div class="amfm-example-code">
-                            <strong>Step 3: Style Widget</strong>
-                        </div>
-                        <div class="amfm-example-result">
-                            → Customize appearance using the Style tab for colors, typography, and spacing
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-start">
+                                    <i class="fas fa-tags text-primary me-2 mt-1"></i>
+                                    <div>
+                                        <strong class="d-block">Keyword Matching</strong>
+                                        <small class="text-muted">Automatically finds related posts based on ACF keywords</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-start">
+                                    <i class="fas fa-th-large text-success me-2 mt-1"></i>
+                                    <div>
+                                        <strong class="d-block">Multiple Layouts</strong>
+                                        <small class="text-muted">Choose from grid, list, or carousel display options</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-start">
+                                    <i class="fas fa-palette text-warning me-2 mt-1"></i>
+                                    <div>
+                                        <strong class="d-block">Customizable Styling</strong>
+                                        <small class="text-muted">Full control over typography, colors, and spacing</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-start">
+                                    <i class="fas fa-filter text-info me-2 mt-1"></i>
+                                    <div>
+                                        <strong class="d-block">Query Controls</strong>
+                                        <small class="text-muted">Filter by post type, category, tags, and custom taxonomies</small>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="amfm-shortcode-note">
-                    <h3>Requirements:</h3>
-                    <ul>
-                        <li>Elementor (Free or Pro) must be installed and active</li>
-                        <li>Advanced Custom Fields (ACF) plugin must be active</li>
-                        <li>Posts must have ACF keyword fields populated for matching</li>
-                        <li>This widget must be enabled in the Elementor management section</li>
-                    </ul>
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-transparent border-0">
+                        <h5 class="mb-0 fw-bold text-dark">
+                            <i class="fas fa-play-circle text-success me-2"></i>
+                            How to Use
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="d-flex align-items-start border rounded p-3 bg-light">
+                                    <span class="badge bg-primary me-3 mt-1">1</span>
+                                    <div>
+                                        <strong class="d-block mb-1">Add Widget</strong>
+                                        <small class="text-muted">Open Elementor editor and search for "AMFM" in the widgets panel</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="d-flex align-items-start border rounded p-3 bg-light">
+                                    <span class="badge bg-success me-3 mt-1">2</span>
+                                    <div>
+                                        <strong class="d-block mb-1">Configure Settings</strong>
+                                        <small class="text-muted">Set keyword source, number of posts, layout options in the Content tab</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="d-flex align-items-start border rounded p-3 bg-light">
+                                    <span class="badge bg-info me-3 mt-1">3</span>
+                                    <div>
+                                        <strong class="d-block mb-1">Style Widget</strong>
+                                        <small class="text-muted">Customize appearance using the Style tab for colors, typography, and spacing</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="amfm-usage-tips">
-                    <h3>Best Practices:</h3>
-                    <ul>
-                        <li><strong>Keyword Strategy:</strong> Use descriptive, relevant keywords in your ACF fields</li>
-                        <li><strong>Performance:</strong> Limit the number of displayed posts for better page speed</li>
-                        <li><strong>Responsive:</strong> Test widget appearance on different screen sizes</li>
-                        <li><strong>Content Quality:</strong> Ensure related posts have engaging titles and excerpts</li>
-                        <li><strong>SEO Benefits:</strong> Related posts improve internal linking and user engagement</li>
-                    </ul>
+                <div class="alert alert-warning border-0">
+                    <div class="d-flex align-items-start">
+                        <i class="fas fa-exclamation-triangle fs-4 me-3 text-warning"></i>
+                        <div>
+                            <h6 class="alert-heading mb-2">Requirements</h6>
+                            <ul class="mb-0 small">
+                                <li>Elementor (Free or Pro) must be installed and active</li>
+                                <li>Advanced Custom Fields (ACF) plugin must be active</li>
+                                <li>Posts must have ACF keyword fields populated for matching</li>
+                                <li>This widget must be enabled in the Elementor management section</li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
             </div>
         `,
         config: `
-            <div class="amfm-shortcode-docs">
-                <div class="amfm-shortcode-usage">
-                    <h3>Widget Configuration:</h3>
-                    <p>Configure the AMFM Related Posts widget settings through the Elementor editor panel.</p>
-                </div>
-
-                <div class="amfm-shortcode-attributes">
-                    <h3>Content Settings:</h3>
-                    <div class="amfm-attributes-list">
-                        <div class="amfm-attribute">
-                            <strong>Keyword Source</strong> - Choose between 'AMFM Keywords', 'AMFM Other Keywords', or 'Both Fields'
-                        </div>
-                        <div class="amfm-attribute">
-                            <strong>Number of Posts</strong> - Set how many related posts to display (default: 3)
-                        </div>
-                        <div class="amfm-attribute">
-                            <strong>Post Types</strong> - Select which post types to include in results
-                        </div>
-                        <div class="amfm-attribute">
-                            <strong>Exclude Current Post</strong> - Automatically exclude the current post from results
-                        </div>
-                        <div class="amfm-attribute">
-                            <strong>Fallback Behavior</strong> - Choose what to show when no related posts are found
+            <div class="documentation-content">
+                <div class="alert alert-success border-0 mb-4">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-cogs fs-4 me-3 text-success"></i>
+                        <div>
+                            <h6 class="alert-heading mb-1">Widget Configuration</h6>
+                            <p class="mb-0 small">Configure the AMFM Related Posts widget settings through the Elementor editor panel.</p>
                         </div>
                     </div>
                 </div>
 
-                <div class="amfm-shortcode-attributes">
-                    <h3>Layout Settings:</h3>
-                    <div class="amfm-attributes-list">
-                        <div class="amfm-attribute">
-                            <strong>Layout Type</strong> - Grid, List, or Carousel display options
-                        </div>
-                        <div class="amfm-attribute">
-                            <strong>Columns</strong> - Number of columns for grid layout (1-4)
-                        </div>
-                        <div class="amfm-attribute">
-                            <strong>Show Featured Image</strong> - Display post thumbnails
-                        </div>
-                        <div class="amfm-attribute">
-                            <strong>Show Title</strong> - Display post titles with optional length limit
-                        </div>
-                        <div class="amfm-attribute">
-                            <strong>Show Excerpt</strong> - Display post excerpts with customizable length
-                        </div>
-                        <div class="amfm-attribute">
-                            <strong>Show Date</strong> - Display post publication date
-                        </div>
-                        <div class="amfm-attribute">
-                            <strong>Show Author</strong> - Display post author information
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-transparent border-0">
+                        <h5 class="mb-0 fw-bold text-dark">
+                            <i class="fas fa-file-alt text-primary me-2"></i>
+                            Content Settings
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-12">
+                                <div class="border-start border-primary border-3 ps-3 py-2">
+                                    <strong class="d-block">Keyword Source</strong>
+                                    <small class="text-muted">Choose between 'AMFM Keywords', 'AMFM Other Keywords', or 'Both Fields'</small>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="border-start border-success border-3 ps-3 py-2">
+                                    <strong class="d-block">Number of Posts</strong>
+                                    <small class="text-muted">Set how many related posts to display (default: 3)</small>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="border-start border-info border-3 ps-3 py-2">
+                                    <strong class="d-block">Post Types</strong>
+                                    <small class="text-muted">Select which post types to include in results</small>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="border-start border-warning border-3 ps-3 py-2">
+                                    <strong class="d-block">Exclude Current Post</strong>
+                                    <small class="text-muted">Automatically exclude the current post from results</small>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="amfm-shortcode-examples">
-                    <h3>Style Configuration:</h3>
-                    
-                    <div class="amfm-example">
-                        <div class="amfm-example-code">
-                            <strong>Typography</strong>
-                        </div>
-                        <div class="amfm-example-result">
-                            → Set font family, size, weight, and color for titles and content
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-transparent border-0">
+                        <h5 class="mb-0 fw-bold text-dark">
+                            <i class="fas fa-paint-brush text-success me-2"></i>
+                            Style Configuration
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="text-center p-3 border rounded bg-light">
+                                    <i class="fas fa-font text-primary fs-3 mb-2"></i>
+                                    <h6 class="mb-1">Typography</h6>
+                                    <small class="text-muted">Font family, size, weight, and color for titles and content</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="text-center p-3 border rounded bg-light">
+                                    <i class="fas fa-expand-arrows-alt text-success fs-3 mb-2"></i>
+                                    <h6 class="mb-1">Spacing</h6>
+                                    <small class="text-muted">Control margins, padding, and gaps between elements</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="text-center p-3 border rounded bg-light">
+                                    <i class="fas fa-palette text-warning fs-3 mb-2"></i>
+                                    <h6 class="mb-1">Colors</h6>
+                                    <small class="text-muted">Customize background, text, and accent colors</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="text-center p-3 border rounded bg-light">
+                                    <i class="fas fa-mobile-alt text-info fs-3 mb-2"></i>
+                                    <h6 class="mb-1">Responsive</h6>
+                                    <small class="text-muted">Set different configurations for tablet and mobile breakpoints</small>
+                                </div>
+                            </div>
                         </div>
                     </div>
-
-                    <div class="amfm-example">
-                        <div class="amfm-example-code">
-                            <strong>Spacing</strong>
-                        </div>
-                        <div class="amfm-example-result">
-                            → Control margins, padding, and gaps between elements
-                        </div>
-                    </div>
-
-                    <div class="amfm-example">
-                        <div class="amfm-example-code">
-                            <strong>Colors</strong>
-                        </div>
-                        <div class="amfm-example-result">
-                            → Customize background, text, and accent colors
-                        </div>
-                    </div>
-
-                    <div class="amfm-example">
-                        <div class="amfm-example-code">
-                            <strong>Responsive</strong>
-                        </div>
-                        <div class="amfm-example-result">
-                            → Set different configurations for tablet and mobile breakpoints
-                        </div>
-                    </div>
-                </div>
-
-                <div class="amfm-usage-tips">
-                    <h3>Configuration Tips:</h3>
-                    <ul>
-                        <li><strong>Start Simple:</strong> Begin with basic settings and gradually add complexity</li>
-                        <li><strong>Test Thoroughly:</strong> Preview changes across different devices and screen sizes</li>
-                        <li><strong>Performance Impact:</strong> More posts and complex layouts may affect page speed</li>
-                        <li><strong>Content Strategy:</strong> Align widget settings with your content strategy and user needs</li>
-                        <li><strong>A/B Testing:</strong> Try different configurations to see what works best for your audience</li>
-                    </ul>
                 </div>
             </div>
         `
     }
 };
+
+// Individual widget toggle functionality using dedicated AJAX endpoint
+document.addEventListener('DOMContentLoaded', function() {
+    const toggles = document.querySelectorAll('.widget-toggle');
+    
+    toggles.forEach(toggle => {
+        toggle.addEventListener('change', function(e) {
+            const widgetKey = this.value;
+            const isEnabled = this.checked;
+            const card = this.closest('.card');
+            const statusBadge = card.querySelector('.badge');
+            const nonceValue = document.querySelector('[name="amfm_elementor_widgets_nonce"]').value;
+            
+            console.log('Toggle changed:', widgetKey, 'to', isEnabled ? 'enabled' : 'disabled');
+            console.log('Using nonce:', nonceValue);
+            
+            // Update status badge immediately for better UX
+            if (isEnabled) {
+                statusBadge.className = 'badge bg-success bg-opacity-10 text-success px-3 py-2';
+                statusBadge.innerHTML = '<i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>Enabled';
+            } else {
+                statusBadge.className = 'badge bg-secondary bg-opacity-10 text-secondary px-3 py-2';
+                statusBadge.innerHTML = '<i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>Disabled';
+            }
+            
+            // Prepare AJAX data for individual widget toggle
+            const formData = new FormData();
+            formData.append('action', 'amfm_toggle_elementor_widget');
+            formData.append('widget', widgetKey);
+            formData.append('enabled', isEnabled ? '1' : '0');
+            formData.append('nonce', nonceValue);
+            
+            // Send AJAX request to toggle individual widget
+            fetch(amfm_ajax.ajax_url, {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('Widget status updated successfully');
+                    
+                    // Add brief success pulse effect
+                    statusBadge.style.opacity = '0.7';
+                    setTimeout(() => {
+                        statusBadge.style.opacity = '1';
+                    }, 200);
+                } else {
+                    // Error - revert toggle state
+                    this.checked = !isEnabled;
+                    
+                    // Revert status badge
+                    if (!isEnabled) {
+                        statusBadge.className = 'badge bg-success bg-opacity-10 text-success px-3 py-2';
+                        statusBadge.innerHTML = '<i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>Enabled';
+                    } else {
+                        statusBadge.className = 'badge bg-secondary bg-opacity-10 text-secondary px-3 py-2';
+                        statusBadge.innerHTML = '<i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>Disabled';
+                    }
+                    
+                    console.error('Failed to update widget status:', data.data || 'Unknown error');
+                }
+            })
+            .catch(error => {
+                console.error('AJAX Error:', error);
+                
+                // Revert toggle state on error
+                this.checked = !isEnabled;
+                
+                // Revert status badge
+                if (!isEnabled) {
+                    statusBadge.className = 'badge bg-success bg-opacity-10 text-success px-3 py-2';
+                    statusBadge.innerHTML = '<i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>Enabled';
+                } else {
+                    statusBadge.className = 'badge bg-secondary bg-opacity-10 text-secondary px-3 py-2';
+                    statusBadge.innerHTML = '<i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>Disabled';
+                }
+            });
+        });
+    });
+    
+    // Prevent form submission to avoid page redirects
+    const form = document.getElementById('amfm-elementor-form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            return false;
+        });
+    }
+});
 
 // Drawer functions
 function openWidgetDrawer(widgetKey, mode = 'documentation') {
@@ -319,7 +463,7 @@ document.addEventListener('keydown', function(e) {
 </script>
 
 <style>
-/* Drawer Styles */
+/* Modern Drawer Styles */
 .amfm-drawer {
     position: fixed;
     top: 32px; /* Account for WordPress admin bar */
@@ -332,7 +476,7 @@ document.addEventListener('keydown', function(e) {
     transition: all 0.3s ease;
 }
 
-/* Responsive admin bar height */
+/* Responsive admin bar height adjustments */
 @media screen and (max-width: 782px) {
     .amfm-drawer {
         top: 46px;
@@ -359,16 +503,17 @@ document.addEventListener('keydown', function(e) {
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
 }
 
 .amfm-drawer-content {
     position: absolute;
     top: 0;
-    right: -600px;
-    width: 600px;
+    right: -700px;
+    width: 700px;
     height: 100%;
     background: #fff;
-    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
     transition: right 0.3s ease;
     overflow-y: auto;
 }
@@ -381,182 +526,71 @@ document.addEventListener('keydown', function(e) {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 20px;
-    border-bottom: 1px solid #ddd;
-    background: #f9f9f9;
+    padding: 1.5rem;
+    border-bottom: 1px solid #dee2e6;
+    background: #f8f9fa;
     position: sticky;
     top: 0;
     z-index: 10;
 }
 
-.amfm-drawer-header h2 {
-    margin: 0;
-    font-size: 18px;
-    color: #333;
-}
-
-.amfm-drawer-close {
-    background: none;
-    border: none;
-    font-size: 24px;
-    cursor: pointer;
-    color: #666;
-    padding: 0;
-    line-height: 1;
-}
-
-.amfm-drawer-close:hover {
-    color: #333;
-}
-
 .amfm-drawer-body {
-    padding: 20px;
+    padding: 1.5rem;
 }
 
-/* Component Actions */
-.amfm-component-actions {
-    margin-top: 15px;
-    padding-top: 15px;
-    border-top: 1px solid #eee;
-    display: flex;
-    gap: 8px;
+.documentation-content .card {
+    border: 1px solid rgba(0,0,0,0.1) !important;
 }
 
-.amfm-info-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 8px 16px;
-    background: #0073aa;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 500;
+/* Enhanced Bootstrap 5 Form Switch */
+.form-check.form-switch .form-check-input {
+    width: 3em;
+    height: 1.5em;
+    margin-left: -3.5em;
+    background-color: #6c757d;
+    border-color: #6c757d;
+    background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'><circle r='3' fill='rgba(255,255,255,1.0)'/></svg>") !important;
+    background-position: left center !important;
+    background-repeat: no-repeat !important;
+    background-size: contain !important;
+    border-radius: 3em !important;
     cursor: pointer;
-    transition: background-color 0.2s ease;
-    text-decoration: none;
+    transition: all 0.2s ease-in-out;
 }
 
-.amfm-info-button:hover {
-    background: #005a87;
-    color: white;
+.form-check.form-switch .form-check-input:checked {
+    background-position: right center !important;
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+    background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'><circle r='3' fill='rgba(255,255,255,1.0)'/></svg>") !important;
 }
 
-.amfm-config-button {
-    background: #46b450;
+.form-check.form-switch .form-check-input:focus {
+    border-color: #86b7fe;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
 }
 
-.amfm-config-button:hover {
-    background: #3d9c46;
+.form-check.form-switch .form-check-input:focus:not(:checked) {
+    background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'><circle r='3' fill='rgba(255,255,255,1.0)'/></svg>") !important;
 }
 
-/* Force 1/3 width for component cards even with single card */
-.amfm-components-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
-    max-width: 1200px;
+.form-check.form-switch .form-check-input:checked:focus {
+    background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'><circle r='3' fill='rgba(255,255,255,1.0)'/></svg>") !important;
 }
 
-.amfm-component-card {
-    max-width: 380px; /* Force maximum width to maintain 1/3 sizing */
-}
-
-/* Documentation Styles */
-.amfm-shortcode-docs h3 {
-    color: #333;
-    border-bottom: 2px solid #0073aa;
-    padding-bottom: 8px;
-    margin-top: 30px;
-    margin-bottom: 15px;
-}
-
-.amfm-shortcode-docs h4 {
-    color: #555;
-    margin-top: 25px;
-    margin-bottom: 12px;
-}
-
-.amfm-code-block {
-    background: #f6f7f7;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    padding: 12px;
-    margin: 10px 0;
-    font-family: 'Courier New', monospace;
-}
-
-.amfm-code-block code {
-    background: none;
-    padding: 0;
-    font-size: 14px;
-    color: #d14;
-}
-
-.amfm-attributes-list {
-    background: #f9f9f9;
-    border-radius: 6px;
-    padding: 15px;
-}
-
-.amfm-attribute {
-    margin-bottom: 8px;
-    padding: 8px;
-    background: white;
-    border-radius: 4px;
-    border-left: 3px solid #0073aa;
-}
-
-.amfm-example {
-    margin-bottom: 20px;
-    padding: 15px;
-    background: #f9f9f9;
-    border-radius: 6px;
-    border-left: 4px solid #46b450;
-}
-
-.amfm-example-code {
-    margin-bottom: 8px;
-}
-
-.amfm-example-result {
-    color: #666;
-    font-style: italic;
-}
-
-.amfm-shortcode-note ul,
-.amfm-usage-tips ul {
-    margin-left: 20px;
-}
-
-.amfm-shortcode-note li,
-.amfm-usage-tips li {
-    margin-bottom: 8px;
-    line-height: 1.5;
+/* Remove WordPress/Admin checkmark */
+.form-check.form-switch .form-check-input::before,
+.form-check.form-switch .form-check-input:checked::before {
+    content: none !important;
+    display: none !important;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
     .amfm-drawer-content {
-        width: 90%;
-        right: -90%;
-    }
-    
-    .amfm-component-actions {
-        flex-direction: column;
-    }
-    
-    .amfm-info-button {
-        justify-content: center;
-    }
-    
-    .amfm-components-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .amfm-component-card {
-        max-width: none;
+        width: 95%;
+        right: -95%;
     }
 }
 </style>

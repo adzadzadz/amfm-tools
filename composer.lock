@@ -12,12 +12,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/adzadzadz/wp-plugin-framework.git",
-                "reference": "187de981010a99ce6e76b5b668980b1089c6e572"
+                "reference": "c64df115cae0e95cc31437f53894504f1ebf3a82"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/adzadzadz/wp-plugin-framework/zipball/187de981010a99ce6e76b5b668980b1089c6e572",
-                "reference": "187de981010a99ce6e76b5b668980b1089c6e572",
+                "url": "https://api.github.com/repos/adzadzadz/wp-plugin-framework/zipball/c64df115cae0e95cc31437f53894504f1ebf3a82",
+                "reference": "c64df115cae0e95cc31437f53894504f1ebf3a82",
                 "shasum": ""
             },
             "require": {
@@ -66,7 +66,7 @@
                 "issues": "https://github.com/adzadzadz/wp-plugin-framework/issues",
                 "source": "https://github.com/adzadzadz/wp-plugin-framework"
             },
-            "time": "2025-08-27T08:29:15+00:00"
+            "time": "2025-08-27T09:08:00+00:00"
         }
     ],
     "packages-dev": [

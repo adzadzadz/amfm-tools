@@ -204,52 +204,49 @@ class ImportExportController extends Controller
     }
 
     /**
-     * Enqueue admin assets - framework auto-hook
-     */
-    public function actionAdminEnqueueScripts($hook_suffix)
-    {
-        if (strpos($hook_suffix, 'amfm-tools-import-export') !== false) {
-            wp_enqueue_style(
-                'amfm-admin-style',
-                AMFM_TOOLS_URL . 'assets/css/admin-style.css',
-                [],
-                AMFM_TOOLS_VERSION
-            );
-            
-            wp_enqueue_script(
-                'amfm-import-export-js',
-                AMFM_TOOLS_URL . 'assets/js/import-export.js',
-                ['jquery'],
-                AMFM_TOOLS_VERSION,
-                true
-            );
-
-            // Pass data to JavaScript
-            wp_localize_script('amfm-import-export-js', 'amfmData', [
-                'exportNonce' => wp_create_nonce('amfm_export_nonce'),
-                'importNonce' => wp_create_nonce('amfm_csv_import'),
-                'ajaxNonce' => wp_create_nonce('amfm_ajax'),
-                'postTypesOptions' => $this->getPostTypesOptions(),
-                'acfFieldGroups' => $this->getAcfFieldGroupsCheckboxes(),
-                'hasAcf' => function_exists('acf_get_field_groups'),
-                'ajaxUrl' => admin_url('admin-ajax.php')
-            ]);
-        }
-    }
-
-    /**
-     * Register AJAX handlers
+     * Initialize assets using AssetManager - framework auto-hook
      */
     public function actionInit()
     {
+        // Register import-export admin styles with Bootstrap dependency
+        \AdzWP\Core\AssetManager::registerStyle('amfm-import-export-style', [
+            'url' => AMFM_TOOLS_URL . 'assets/css/admin-style.css',
+            'dependencies' => ['bootstrap-css'],
+            'version' => AMFM_TOOLS_VERSION,
+            'contexts' => ['plugin'],
+            'media' => 'all'
+        ]);
+        
+        // Register import-export script with Bootstrap and jQuery dependencies
+        \AdzWP\Core\AssetManager::registerScript('amfm-import-export-js', [
+            'url' => AMFM_TOOLS_URL . 'assets/js/import-export.js',
+            'dependencies' => ['jquery', 'bootstrap-js'],
+            'version' => AMFM_TOOLS_VERSION,
+            'contexts' => ['plugin'],
+            'in_footer' => true,
+            'localize' => [
+                'object_name' => 'amfmData',
+                'data' => [
+                    'exportNonce' => \wp_create_nonce('amfm_export_nonce'),
+                    'importNonce' => \wp_create_nonce('amfm_csv_import'),
+                    'ajaxNonce' => \wp_create_nonce('amfm_ajax'),
+                    'postTypesOptions' => $this->getPostTypesOptions(),
+                    'acfFieldGroups' => $this->getAcfFieldGroupsCheckboxes(),
+                    'hasAcf' => function_exists('acf_get_field_groups'),
+                    'ajaxUrl' => \admin_url('admin-ajax.php')
+                ]
+            ]
+        ]);
+
         // AJAX handlers for import functionality
-        add_action('wp_ajax_amfm_csv_import', [$this, 'ajaxCsvImport']);
-        add_action('wp_ajax_amfm_csv_preview', [$this, 'ajaxCsvPreview']);
-        add_action('wp_ajax_amfm_csv_import_batch', [$this, 'ajaxCsvImportBatch']);
-        add_action('wp_ajax_amfm_get_test_posts_for_csv', [$this, 'ajaxGetTestPostsForCsv']);
-        add_action('wp_ajax_amfm_debug_system_info', [$this, 'ajaxDebugSystemInfo']);
-        add_action('wp_ajax_amfm_test_connection', [$this, 'ajaxTestConnection']);
+        \add_action('wp_ajax_amfm_csv_import', [$this, 'ajaxCsvImport']);
+        \add_action('wp_ajax_amfm_csv_preview', [$this, 'ajaxCsvPreview']);
+        \add_action('wp_ajax_amfm_csv_import_batch', [$this, 'ajaxCsvImportBatch']);
+        \add_action('wp_ajax_amfm_get_test_posts_for_csv', [$this, 'ajaxGetTestPostsForCsv']);
+        \add_action('wp_ajax_amfm_debug_system_info', [$this, 'ajaxDebugSystemInfo']);
+        \add_action('wp_ajax_amfm_test_connection', [$this, 'ajaxTestConnection']);
     }
+
 
     /**
      * AJAX handler for CSV import

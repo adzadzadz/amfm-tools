@@ -37,6 +37,12 @@ add_action('plugins_loaded', function() {
     // Set up view template paths
     \AdzWP\Core\View::addTemplatePath(AMFM_TOOLS_PATH . 'src/Views/');
 
+    // Initialize AssetManager with Bootstrap 5 for admin/plugin pages
+    add_action('init', function() {
+        \Adz::init();
+        \AdzWP\Core\AssetManager::setBootstrap(true, ['admin', 'plugin']);
+    });
+
     // Initialize plugin manager with lifecycle hooks
     $pluginManager = \AdzWP\Core\PluginManager::getInstance(__FILE__);
 

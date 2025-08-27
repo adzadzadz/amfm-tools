@@ -99,32 +99,34 @@ class UtilitiesController extends Controller
     }
 
     /**
-     * Enqueue admin assets - framework auto-hook
+     * Initialize assets using AssetManager - framework auto-hook
      */
-    public function actionAdminEnqueueScripts($hook_suffix)
+    public function actionInit()
     {
-        if (strpos($hook_suffix, 'amfm-tools-utilities') !== false) {
-            \wp_enqueue_style(
-                'amfm-admin-style',
-                AMFM_TOOLS_URL . 'assets/css/admin-style.css',
-                [],
-                AMFM_TOOLS_VERSION
-            );
-            
-            \wp_enqueue_script(
-                'amfm-admin-script',
-                AMFM_TOOLS_URL . 'assets/js/admin-script.js',
-                ['jquery'],
-                AMFM_TOOLS_VERSION,
-                true
-            );
-
-            // Localize script for AJAX
-            \wp_localize_script('amfm-admin-script', 'amfm_ajax', [
-                'ajax_url' => \admin_url('admin-ajax.php'),
-                'component_nonce' => $this->createNonce('amfm_component_settings_nonce')
-            ]);
-        }
+        // Register utilities admin styles with Bootstrap dependency
+        \AdzWP\Core\AssetManager::registerStyle('amfm-utilities-style', [
+            'url' => AMFM_TOOLS_URL . 'assets/css/admin-style.css',
+            'dependencies' => ['bootstrap-css'],
+            'version' => AMFM_TOOLS_VERSION,
+            'contexts' => ['plugin'],
+            'media' => 'all'
+        ]);
+        
+        // Register utilities admin script with Bootstrap and jQuery dependencies
+        \AdzWP\Core\AssetManager::registerScript('amfm-utilities-script', [
+            'url' => AMFM_TOOLS_URL . 'assets/js/admin-script.js',
+            'dependencies' => ['jquery', 'bootstrap-js'],
+            'version' => AMFM_TOOLS_VERSION,
+            'contexts' => ['plugin'],
+            'in_footer' => true,
+            'localize' => [
+                'object_name' => 'amfm_ajax',
+                'data' => [
+                    'ajax_url' => \admin_url('admin-ajax.php'),
+                    'component_nonce' => $this->createNonce('amfm_component_settings_nonce')
+                ]
+            ]
+        ]);
     }
 
     /**

@@ -16,6 +16,8 @@ define('ADZ_FRAMEWORK_TESTS', true);
 define('ADZ_PLUGIN_PATH', dirname(__DIR__) . '/');
 define('ADZ_PLUGIN_URL', 'http://example.org/wp-content/plugins/adz-framework/');
 define('ADZ_PLUGIN_VERSION', '1.0.0-test');
+define('WP_CONTENT_DIR', '/tmp/wordpress/wp-content/');
+define('WP_PLUGIN_DIR', '/tmp/wordpress/wp-content/plugins/');
 
 // Load Composer autoloader
 require_once dirname(__DIR__) . '/vendor/autoload.php';
@@ -23,6 +25,10 @@ require_once dirname(__DIR__) . '/vendor/autoload.php';
 // Load Brain Monkey for WordPress function mocking
 if (class_exists('\Brain\Monkey')) {
     \Brain\Monkey\setUp();
+    
+    // Mock essential WordPress functions for framework initialization
+    \Brain\Monkey\Functions\when('wp_mkdir_p')->justReturn(true);
+    \Brain\Monkey\Functions\when('wp_upload_dir')->justReturn(['basedir' => '/tmp']);
 }
 
 // Set up error reporting
@@ -50,13 +56,4 @@ require_once __DIR__ . '/Helpers/TestCase.php';
 require_once __DIR__ . '/Helpers/WordPressTestCase.php';
 require_once __DIR__ . '/Helpers/FrameworkTestCase.php';
 
-// Initialize framework for testing
-if (class_exists('Adz')) {
-    try {
-        // Set up test configuration
-        \Adz::set('testing', true);
-        \Adz::set('plugin.path', dirname(__DIR__) . '/');
-    } catch (Exception $e) {
-        // Silently handle initialization errors in test environment
-    }
-}
+// Skip framework initialization in test environment to avoid dependency issues

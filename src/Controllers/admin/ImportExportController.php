@@ -79,6 +79,7 @@ class ImportExportController extends Controller
 
         // Prepare data for view
         $view_data = [
+            'title' => 'Import & Export Tools',
             'active_tab' => 'import-export',
             'plugin_url' => AMFM_TOOLS_URL,
             'plugin_version' => AMFM_TOOLS_VERSION,

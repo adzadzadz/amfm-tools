@@ -46,6 +46,7 @@ class ShortcodesController extends Controller
 
         // Prepare data for views
         $view_data = [
+            'title' => 'Shortcode Management',
             'active_tab' => 'shortcodes',
             'plugin_url' => AMFM_TOOLS_URL,
             'plugin_version' => AMFM_TOOLS_VERSION,

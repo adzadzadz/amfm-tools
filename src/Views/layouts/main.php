@@ -37,7 +37,7 @@ $active_tab = $active_tab ?? 'dashboard';
                         <span class="amfm-icon">🛠️</span>
                     </div>
                     <div class="amfm-header-text">
-                        <h1><?php echo esc_html($plugin_name); ?></h1>
+                        <h1><?php echo esc_html(isset($title) && !empty($title) ? $title : $plugin_name); ?></h1>
                         <p class="amfm-subtitle">Advanced Features Management</p>
                     </div>
                 </div>

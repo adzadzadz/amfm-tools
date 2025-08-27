@@ -36,6 +36,7 @@ class ElementorController extends Controller
     {
         // Prepare data for views
         $view_data = [
+            'title' => 'Elementor Widget Management',
             'active_tab' => 'elementor',
             'plugin_url' => AMFM_TOOLS_URL,
             'plugin_version' => AMFM_TOOLS_VERSION

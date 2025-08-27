@@ -33,6 +33,7 @@ add_action('plugins_loaded', function() {
     $framework->set('plugin.path', AMFM_TOOLS_PATH);
     $framework->set('plugin.url', AMFM_TOOLS_URL);
     $framework->set('plugin.version', AMFM_TOOLS_VERSION);
+    $framework->set('plugin.slug', 'amfm-tools');
     
     // Set up default configuration for features (only if not already set)
     // Use WordPress options for persistence
@@ -56,10 +57,26 @@ add_action('plugins_loaded', function() {
     // Set up view template paths
     \AdzWP\Core\View::addTemplatePath(AMFM_TOOLS_PATH . 'src/Views/');
 
-    // Initialize AssetManager with Bootstrap 5 for admin/plugin pages
+    // Initialize AssetManager with local Bootstrap 5 for admin/plugin pages
     add_action('init', function() {
         \Adz::init();
-        \AdzWP\Core\AssetManager::setBootstrap(true, ['admin', 'plugin']);
+        \AdzWP\Core\AssetManager::init();
+        
+        // Override Bootstrap with local files
+        \AdzWP\Core\AssetManager::registerStyle('bootstrap-css', [
+            'url' => AMFM_TOOLS_URL . 'assets/css/bootstrap.min.css',
+            'contexts' => ['admin', 'plugin'],
+            'version' => '5.3.3',
+            'priority' => 5
+        ]);
+        
+        \AdzWP\Core\AssetManager::registerScript('bootstrap-js', [
+            'url' => AMFM_TOOLS_URL . 'assets/js/bootstrap.bundle.min.js',
+            'contexts' => ['admin', 'plugin'],
+            'version' => '5.3.3',
+            'priority' => 5,
+            'in_footer' => true
+        ]);
     });
 
     // Initialize plugin manager with lifecycle hooks

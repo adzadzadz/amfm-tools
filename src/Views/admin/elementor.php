@@ -75,13 +75,17 @@ $enabled_widgets = $enabled_widgets ?? [];
                                         <div class="d-flex gap-2 mt-auto">
                                             <button type="button" 
                                                     class="btn btn-outline-primary btn-sm flex-fill"
-                                                    onclick="openWidgetDrawer('<?php echo esc_attr($widget_key); ?>', 'documentation')">
+                                                    data-bs-toggle="offcanvas"
+                                                    data-bs-target="#amfm-widget-drawer"
+                                                    onclick="loadWidgetContent('<?php echo esc_attr($widget_key); ?>', 'documentation')">
                                                 <i class="fas fa-book me-1"></i>
                                                 Docs
                                             </button>
                                             <button type="button" 
                                                     class="btn btn-outline-success btn-sm flex-fill"
-                                                    onclick="openWidgetDrawer('<?php echo esc_attr($widget_key); ?>', 'config')">
+                                                    data-bs-toggle="offcanvas"
+                                                    data-bs-target="#amfm-widget-drawer"
+                                                    onclick="loadWidgetContent('<?php echo esc_attr($widget_key); ?>', 'config')">
                                                 <i class="fas fa-cog me-1"></i>
                                                 Config
                                             </button>
@@ -98,17 +102,14 @@ $enabled_widgets = $enabled_widgets ?? [];
     </div>
 </div>
 
-<!-- Widget Documentation/Config Drawer -->
-<div id="amfm-widget-drawer" class="amfm-drawer">
-    <div class="amfm-drawer-overlay" onclick="closeWidgetDrawer()"></div>
-    <div class="amfm-drawer-content">
-        <div class="amfm-drawer-header">
-            <h4 id="amfm-drawer-title" class="mb-0 fw-bold">Widget Documentation</h4>
-            <button type="button" class="btn-close" onclick="closeWidgetDrawer()"></button>
-        </div>
-        <div class="amfm-drawer-body" id="amfm-drawer-body">
-            <!-- Content will be loaded dynamically -->
-        </div>
+<!-- Widget Documentation/Config Offcanvas -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="amfm-widget-drawer" aria-labelledby="amfm-drawer-title">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title fw-bold" id="amfm-drawer-title">Widget Documentation</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body" id="amfm-drawer-body">
+        <!-- Content will be loaded dynamically -->
     </div>
 </div>
 
@@ -426,9 +427,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Drawer functions
-function openWidgetDrawer(widgetKey, mode = 'documentation') {
-    const drawer = document.getElementById('amfm-widget-drawer');
+// Widget content functions
+function loadWidgetContent(widgetKey, mode = 'documentation') {
     const title = document.getElementById('amfm-drawer-title');
     const body = document.getElementById('amfm-drawer-body');
     
@@ -442,100 +442,52 @@ function openWidgetDrawer(widgetKey, mode = 'documentation') {
             title.textContent = data.name + ' Configuration';
             body.innerHTML = data.config;
         }
-        
-        drawer.classList.add('amfm-drawer-open');
-        document.body.style.overflow = 'hidden';
     }
 }
 
-function closeWidgetDrawer() {
-    const drawer = document.getElementById('amfm-widget-drawer');
-    drawer.classList.remove('amfm-drawer-open');
-    document.body.style.overflow = '';
-}
-
-// Close drawer with ESC key
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeWidgetDrawer();
+// Initialize Bootstrap offcanvas
+document.addEventListener('DOMContentLoaded', function() {
+    const offcanvasElement = document.getElementById('amfm-widget-drawer');
+    if (offcanvasElement && typeof bootstrap !== 'undefined') {
+        new bootstrap.Offcanvas(offcanvasElement);
     }
 });
 </script>
 
 <style>
-/* Modern Drawer Styles */
-.amfm-drawer {
-    position: fixed;
+/* Offcanvas Customizations */
+#amfm-widget-drawer {
+    width: 700px;
     top: 32px; /* Account for WordPress admin bar */
-    left: 0;
-    width: 100%;
-    height: calc(100% - 32px);
-    z-index: 10000;
-    visibility: hidden;
-    opacity: 0;
-    transition: all 0.3s ease;
+    height: calc(100vh - 32px);
 }
 
 /* Responsive admin bar height adjustments */
 @media screen and (max-width: 782px) {
-    .amfm-drawer {
+    #amfm-widget-drawer {
         top: 46px;
-        height: calc(100% - 46px);
+        height: calc(100vh - 46px);
     }
 }
 
 @media screen and (max-width: 600px) {
-    .amfm-drawer {
+    #amfm-widget-drawer {
         top: 0;
-        height: 100%;
+        height: 100vh;
+        width: 95%;
     }
 }
 
-.amfm-drawer.amfm-drawer-open {
-    visibility: visible;
-    opacity: 1;
-}
-
-.amfm-drawer-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(2px);
-}
-
-.amfm-drawer-content {
-    position: absolute;
-    top: 0;
-    right: -700px;
-    width: 700px;
-    height: 100%;
-    background: #fff;
-    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
-    transition: right 0.3s ease;
-    overflow-y: auto;
-}
-
-.amfm-drawer-open .amfm-drawer-content {
-    right: 0;
-}
-
-.amfm-drawer-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.5rem;
-    border-bottom: 1px solid #dee2e6;
+/* Offcanvas header styling */
+#amfm-widget-drawer .offcanvas-header {
     background: #f8f9fa;
-    position: sticky;
-    top: 0;
-    z-index: 10;
+    border-bottom: 1px solid #dee2e6;
 }
 
-.amfm-drawer-body {
-    padding: 1.5rem;
+#amfm-widget-drawer .offcanvas-title {
+    font-size: 18px;
+    color: #333;
+    margin: 0;
 }
 
 .documentation-content .card {
@@ -586,11 +538,10 @@ document.addEventListener('keydown', function(e) {
     display: none !important;
 }
 
-/* Responsive */
+/* Additional responsive styles */
 @media (max-width: 768px) {
-    .amfm-drawer-content {
-        width: 95%;
-        right: -95%;
+    #amfm-widget-drawer {
+        width: 90%;
     }
 }
 </style>

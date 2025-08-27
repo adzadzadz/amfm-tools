@@ -64,7 +64,9 @@ $enabled_utilities = $enabled_utilities ?? [];
                                         <button type="button" 
                                                 class="amfm-info-button amfm-doc-button" 
                                                 data-utility="<?php echo esc_attr($utility_key); ?>"
-                                                onclick="openUtilityDrawer('<?php echo esc_attr($utility_key); ?>', 'documentation')">
+                                                data-bs-toggle="offcanvas"
+                                                data-bs-target="#amfm-utility-drawer"
+                                                onclick="loadUtilityDocumentation('<?php echo esc_attr($utility_key); ?>')">
                                             Documentation
                                         </button>
                                     </div>
@@ -79,17 +81,14 @@ $enabled_utilities = $enabled_utilities ?? [];
     </div>
 </div>
 
-<!-- Utility Documentation Drawer -->
-<div id="amfm-utility-drawer" class="amfm-drawer">
-    <div class="amfm-drawer-overlay" onclick="closeUtilityDrawer()"></div>
-    <div class="amfm-drawer-content">
-        <div class="amfm-drawer-header">
-            <h2 id="amfm-drawer-title">Utility Documentation</h2>
-            <button type="button" class="amfm-drawer-close" onclick="closeUtilityDrawer()">&times;</button>
-        </div>
-        <div class="amfm-drawer-body" id="amfm-drawer-body">
-            <!-- Content will be loaded dynamically -->
-        </div>
+<!-- Utility Documentation Offcanvas -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="amfm-utility-drawer" aria-labelledby="amfm-drawer-title">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="amfm-drawer-title">Utility Documentation</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body" id="amfm-drawer-body">
+        <!-- Content will be loaded dynamically -->
     </div>
 </div>
 
@@ -349,9 +348,8 @@ const utilityData = {
     }
 };
 
-// Drawer functions
-function openUtilityDrawer(utilityKey, mode = 'documentation') {
-    const drawer = document.getElementById('amfm-utility-drawer');
+// Utility documentation functions
+function loadUtilityDocumentation(utilityKey) {
     const title = document.getElementById('amfm-drawer-title');
     const body = document.getElementById('amfm-drawer-body');
     
@@ -360,119 +358,52 @@ function openUtilityDrawer(utilityKey, mode = 'documentation') {
         
         title.textContent = data.name + ' Documentation';
         body.innerHTML = data.content;
-        
-        drawer.classList.add('amfm-drawer-open');
-        document.body.style.overflow = 'hidden';
     }
 }
 
-function closeUtilityDrawer() {
-    const drawer = document.getElementById('amfm-utility-drawer');
-    drawer.classList.remove('amfm-drawer-open');
-    document.body.style.overflow = '';
-}
-
-// Close drawer with ESC key
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeUtilityDrawer();
+// Initialize Bootstrap offcanvas
+document.addEventListener('DOMContentLoaded', function() {
+    const offcanvasElement = document.getElementById('amfm-utility-drawer');
+    if (offcanvasElement && typeof bootstrap !== 'undefined') {
+        new bootstrap.Offcanvas(offcanvasElement);
     }
 });
 </script>
 
 <style>
-/* Drawer Styles */
-.amfm-drawer {
-    position: fixed;
+/* Offcanvas Customizations */
+#amfm-utility-drawer {
+    width: 600px;
     top: 32px; /* Account for WordPress admin bar */
-    left: 0;
-    width: 100%;
-    height: calc(100% - 32px);
-    z-index: 10000;
-    visibility: hidden;
-    opacity: 0;
-    transition: all 0.3s ease;
+    height: calc(100vh - 32px);
 }
 
 /* Responsive admin bar height */
 @media screen and (max-width: 782px) {
-    .amfm-drawer {
+    #amfm-utility-drawer {
         top: 46px;
-        height: calc(100% - 46px);
+        height: calc(100vh - 46px);
     }
 }
 
 @media screen and (max-width: 600px) {
-    .amfm-drawer {
+    #amfm-utility-drawer {
         top: 0;
-        height: 100%;
+        height: 100vh;
+        width: 90%;
     }
 }
 
-.amfm-drawer.amfm-drawer-open {
-    visibility: visible;
-    opacity: 1;
-}
-
-.amfm-drawer-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-}
-
-.amfm-drawer-content {
-    position: absolute;
-    top: 0;
-    right: -600px;
-    width: 600px;
-    height: 100%;
-    background: #fff;
-    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
-    transition: right 0.3s ease;
-    overflow-y: auto;
-}
-
-.amfm-drawer-open .amfm-drawer-content {
-    right: 0;
-}
-
-.amfm-drawer-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 20px;
-    border-bottom: 1px solid #ddd;
+/* Offcanvas header styling */
+#amfm-utility-drawer .offcanvas-header {
     background: #f9f9f9;
-    position: sticky;
-    top: 0;
-    z-index: 10;
+    border-bottom: 1px solid #ddd;
 }
 
-.amfm-drawer-header h2 {
-    margin: 0;
+#amfm-utility-drawer .offcanvas-title {
     font-size: 18px;
     color: #333;
-}
-
-.amfm-drawer-close {
-    background: none;
-    border: none;
-    font-size: 24px;
-    cursor: pointer;
-    color: #666;
-    padding: 0;
-    line-height: 1;
-}
-
-.amfm-drawer-close:hover {
-    color: #333;
-}
-
-.amfm-drawer-body {
-    padding: 20px;
+    margin: 0;
 }
 
 /* Component Actions */
@@ -580,11 +511,6 @@ document.addEventListener('keydown', function(e) {
 
 /* Responsive */
 @media (max-width: 768px) {
-    .amfm-drawer-content {
-        width: 90%;
-        right: -90%;
-    }
-    
     .amfm-component-actions {
         flex-direction: column;
     }

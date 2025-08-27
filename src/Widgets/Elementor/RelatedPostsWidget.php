@@ -20,7 +20,7 @@ class RelatedPostsWidget extends Widget_Base {
     }
 
     public function get_categories() {
-        return ['amfm-widgets'];
+        return ['amfm-tools'];
     }
 
     public function get_keywords() {

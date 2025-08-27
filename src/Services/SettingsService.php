@@ -62,7 +62,7 @@ class SettingsService extends Service
     public function getEnabledComponents(): array
     {
         // Default to all available components being enabled on first install
-        $default_enabled = ['acf_helper', 'import_export', 'text_utilities', 'optimization', 'shortcodes', 'elementor_widgets'];
+        $default_enabled = ['acf_helper', 'import_export', 'text_utilities', 'optimization', 'shortcodes'];
         $components = get_option('amfm_enabled_components');
         
         // If option doesn't exist, initialize it with all components enabled

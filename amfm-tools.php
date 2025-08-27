@@ -88,7 +88,7 @@ add_action('plugins_loaded', function() {
         
         // Helper methods for common tasks
         ->setupOptions([
-            'amfm_enabled_components' => ['acf_helper', 'text_utilities', 'optimization', 'shortcodes', 'elementor_widgets', 'import_export'],
+            'amfm_enabled_components' => ['acf_helper', 'text_utilities', 'optimization', 'shortcodes', 'import_export'],
             'amfm_keywords' => '',
             'amfm_other_keywords' => ''
         ])
@@ -103,7 +103,6 @@ add_action('plugins_loaded', function() {
         'text_utilities', 
         'optimization', 
         'shortcodes', 
-        'elementor_widgets', 
         'import_export'
     ]);
 
@@ -137,8 +136,6 @@ add_action('plugins_loaded', function() {
         new \App\Controllers\ShortcodeController();
     }
 
-    // Elementor Widgets - Optional
-    if (in_array('elementor_widgets', $enabled_components)) {
-        new \App\Controllers\ElementorController();
-    }
+    // Elementor Widgets - Always enabled (individual widgets controlled separately)
+    new \App\Controllers\ElementorController();
 });

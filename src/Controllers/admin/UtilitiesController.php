@@ -137,4 +137,13 @@ class UtilitiesController extends Controller
         $settingsService = new SettingsService();
         $settingsService->ajaxComponentSettingsUpdate();
     }
+
+    /**
+     * AJAX: Toggle utility status - framework auto-hook
+     */
+    public function actionWpAjaxAmfmToggleUtility()
+    {
+        $settingsService = new SettingsService();
+        $settingsService->ajaxToggleComponent();
+    }
 }

@@ -7,84 +7,111 @@ $available_utilities = $available_utilities ?? [];
 $enabled_utilities = $enabled_utilities ?? [];
 ?>
 
-<!-- Utilities Content -->
-            <!-- Utility Management Section -->
-            <div class="amfm-shortcodes-section">
-                <div class="amfm-shortcodes-header">
-                    <h2>
-                        <span class="amfm-shortcodes-icon">🔧</span>
-                        Utility Management
-                    </h2>
-                    <p>Enable or disable individual utilities. Disabled utilities will not be loaded, improving performance and reducing resource usage.</p>
-                </div>
-
-                <form method="post" class="amfm-component-settings-form">
-                    <?php wp_nonce_field('amfm_component_settings_update', 'amfm_component_settings_nonce'); ?>
-                    
-                    <div class="amfm-components-grid">
-                        <?php foreach ($available_utilities as $utility_key => $utility_info) : ?>
-                            <?php 
+<!-- Modern Bootstrap 5 Utility Management -->
+<div class="container-fluid px-0">
+    <div class="row g-3">
+        <!-- Main Content -->
+        <div class="col-12">
+            <!-- Utilities Grid -->
+            <form method="post" id="amfm-utility-form">
+                <?php wp_nonce_field('amfm_component_settings_update', 'amfm_component_settings_nonce'); ?>
+                
+                <div class="row g-3">
+                    <?php if (empty($available_utilities)): ?>
+                        <!-- No Utilities Available -->
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-body text-center py-5">
+                                    <div class="text-muted mb-4">
+                                        <i class="fas fa-tools fs-1 opacity-25"></i>
+                                    </div>
+                                    <h5 class="text-muted mb-2">No Utilities Available</h5>
+                                    <p class="text-muted small mb-0">No utilities are currently registered by this plugin.</p>
+                                </div>
+                            </div>
+                        </div>
+                    <?php else: ?>
+                        <?php foreach ($available_utilities as $utility_key => $utility_info): 
                             $is_core = $utility_info['status'] === 'Core Feature';
                             $is_enabled = in_array($utility_key, $enabled_utilities);
-                            ?>
-                            <div class="amfm-component-card <?php echo $is_enabled ? 'amfm-component-enabled' : 'amfm-component-disabled'; ?> <?php echo $is_core ? 'amfm-component-core' : ''; ?>">
-                                <div class="amfm-component-header">
-                                    <div class="amfm-component-icon"><?php echo esc_html($utility_info['icon']); ?></div>
-                                    <div class="amfm-component-toggle">
-                                        <?php if ($is_core) : ?>
-                                            <span class="amfm-core-label">Core</span>
-                                            <input type="hidden" name="enabled_components[]" value="<?php echo esc_attr($utility_key); ?>">
-                                        <?php else : ?>
-                                            <label class="amfm-toggle-switch">
-                                                <input type="checkbox" 
-                                                       name="enabled_components[]" 
-                                                       value="<?php echo esc_attr($utility_key); ?>"
-                                                       <?php checked(in_array($utility_key, $enabled_utilities)); ?>
-                                                       class="amfm-component-checkbox"
-                                                       data-component="<?php echo esc_attr($utility_key); ?>">
-                                                <span class="amfm-toggle-slider"></span>
-                                            </label>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                                <div class="amfm-component-body">
-                                    <h3 class="amfm-component-title"><?php echo esc_html($utility_info['name']); ?></h3>
-                                    <p class="amfm-component-description"><?php echo esc_html($utility_info['description']); ?></p>
-                                    <div class="amfm-component-status">
-                                        <span class="amfm-status-indicator"></span>
-                                        <span class="amfm-status-text">
-                                            <?php if ($is_core) : ?>
-                                                Always Active
-                                            <?php else : ?>
-                                                <?php echo $is_enabled ? 'Enabled' : 'Disabled'; ?>
+                        ?>
+                            <div class="col-lg-6 col-xl-4">
+                                <div class="card border-0 shadow-sm h-100 hover-lift">
+                                    <div class="card-body p-4">
+                                        <!-- Utility Header -->
+                                        <div class="d-flex align-items-center justify-content-between mb-3">
+                                            <div class="d-flex align-items-center">
+                                                <div class="rounded bg-primary bg-opacity-10 p-2 me-3">
+                                                    <i class="<?php echo esc_attr($utility_info['icon'] ?? 'fas fa-tools'); ?> text-primary" style="font-size: 1.25rem;"></i>
+                                                </div>
+                                                <div>
+                                                    <h5 class="fw-bold mb-0 text-dark"><?php echo esc_html($utility_info['name']); ?></h5>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Toggle Switch -->
+                                            <?php if ($is_core): ?>
+                                                <span class="badge bg-warning text-dark px-3 py-2">Core</span>
+                                                <input type="hidden" name="enabled_components[]" value="<?php echo esc_attr($utility_key); ?>">
+                                            <?php else: ?>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input utility-toggle" 
+                                                           type="checkbox" 
+                                                           role="switch"
+                                                           id="utility-<?php echo esc_attr($utility_key); ?>"
+                                                           name="enabled_components[]" 
+                                                           value="<?php echo esc_attr($utility_key); ?>"
+                                                           <?php checked($is_enabled); ?>
+                                                           style="cursor: pointer;">
+                                                </div>
                                             <?php endif; ?>
-                                        </span>
-                                    </div>
-                                    <div class="amfm-component-actions">
-                                        <button type="button" 
-                                                class="amfm-info-button amfm-doc-button" 
-                                                data-utility="<?php echo esc_attr($utility_key); ?>"
-                                                data-bs-toggle="offcanvas"
-                                                data-bs-target="#amfm-utility-drawer"
-                                                onclick="loadUtilityDocumentation('<?php echo esc_attr($utility_key); ?>')">
-                                            Documentation
-                                        </button>
+                                        </div>
+
+                                        <!-- Utility Description -->
+                                        <p class="text-muted mb-3 small"><?php echo esc_html($utility_info['description']); ?></p>
+
+                                        <!-- Status Badge -->
+                                        <div class="mb-3">
+                                            <?php if ($is_core): ?>
+                                                <span class="badge bg-warning bg-opacity-10 text-warning px-3 py-2">
+                                                    <i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>
+                                                    Always Active
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="badge <?php echo $is_enabled ? 'bg-success' : 'bg-secondary'; ?> bg-opacity-10 <?php echo $is_enabled ? 'text-success' : 'text-secondary'; ?> px-3 py-2">
+                                                    <i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>
+                                                    <?php echo $is_enabled ? 'Enabled' : 'Disabled'; ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
+
+                                        <!-- Action Buttons -->
+                                        <div class="d-flex gap-2 mt-auto">
+                                            <button type="button" 
+                                                    class="btn btn-outline-primary btn-sm flex-fill"
+                                                    data-bs-toggle="offcanvas"
+                                                    data-bs-target="#amfm-utility-drawer"
+                                                    onclick="loadUtilityContent('<?php echo esc_attr($utility_key); ?>', 'documentation')">
+                                                <i class="fas fa-book me-1"></i>
+                                                Docs
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         <?php endforeach; ?>
-                    </div>
-                </form>
-            </div>
+                    <?php endif; ?>
+                </div>
 
+            </form>
         </div>
     </div>
 </div>
 
-<!-- Utility Documentation Offcanvas -->
+<!-- Utility Documentation/Config Offcanvas -->
 <div class="offcanvas offcanvas-end" tabindex="-1" id="amfm-utility-drawer" aria-labelledby="amfm-drawer-title">
     <div class="offcanvas-header">
-        <h5 class="offcanvas-title" id="amfm-drawer-title">Utility Documentation</h5>
+        <h5 class="offcanvas-title fw-bold" id="amfm-drawer-title">Utility Documentation</h5>
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
     <div class="offcanvas-body" id="amfm-drawer-body">
@@ -93,6 +120,12 @@ $enabled_utilities = $enabled_utilities ?? [];
 </div>
 
 <script>
+// Localize AJAX data
+const amfm_ajax = {
+    ajax_url: '<?php echo admin_url('admin-ajax.php'); ?>',
+    utility_nonce: '<?php echo wp_create_nonce('amfm_component_settings_nonce'); ?>'
+};
+
 // Utility documentation data
 const utilityData = {
     'acf_helper': {
@@ -236,120 +269,11 @@ const utilityData = {
                 </div>
             </div>
         `
-    },
-    'import_export': {
-        name: 'Import/Export Tools',
-        description: 'Comprehensive data management for importing keywords, categories, and exporting posts with ACF fields.',
-        content: `
-            <div class="amfm-shortcode-docs">
-                <div class="amfm-shortcode-usage">
-                    <h3>Overview:</h3>
-                    <p>The Import/Export Tools provide comprehensive data management capabilities for WordPress sites, enabling efficient transfer of keywords, categories, and post data with full ACF field support.</p>
-                </div>
-
-                <div class="amfm-shortcode-attributes">
-                    <h3>Import Capabilities:</h3>
-                    <div class="amfm-attributes-list">
-                        <div class="amfm-attribute">
-                            <strong>CSV Keyword Import</strong> - Bulk import keywords from CSV files with validation
-                        </div>
-                        <div class="amfm-attribute">
-                            <strong>Category Import</strong> - Import category structures and mappings
-                        </div>
-                        <div class="amfm-attribute">
-                            <strong>Data Validation</strong> - Automatic validation and error reporting during imports
-                        </div>
-                        <div class="amfm-attribute">
-                            <strong>Progress Tracking</strong> - Real-time progress indicators for large imports
-                        </div>
-                        <div class="amfm-attribute">
-                            <strong>Error Handling</strong> - Comprehensive error logging and recovery options
-                        </div>
-                    </div>
-                </div>
-
-                <div class="amfm-shortcode-attributes">
-                    <h3>Export Capabilities:</h3>
-                    <div class="amfm-attributes-list">
-                        <div class="amfm-attribute">
-                            <strong>Post Data Export</strong> - Export posts with all associated metadata
-                        </div>
-                        <div class="amfm-attribute">
-                            <strong>ACF Fields Export</strong> - Full support for Advanced Custom Fields data
-                        </div>
-                        <div class="amfm-attribute">
-                            <strong>Multiple Formats</strong> - Support for CSV, JSON, and other export formats
-                        </div>
-                        <div class="amfm-attribute">
-                            <strong>Selective Export</strong> - Choose specific post types, fields, or date ranges
-                        </div>
-                        <div class="amfm-attribute">
-                            <strong>Custom Field Mapping</strong> - Advanced mapping options for complex data structures
-                        </div>
-                    </div>
-                </div>
-
-                <div class="amfm-shortcode-examples">
-                    <h3>Common Use Cases:</h3>
-                    
-                    <div class="amfm-example">
-                        <div class="amfm-example-code">
-                            <strong>Site Migration</strong>
-                        </div>
-                        <div class="amfm-example-result">
-                            → Transfer content between WordPress sites with full ACF field preservation
-                        </div>
-                    </div>
-
-                    <div class="amfm-example">
-                        <div class="amfm-example-code">
-                            <strong>Data Backup</strong>
-                        </div>
-                        <div class="amfm-example-result">
-                            → Create comprehensive backups of posts and custom field data
-                        </div>
-                    </div>
-
-                    <div class="amfm-example">
-                        <div class="amfm-example-code">
-                            <strong>Bulk Content Updates</strong>
-                        </div>
-                        <div class="amfm-example-result">
-                            → Import large datasets of keywords and categories efficiently
-                        </div>
-                    </div>
-                </div>
-
-                <div class="amfm-shortcode-note">
-                    <h3>Features:</h3>
-                    <ul>
-                        <li>Drag-and-drop CSV upload interface</li>
-                        <li>Real-time progress tracking for large imports</li>
-                        <li>Detailed error reporting and validation</li>
-                        <li>Support for categorized keywords (e.g., "i:Insurance", "c:Condition")</li>
-                        <li>Flexible export options with custom field selection</li>
-                        <li>Batch processing for large datasets</li>
-                        <li>Compatibility with standard WordPress import/export formats</li>
-                    </ul>
-                </div>
-
-                <div class="amfm-usage-tips">
-                    <h3>Best Practices:</h3>
-                    <ul>
-                        <li><strong>Backup First:</strong> Always backup your site before major imports</li>
-                        <li><strong>Test Small Batches:</strong> Test with small datasets before bulk operations</li>
-                        <li><strong>Validate Data:</strong> Review CSV formats and data structure before import</li>
-                        <li><strong>Monitor Performance:</strong> Large imports may require increased server resources</li>
-                        <li><strong>Use Staging:</strong> Test imports on staging sites first</li>
-                    </ul>
-                </div>
-            </div>
-        `
     }
 };
 
-// Utility documentation functions
-function loadUtilityDocumentation(utilityKey) {
+// Utility content functions
+function loadUtilityContent(utilityKey, mode = 'documentation') {
     const title = document.getElementById('amfm-drawer-title');
     const body = document.getElementById('amfm-drawer-body');
     
@@ -361,8 +285,97 @@ function loadUtilityDocumentation(utilityKey) {
     }
 }
 
-// Initialize Bootstrap offcanvas
+// Individual utility toggle functionality using dedicated AJAX endpoint
 document.addEventListener('DOMContentLoaded', function() {
+    const toggles = document.querySelectorAll('.utility-toggle');
+    
+    toggles.forEach(toggle => {
+        toggle.addEventListener('change', function(e) {
+            const utilityKey = this.value;
+            const isEnabled = this.checked;
+            const card = this.closest('.card');
+            const statusBadge = card.querySelector('.badge');
+            const nonceValue = amfm_ajax.utility_nonce;
+            
+            console.log('Toggle changed:', utilityKey, 'to', isEnabled ? 'enabled' : 'disabled');
+            console.log('Using nonce:', nonceValue);
+            
+            // Update status badge immediately for better UX
+            if (isEnabled) {
+                statusBadge.className = 'badge bg-success bg-opacity-10 text-success px-3 py-2';
+                statusBadge.innerHTML = '<i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>Enabled';
+            } else {
+                statusBadge.className = 'badge bg-secondary bg-opacity-10 text-secondary px-3 py-2';
+                statusBadge.innerHTML = '<i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>Disabled';
+            }
+            
+            // Prepare AJAX data for individual utility toggle
+            const formData = new FormData();
+            formData.append('action', 'amfm_toggle_utility');
+            formData.append('component', utilityKey);
+            formData.append('enabled', isEnabled ? '1' : '0');
+            formData.append('nonce', nonceValue);
+            
+            // Send AJAX request to toggle individual utility
+            fetch(amfm_ajax.ajax_url, {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('Utility status updated successfully');
+                    
+                    // Add brief success pulse effect
+                    statusBadge.style.opacity = '0.7';
+                    setTimeout(() => {
+                        statusBadge.style.opacity = '1';
+                    }, 200);
+                } else {
+                    // Error - revert toggle state
+                    this.checked = !isEnabled;
+                    
+                    // Revert status badge
+                    if (!isEnabled) {
+                        statusBadge.className = 'badge bg-success bg-opacity-10 text-success px-3 py-2';
+                        statusBadge.innerHTML = '<i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>Enabled';
+                    } else {
+                        statusBadge.className = 'badge bg-secondary bg-opacity-10 text-secondary px-3 py-2';
+                        statusBadge.innerHTML = '<i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>Disabled';
+                    }
+                    
+                    console.error('Failed to update utility status:', data.data || 'Unknown error');
+                }
+            })
+            .catch(error => {
+                console.error('AJAX Error:', error);
+                
+                // Revert toggle state on error
+                this.checked = !isEnabled;
+                
+                // Revert status badge
+                if (!isEnabled) {
+                    statusBadge.className = 'badge bg-success bg-opacity-10 text-success px-3 py-2';
+                    statusBadge.innerHTML = '<i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>Enabled';
+                } else {
+                    statusBadge.className = 'badge bg-secondary bg-opacity-10 text-secondary px-3 py-2';
+                    statusBadge.innerHTML = '<i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>Disabled';
+                }
+            });
+        });
+    });
+    
+    // Prevent form submission to avoid page redirects
+    const form = document.getElementById('amfm-utility-form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            return false;
+        });
+    }
+    
+    // Initialize Bootstrap offcanvas
     const offcanvasElement = document.getElementById('amfm-utility-drawer');
     if (offcanvasElement && typeof bootstrap !== 'undefined') {
         new bootstrap.Offcanvas(offcanvasElement);
@@ -371,14 +384,14 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
-/* Offcanvas Customizations */
+/* Modern Utility Management Styles */
 #amfm-utility-drawer {
     width: 600px;
     top: 32px; /* Account for WordPress admin bar */
     height: calc(100vh - 32px);
 }
 
-/* Responsive admin bar height */
+/* Responsive admin bar height adjustments */
 @media screen and (max-width: 782px) {
     #amfm-utility-drawer {
         top: 46px;
@@ -396,14 +409,72 @@ document.addEventListener('DOMContentLoaded', function() {
 
 /* Offcanvas header styling */
 #amfm-utility-drawer .offcanvas-header {
-    background: #f9f9f9;
-    border-bottom: 1px solid #ddd;
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
 }
 
 #amfm-utility-drawer .offcanvas-title {
     font-size: 18px;
     color: #333;
     margin: 0;
+}
+
+/* Card Animations */
+.hover-lift {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Enhanced Bootstrap 5 Form Switch */
+.form-check.form-switch .form-check-input {
+    width: 3em;
+    height: 1.5em;
+    margin-left: -3.5em;
+    background-color: #6c757d;
+    border-color: #6c757d;
+    background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'><circle r='3' fill='rgba(255,255,255,1.0)'/></svg>") !important;
+    background-position: left center !important;
+    background-repeat: no-repeat !important;
+    background-size: contain !important;
+    border-radius: 3em !important;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+
+.form-check.form-switch .form-check-input:checked {
+    background-position: right center !important;
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+    background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'><circle r='3' fill='rgba(255,255,255,1.0)'/></svg>") !important;
+}
+
+.form-check.form-switch .form-check-input:focus {
+    border-color: #86b7fe;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.form-check.form-switch .form-check-input:focus:not(:checked) {
+    background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'><circle r='3' fill='rgba(255,255,255,1.0)'/></svg>") !important;
+}
+
+.form-check.form-switch .form-check-input:checked:focus {
+    background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'><circle r='3' fill='rgba(255,255,255,1.0)'/></svg>") !important;
+}
+
+/* Remove WordPress/Admin checkmark */
+.form-check.form-switch .form-check-input::before,
+.form-check.form-switch .form-check-input:checked::before {
+    content: none !important;
+    display: none !important;
+}
+
+.documentation-content .card {
+    border: 1px solid rgba(0,0,0,0.1) !important;
 }
 
 /* Component Actions */

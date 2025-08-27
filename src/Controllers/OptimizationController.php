@@ -8,7 +8,7 @@ class OptimizationController extends Controller
 {
     public $actions = [
         'init' => 'initialize',
-        'wp_enqueue_scripts' => ['conditionallyLoadGFAssets', 11]
+        'wp_enqueue_scripts' => 'conditionallyLoadGFAssets'
     ];
 
     public $filters = [

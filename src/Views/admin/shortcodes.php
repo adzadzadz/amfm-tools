@@ -14,88 +14,119 @@ $currentFallback = $settingsService->getDkvDefaultFallback();
 $currentCacheDuration = $settingsService->getDkvCacheDuration();
 ?>
 
-<!-- Shortcodes Content -->
-            <!-- Shortcode Management Section -->
-            <div class="amfm-shortcodes-section">
-                <div class="amfm-shortcodes-header">
-                    <h2>
-                        <span class="amfm-shortcodes-icon">📄</span>
-                        Shortcode Management
-                    </h2>
-                    <p>Enable or disable individual shortcodes. Disabled shortcodes will not be loaded, improving performance and reducing resource usage.</p>
-                </div>
-
-                <form method="post" class="amfm-component-settings-form">
-                    <?php wp_nonce_field('amfm_component_settings_update', 'amfm_component_settings_nonce'); ?>
-                    
-                    <div class="amfm-components-grid">
-                        <?php foreach ($available_shortcodes as $shortcode_key => $shortcode_info) : ?>
-                            <?php 
+<!-- Modern Bootstrap 5 Shortcode Management -->
+<div class="container-fluid px-0">
+    <div class="row g-3">
+        <!-- Main Content -->
+        <div class="col-12">
+            <!-- Shortcodes Grid -->
+            <form method="post" id="amfm-shortcode-form">
+                <?php wp_nonce_field('amfm_component_settings_update', 'amfm_component_settings_nonce'); ?>
+                
+                <div class="row g-3">
+                    <?php if (empty($available_shortcodes)): ?>
+                        <!-- No Shortcodes Available -->
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-body text-center py-5">
+                                    <div class="text-muted mb-4">
+                                        <i class="fas fa-code fs-1 opacity-25"></i>
+                                    </div>
+                                    <h5 class="text-muted mb-2">No Shortcodes Available</h5>
+                                    <p class="text-muted small mb-0">No shortcodes are currently registered by this plugin.</p>
+                                </div>
+                            </div>
+                        </div>
+                    <?php else: ?>
+                        <?php foreach ($available_shortcodes as $shortcode_key => $shortcode_info): 
                             $is_core = $shortcode_info['status'] === 'Core Feature';
                             $is_enabled = in_array($shortcode_key, $enabled_shortcodes);
-                            ?>
-                            <div class="amfm-component-card <?php echo $is_enabled ? 'amfm-component-enabled' : 'amfm-component-disabled'; ?> <?php echo $is_core ? 'amfm-component-core' : ''; ?>">
-                                <div class="amfm-component-header">
-                                    <div class="amfm-component-icon"><?php echo esc_html($shortcode_info['icon']); ?></div>
-                                    <div class="amfm-component-toggle">
-                                        <?php if ($is_core) : ?>
-                                            <span class="amfm-core-label">Core</span>
-                                            <input type="hidden" name="enabled_components[]" value="<?php echo esc_attr($shortcode_key); ?>">
-                                        <?php else : ?>
-                                            <label class="amfm-toggle-switch">
-                                                <input type="checkbox" 
-                                                       name="enabled_components[]" 
-                                                       value="<?php echo esc_attr($shortcode_key); ?>"
-                                                       <?php checked(in_array($shortcode_key, $enabled_shortcodes)); ?>
-                                                       class="amfm-component-checkbox"
-                                                       data-component="<?php echo esc_attr($shortcode_key); ?>">
-                                                <span class="amfm-toggle-slider"></span>
-                                            </label>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                                <div class="amfm-component-body">
-                                    <h3 class="amfm-component-title"><?php echo esc_html($shortcode_info['name']); ?></h3>
-                                    <p class="amfm-component-description"><?php echo esc_html($shortcode_info['description']); ?></p>
-                                    <div class="amfm-component-status">
-                                        <span class="amfm-status-indicator"></span>
-                                        <span class="amfm-status-text">
-                                            <?php if ($is_core) : ?>
-                                                Always Active
-                                            <?php else : ?>
-                                                <?php echo $is_enabled ? 'Enabled' : 'Disabled'; ?>
+                        ?>
+                            <div class="col-lg-6 col-xl-4">
+                                <div class="card border-0 shadow-sm h-100 hover-lift">
+                                    <div class="card-body p-4">
+                                        <!-- Shortcode Header -->
+                                        <div class="d-flex align-items-center justify-content-between mb-3">
+                                            <div class="d-flex align-items-center">
+                                                <div class="rounded bg-primary bg-opacity-10 p-2 me-3">
+                                                    <i class="<?php echo esc_attr($shortcode_info['icon'] ?? 'fas fa-code'); ?> text-primary" style="font-size: 1.25rem;"></i>
+                                                </div>
+                                                <div>
+                                                    <h5 class="fw-bold mb-0 text-dark"><?php echo esc_html($shortcode_info['name']); ?></h5>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Toggle Switch -->
+                                            <?php if ($is_core): ?>
+                                                <span class="badge bg-warning text-dark px-3 py-2">Core</span>
+                                                <input type="hidden" name="enabled_components[]" value="<?php echo esc_attr($shortcode_key); ?>">
+                                            <?php else: ?>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input shortcode-toggle" 
+                                                           type="checkbox" 
+                                                           role="switch"
+                                                           id="shortcode-<?php echo esc_attr($shortcode_key); ?>"
+                                                           name="enabled_components[]" 
+                                                           value="<?php echo esc_attr($shortcode_key); ?>"
+                                                           <?php checked($is_enabled); ?>
+                                                           style="cursor: pointer;">
+                                                </div>
                                             <?php endif; ?>
-                                        </span>
-                                    </div>
-                                    <div class="amfm-component-actions">
-                                        <button type="button" 
-                                                class="amfm-info-button amfm-doc-button" 
-                                                data-shortcode="<?php echo esc_attr($shortcode_key); ?>"
-                                                data-bs-toggle="offcanvas"
-                                                data-bs-target="#amfm-shortcode-drawer"
-                                                onclick="loadShortcodeContent('<?php echo esc_attr($shortcode_key); ?>', 'documentation')">
-                                            Documentation
-                                        </button>
-                                        <button type="button" 
-                                                class="amfm-info-button amfm-config-button" 
-                                                data-shortcode="<?php echo esc_attr($shortcode_key); ?>"
-                                                data-bs-toggle="offcanvas"
-                                                data-bs-target="#amfm-shortcode-drawer"
-                                                onclick="loadShortcodeContent('<?php echo esc_attr($shortcode_key); ?>', 'config')">
-                                            Config
-                                        </button>
+                                        </div>
+
+                                        <!-- Shortcode Description -->
+                                        <p class="text-muted mb-3 small"><?php echo esc_html($shortcode_info['description']); ?></p>
+
+                                        <!-- Status Badge -->
+                                        <div class="mb-3">
+                                            <?php if ($is_core): ?>
+                                                <span class="badge bg-warning bg-opacity-10 text-warning px-3 py-2">
+                                                    <i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>
+                                                    Always Active
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="badge <?php echo $is_enabled ? 'bg-success' : 'bg-secondary'; ?> bg-opacity-10 <?php echo $is_enabled ? 'text-success' : 'text-secondary'; ?> px-3 py-2">
+                                                    <i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>
+                                                    <?php echo $is_enabled ? 'Enabled' : 'Disabled'; ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
+
+                                        <!-- Action Buttons -->
+                                        <div class="d-flex gap-2 mt-auto">
+                                            <button type="button" 
+                                                    class="btn btn-outline-primary btn-sm flex-fill"
+                                                    data-bs-toggle="offcanvas"
+                                                    data-bs-target="#amfm-shortcode-drawer"
+                                                    onclick="loadShortcodeContent('<?php echo esc_attr($shortcode_key); ?>', 'documentation')">
+                                                <i class="fas fa-book me-1"></i>
+                                                Docs
+                                            </button>
+                                            <button type="button" 
+                                                    class="btn btn-outline-success btn-sm flex-fill"
+                                                    data-bs-toggle="offcanvas"
+                                                    data-bs-target="#amfm-shortcode-drawer"
+                                                    onclick="loadShortcodeContent('<?php echo esc_attr($shortcode_key); ?>', 'config')">
+                                                <i class="fas fa-cog me-1"></i>
+                                                Config
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         <?php endforeach; ?>
-                    </div>
-                </form>
-            </div>
+                    <?php endif; ?>
+                </div>
 
-<!-- Shortcode Documentation Offcanvas -->
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Shortcode Documentation/Config Offcanvas -->
 <div class="offcanvas offcanvas-end" tabindex="-1" id="amfm-shortcode-drawer" aria-labelledby="amfm-drawer-title">
     <div class="offcanvas-header">
-        <h5 class="offcanvas-title" id="amfm-drawer-title">Shortcode Documentation</h5>
+        <h5 class="offcanvas-title fw-bold" id="amfm-drawer-title">Shortcode Documentation</h5>
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
     <div class="offcanvas-body" id="amfm-drawer-body">
@@ -104,6 +135,13 @@ $currentCacheDuration = $settingsService->getDkvCacheDuration();
 </div>
 
 <script>
+// Localize AJAX data
+const amfm_ajax = {
+    ajax_url: '<?php echo admin_url('admin-ajax.php'); ?>',
+    shortcode_nonce: '<?php echo wp_create_nonce('amfm_component_settings_nonce'); ?>',
+    dkv_config_nonce: '<?php echo wp_create_nonce('amfm_dkv_config_update'); ?>'
+};
+
 // PHP data for JavaScript
 const amfmPhpData = {
     currentKeywords: <?php echo json_encode($keywords_text ?? ''); ?>,
@@ -384,11 +422,94 @@ function loadShortcodeContent(shortcodeKey, mode = 'documentation') {
         if (mode === 'config') {
             title.textContent = data.name + ' Configuration';
             body.innerHTML = getConfigContent(shortcodeKey, data);
+            
+            // Reinitialize field values after loading config content
+            if (shortcodeKey === 'dkv_shortcode') {
+                reinitializeDkvFields();
+            }
         } else {
             title.textContent = data.name + ' Documentation';
             body.innerHTML = data.content;
         }
     }
+}
+
+// Reinitialize DKV field values with current data
+function reinitializeDkvFields() {
+    // Use setTimeout to ensure DOM elements are rendered
+    setTimeout(() => {
+        // Fetch current values from server to ensure we have the latest data
+        fetchCurrentDkvValues().then((values) => {
+            // Update excluded keywords
+            const keywordsField = document.getElementById('dkv_excluded_keywords');
+            if (keywordsField) {
+                keywordsField.value = values.keywords || '';
+            }
+            
+            // Update default fallback
+            const fallbackField = document.getElementById('dkv_default_fallback');
+            if (fallbackField) {
+                fallbackField.value = values.fallback || '';
+            }
+            
+            // Update cache duration
+            const cacheField = document.getElementById('dkv_cache_duration');
+            if (cacheField) {
+                cacheField.value = values.cacheDuration || '24';
+            }
+            
+            console.log('DKV fields reinitialized with current values from server');
+        }).catch((error) => {
+            console.error('Failed to fetch current DKV values:', error);
+            // Fallback to PHP data if server fetch fails
+            const keywordsField = document.getElementById('dkv_excluded_keywords');
+            if (keywordsField && amfmPhpData.currentKeywords !== undefined) {
+                keywordsField.value = amfmPhpData.currentKeywords;
+            }
+            
+            const fallbackField = document.getElementById('dkv_default_fallback');
+            if (fallbackField && amfmPhpData.currentFallback !== undefined) {
+                fallbackField.value = amfmPhpData.currentFallback;
+            }
+            
+            const cacheField = document.getElementById('dkv_cache_duration');
+            if (cacheField && amfmPhpData.currentCacheDuration !== undefined) {
+                cacheField.value = amfmPhpData.currentCacheDuration;
+            }
+            
+            console.log('DKV fields reinitialized with fallback PHP values');
+        });
+    }, 100);
+}
+
+// Fetch current DKV values from server
+function fetchCurrentDkvValues() {
+    return new Promise((resolve, reject) => {
+        const formData = new FormData();
+        formData.append('action', 'amfm_get_dkv_config');
+        formData.append('nonce', amfm_ajax.dkv_config_nonce);
+        
+        fetch(amfm_ajax.ajax_url, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                resolve({
+                    keywords: data.data.keywords || '',
+                    fallback: data.data.fallback || '',
+                    cacheDuration: data.data.cache_duration || '24'
+                });
+            } else {
+                reject(new Error(data.data || 'Failed to fetch DKV config'));
+            }
+        })
+        .catch(error => {
+            reject(error);
+        });
+    });
 }
 
 function getConfigContent(shortcodeKey, data) {
@@ -555,8 +676,97 @@ function hideFieldStatus(fieldId) {
     statusDiv.className = 'amfm-field-status';
 }
 
-// Initialize Bootstrap offcanvas
+// Individual shortcode toggle functionality using dedicated AJAX endpoint
 document.addEventListener('DOMContentLoaded', function() {
+    const toggles = document.querySelectorAll('.shortcode-toggle');
+    
+    toggles.forEach(toggle => {
+        toggle.addEventListener('change', function(e) {
+            const shortcodeKey = this.value;
+            const isEnabled = this.checked;
+            const card = this.closest('.card');
+            const statusBadge = card.querySelector('.badge');
+            const nonceValue = amfm_ajax.shortcode_nonce;
+            
+            console.log('Toggle changed:', shortcodeKey, 'to', isEnabled ? 'enabled' : 'disabled');
+            console.log('Using nonce:', nonceValue);
+            
+            // Update status badge immediately for better UX
+            if (isEnabled) {
+                statusBadge.className = 'badge bg-success bg-opacity-10 text-success px-3 py-2';
+                statusBadge.innerHTML = '<i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>Enabled';
+            } else {
+                statusBadge.className = 'badge bg-secondary bg-opacity-10 text-secondary px-3 py-2';
+                statusBadge.innerHTML = '<i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>Disabled';
+            }
+            
+            // Prepare AJAX data for individual shortcode toggle
+            const formData = new FormData();
+            formData.append('action', 'amfm_toggle_shortcode');
+            formData.append('component', shortcodeKey);
+            formData.append('enabled', isEnabled ? '1' : '0');
+            formData.append('nonce', nonceValue);
+            
+            // Send AJAX request to toggle individual shortcode
+            fetch(amfm_ajax?.ajax_url || ajaxurl, {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('Shortcode status updated successfully');
+                    
+                    // Add brief success pulse effect
+                    statusBadge.style.opacity = '0.7';
+                    setTimeout(() => {
+                        statusBadge.style.opacity = '1';
+                    }, 200);
+                } else {
+                    // Error - revert toggle state
+                    this.checked = !isEnabled;
+                    
+                    // Revert status badge
+                    if (!isEnabled) {
+                        statusBadge.className = 'badge bg-success bg-opacity-10 text-success px-3 py-2';
+                        statusBadge.innerHTML = '<i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>Enabled';
+                    } else {
+                        statusBadge.className = 'badge bg-secondary bg-opacity-10 text-secondary px-3 py-2';
+                        statusBadge.innerHTML = '<i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>Disabled';
+                    }
+                    
+                    console.error('Failed to update shortcode status:', data.data || 'Unknown error');
+                }
+            })
+            .catch(error => {
+                console.error('AJAX Error:', error);
+                
+                // Revert toggle state on error
+                this.checked = !isEnabled;
+                
+                // Revert status badge
+                if (!isEnabled) {
+                    statusBadge.className = 'badge bg-success bg-opacity-10 text-success px-3 py-2';
+                    statusBadge.innerHTML = '<i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>Enabled';
+                } else {
+                    statusBadge.className = 'badge bg-secondary bg-opacity-10 text-secondary px-3 py-2';
+                    statusBadge.innerHTML = '<i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>Disabled';
+                }
+            });
+        });
+    });
+    
+    // Prevent form submission to avoid page redirects
+    const form = document.getElementById('amfm-shortcode-form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            return false;
+        });
+    }
+    
+    // Initialize Bootstrap offcanvas
     const offcanvasElement = document.getElementById('amfm-shortcode-drawer');
     if (offcanvasElement && typeof bootstrap !== 'undefined') {
         new bootstrap.Offcanvas(offcanvasElement);
@@ -565,14 +775,14 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
-/* Offcanvas Customizations */
+/* Modern Shortcode Management Styles */
 #amfm-shortcode-drawer {
     width: 600px;
     top: 32px; /* Account for WordPress admin bar */
     height: calc(100vh - 32px);
 }
 
-/* Responsive admin bar height */
+/* Responsive admin bar height adjustments */
 @media screen and (max-width: 782px) {
     #amfm-shortcode-drawer {
         top: 46px;
@@ -590,14 +800,72 @@ document.addEventListener('DOMContentLoaded', function() {
 
 /* Offcanvas header styling */
 #amfm-shortcode-drawer .offcanvas-header {
-    background: #f9f9f9;
-    border-bottom: 1px solid #ddd;
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
 }
 
 #amfm-shortcode-drawer .offcanvas-title {
     font-size: 18px;
     color: #333;
     margin: 0;
+}
+
+/* Card Animations */
+.hover-lift {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Enhanced Bootstrap 5 Form Switch */
+.form-check.form-switch .form-check-input {
+    width: 3em;
+    height: 1.5em;
+    margin-left: -3.5em;
+    background-color: #6c757d;
+    border-color: #6c757d;
+    background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'><circle r='3' fill='rgba(255,255,255,1.0)'/></svg>") !important;
+    background-position: left center !important;
+    background-repeat: no-repeat !important;
+    background-size: contain !important;
+    border-radius: 3em !important;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+
+.form-check.form-switch .form-check-input:checked {
+    background-position: right center !important;
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+    background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'><circle r='3' fill='rgba(255,255,255,1.0)'/></svg>") !important;
+}
+
+.form-check.form-switch .form-check-input:focus {
+    border-color: #86b7fe;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.form-check.form-switch .form-check-input:focus:not(:checked) {
+    background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'><circle r='3' fill='rgba(255,255,255,1.0)'/></svg>") !important;
+}
+
+.form-check.form-switch .form-check-input:checked:focus {
+    background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'><circle r='3' fill='rgba(255,255,255,1.0)'/></svg>") !important;
+}
+
+/* Remove WordPress/Admin checkmark */
+.form-check.form-switch .form-check-input::before,
+.form-check.form-switch .form-check-input:checked::before {
+    content: none !important;
+    display: none !important;
+}
+
+.documentation-content .card {
+    border: 1px solid rgba(0,0,0,0.1) !important;
 }
 
 /* Component Actions */

@@ -164,4 +164,35 @@ class ShortcodesController extends Controller
         $settingsService = new SettingsService();
         $settingsService->ajaxDkvConfigUpdate();
     }
+
+    /**
+     * AJAX: Toggle shortcode status - framework auto-hook
+     */
+    public function actionWpAjaxAmfmToggleShortcode()
+    {
+        $settingsService = new SettingsService();
+        $settingsService->ajaxToggleComponent();
+    }
+
+    /**
+     * AJAX: Get current DKV configuration - framework auto-hook
+     */
+    public function actionWpAjaxAmfmGetDkvConfig()
+    {
+        // Verify nonce and permissions
+        if (!check_ajax_referer('amfm_dkv_config_update', 'nonce', false) || !current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied');
+            return;
+        }
+
+        $settingsService = new SettingsService();
+        
+        $config = [
+            'keywords' => implode("\n", $settingsService->getExcludedKeywords()),
+            'fallback' => $settingsService->getDkvDefaultFallback(),
+            'cache_duration' => $settingsService->getDkvCacheDuration()
+        ];
+        
+        wp_send_json_success($config);
+    }
 }

@@ -431,7 +431,7 @@ class CsvExportService extends Service
             // Return all available post columns including ID
             return ['id', 'post_title', 'post_content', 'post_excerpt', 'post_status', 
                     'post_date', 'post_modified', 'post_author', 'post_name', 
-                    'menu_order', 'comment_status', 'ping_status', 'post_parent'];
+                    'menu_order', 'comment_status', 'ping_status', 'post_parent', 'post_url'];
         }
         
         // Always include ID even if not selected, as it's required for imports
@@ -474,6 +474,7 @@ class CsvExportService extends Service
             'comment_status' => esc_html__('Comment Status', 'amfm-tools'),
             'ping_status' => esc_html__('Ping Status', 'amfm-tools'),
             'post_parent' => esc_html__('Post Parent', 'amfm-tools'),
+            'post_url' => esc_html__('Post URL', 'amfm-tools'),
             // Legacy mappings
             'title' => esc_html__('Post Title', 'amfm-tools'),
             'content' => esc_html__('Post Content', 'amfm-tools'),
@@ -553,6 +554,7 @@ class CsvExportService extends Service
                 case 'post_parent':
                     $data[] = absint($post->post_parent);
                     break;
+                case 'post_url':
                 case 'url':
                     $data[] = esc_url_raw(get_permalink($post->ID));
                     break;

@@ -438,6 +438,10 @@ $results = $results ?? null;
                             <input type="checkbox" name="specific_post_columns[]" value="post_parent">
                             <span>Post Parent</span>
                         </label>
+                        <label class="amfm-checkbox-item">
+                            <input type="checkbox" name="specific_post_columns[]" value="post_url">
+                            <span>Post URL</span>
+                        </label>
                     </div>
                 </div>
 

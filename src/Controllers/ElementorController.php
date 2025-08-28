@@ -115,6 +115,26 @@ class ElementorController extends Controller
             'amfm_related_posts' => [
                 'file' => 'Widgets/Elementor/RelatedPostsWidget.php',
                 'class' => 'App\\Widgets\\Elementor\\RelatedPostsWidget'
+            ],
+            'amfm_show' => [
+                'file' => 'Widgets/Elementor/Bylines/ShowWidget.php',
+                'class' => 'App\\Widgets\\Elementor\\Bylines\\ShowWidget'
+            ],
+            'amfm_bylines_posts' => [
+                'file' => 'Widgets/Elementor/Bylines/PostsWidget.php',
+                'class' => 'App\\Widgets\\Elementor\\Bylines\\PostsWidget'
+            ],
+            'amfm_bylines_featured_images' => [
+                'file' => 'Widgets/Elementor/Bylines/FeaturedImagesWidget.php',
+                'class' => 'App\\Widgets\\Elementor\\Bylines\\FeaturedImagesWidget'
+            ],
+            'amfm_bylines_display' => [
+                'file' => 'Widgets/Elementor/Bylines/BylinesWidget.php',
+                'class' => 'App\\Widgets\\Elementor\\Bylines\\BylinesWidget'
+            ],
+            'amfm_staff_grid' => [
+                'file' => 'Widgets/Elementor/Bylines/StaffGridWidget.php',
+                'class' => 'App\\Widgets\\Elementor\\Bylines\\StaffGridWidget'
             ]
         ];
         

@@ -19,6 +19,242 @@
    margin-bottom: 15px;
 }
 
+/* Elementor Widget Styles */
+.amfm-staff-grid {
+    display: grid;
+    gap: 20px;
+    text-align: center;
+}
+
+.amfm-staff-card {
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.amfm-staff-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+.amfm-staff-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.amfm-staff-image {
+    text-align: center;
+    overflow: hidden;
+}
+
+.amfm-staff-image img {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+}
+
+.amfm-staff-content {
+    padding: 15px;
+    text-align: center;
+}
+
+.amfm-staff-name {
+    margin: 0 0 8px;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.amfm-staff-credentials {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.amfm-staff-title {
+    font-size: 14px;
+    color: #00997A;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.amfm-staff-bio {
+    font-size: 13px;
+    color: #666;
+    line-height: 1.4;
+}
+
+.amfm-related-posts {
+    margin: 20px 0;
+}
+
+.amfm-related-post-title {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.amfm-related-post-link {
+    color: #0073aa;
+    text-decoration: none;
+}
+
+.amfm-related-post-link:hover {
+    text-decoration: underline;
+}
+
+.amfm-featured-images-vertical {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.amfm-featured-image-item {
+    text-align: center;
+}
+
+.amfm-featured-image img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+}
+
+.amfm-featured-image-title {
+    margin: 10px 0 0;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.amfm-featured-image-title a {
+    color: #333;
+    text-decoration: none;
+}
+
+.amfm-featured-image-title a:hover {
+    color: #0073aa;
+    text-decoration: underline;
+}
+
+.amfm-pagination {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.amfm-pagination a {
+    display: inline-block;
+    padding: 8px 12px;
+    margin: 0 2px;
+    color: #0073aa;
+    text-decoration: none;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+}
+
+.amfm-pagination a:hover {
+    background: #f8f9fa;
+}
+
+.amfm-pagination .current {
+    background: #0073aa;
+    color: white;
+    border-color: #0073aa;
+}
+
+/* Bylines Widget Styles */
+.amfm-bylines-container {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    background: #fff;
+    padding: 15px;
+}
+
+.amfm-layout-vertical .amfm-bylines-container {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.amfm-layout-grid .amfm-bylines-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.amfm-byline-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.amfm-layout-vertical .amfm-byline-item {
+    width: 100%;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.amfm-byline-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.amfm-layout-vertical .amfm-byline-content {
+    flex: 1;
+}
+
+.amfm-byline-image img {
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.amfm-byline-label {
+    font-weight: bold;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.amfm-byline-name {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.amfm-byline-name a {
+    text-decoration: none;
+}
+
+.amfm-byline-name a:hover {
+    text-decoration: underline;
+}
+
+.amfm-byline-credentials {
+    font-size: 12px;
+}
+
+.amfm-byline-title {
+    font-size: 12px;
+    color: #00997A;
+    font-weight: bold;
+}
+
+@media (max-width: 768px) {
+    .amfm-bylines-container {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .amfm-staff-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .amfm-staff-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
+
 .amfm-related-post-title {
    font-size: 18px; 
    font-weight: bold;

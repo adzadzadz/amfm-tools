@@ -48,6 +48,11 @@ add_action('plugins_loaded', function() {
     if (get_option('amfm_shortcodes_amfm_acf') === false) add_option('amfm_shortcodes_amfm_acf', true);
     if (get_option('amfm_shortcodes_amfm_acf_object') === false) add_option('amfm_shortcodes_amfm_acf_object', true);
     if (get_option('amfm_elementor_widgets_dkv_widget') === false) add_option('amfm_elementor_widgets_dkv_widget', true);
+    if (get_option('amfm_elementor_widgets_amfm_show') === false) add_option('amfm_elementor_widgets_amfm_show', true);
+    if (get_option('amfm_elementor_widgets_amfm_bylines_posts') === false) add_option('amfm_elementor_widgets_amfm_bylines_posts', true);
+    if (get_option('amfm_elementor_widgets_amfm_bylines_featured_images') === false) add_option('amfm_elementor_widgets_amfm_bylines_featured_images', true);
+    if (get_option('amfm_elementor_widgets_amfm_bylines_display') === false) add_option('amfm_elementor_widgets_amfm_bylines_display', true);
+    if (get_option('amfm_elementor_widgets_amfm_staff_grid') === false) add_option('amfm_elementor_widgets_amfm_staff_grid', true);
     if (get_option('amfm_components_acf_helper') === false) add_option('amfm_components_acf_helper', true);
     if (get_option('amfm_components_import_export') === false) add_option('amfm_components_import_export', true);
     if (get_option('amfm_components_optimization') === false) add_option('amfm_components_optimization', true);
@@ -64,6 +69,11 @@ add_action('plugins_loaded', function() {
     $framework->set('shortcodes.amfm_acf', (bool) get_option('amfm_shortcodes_amfm_acf', true));
     $framework->set('shortcodes.amfm_acf_object', (bool) get_option('amfm_shortcodes_amfm_acf_object', true));
     $framework->set('elementor.widgets.dkv_widget', (bool) get_option('amfm_elementor_widgets_dkv_widget', true));
+    $framework->set('elementor.widgets.amfm_show', (bool) get_option('amfm_elementor_widgets_amfm_show', true));
+    $framework->set('elementor.widgets.amfm_bylines_posts', (bool) get_option('amfm_elementor_widgets_amfm_bylines_posts', true));
+    $framework->set('elementor.widgets.amfm_bylines_featured_images', (bool) get_option('amfm_elementor_widgets_amfm_bylines_featured_images', true));
+    $framework->set('elementor.widgets.amfm_bylines_display', (bool) get_option('amfm_elementor_widgets_amfm_bylines_display', true));
+    $framework->set('elementor.widgets.amfm_staff_grid', (bool) get_option('amfm_elementor_widgets_amfm_staff_grid', true));
     $framework->set('components.acf_helper', (bool) get_option('amfm_components_acf_helper', true));
     $framework->set('components.import_export', (bool) get_option('amfm_components_import_export', true));
     $framework->set('components.optimization', (bool) get_option('amfm_components_optimization', true));

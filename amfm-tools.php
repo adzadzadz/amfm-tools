@@ -160,4 +160,19 @@ add_action('plugins_loaded', function() {
         // Load the amfm-bylines plugin
         require_once $bylines_addon_path;
     }
+    
+    // Initialize AMFM Maps addon if it exists
+    $maps_addon_path = AMFM_TOOLS_PATH . 'addon/amfm-maps/amfm-maps.php';
+    if (file_exists($maps_addon_path)) {
+        // Define the plugin directory path and URL for amfm-maps
+        if (!defined('AMFM_MAPS_PLUGIN_PATH')) {
+            define('AMFM_MAPS_PLUGIN_PATH', AMFM_TOOLS_PATH . 'addon/amfm-maps/');
+        }
+        if (!defined('AMFM_MAPS_PLUGIN_URL')) {
+            define('AMFM_MAPS_PLUGIN_URL', AMFM_TOOLS_URL . 'addon/amfm-maps/');
+        }
+        
+        // Load the amfm-maps plugin
+        require_once $maps_addon_path;
+    }
 });

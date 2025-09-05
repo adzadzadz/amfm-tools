@@ -1,0 +1,57 @@
+[
+    {
+        "Business name": "Mission Connection",
+        "(Internal) Shortname": "mc",
+        "Street": "2900 S. Quincy St",
+        "Unit": "#810",
+        "City": "Arlington",
+        "State": "VA",
+        "Zipcode": "22206",
+        "GMB_Phone": "+1-555-555-5555",
+        "Region": "southeast"
+    },
+    {
+        "Business name": "Mission Connection",
+        "(Internal) Shortname": "mc",
+        "Street": "6900 East Green Lake Way N",
+        "Unit": "Suite G",
+        "City": "Seattle",
+        "State": "WA",
+        "Zipcode": "98115",
+        "GMB_Phone": "+1-555-555-5555",
+        "Region": "northwest"
+    },
+    {
+        "Business name": "Mission Connection",
+        "(Internal) Shortname": "mc",
+        "Street": "11000 NE 33rd Pl",
+        "Unit": "#340",
+        "City": "Bellevue",
+        "State": "WA",
+        "Zipcode": "98004",
+        "GMB_Phone": "+1-555-555-5555",
+        "Region": "northwest"
+    },
+    {
+        "Business name": "Mission Connection",
+        "(Internal) Shortname": "mc",
+        "Street": "30300 Rancho Viejo Rd",
+        "Unit": "Suite A",
+        "City": "San Juan Capistrano",
+        "State": "CA",
+        "Zipcode": "92675",
+        "GMB_Phone": "+1-555-555-5555",
+        "Region": "southwest"
+    },
+    {
+        "Business name": "Mission Connection",
+        "(Internal) Shortname": "mc",
+        "Street": "7777 Leesburg Pike",
+        "Unit": "Suite 10N",
+        "City": "Falls Church",
+        "State": "VA",
+        "Zipcode": "22043",
+        "GMB_Phone": "+1-555-555-5555",
+        "Region": "southeast"
+    }
+]

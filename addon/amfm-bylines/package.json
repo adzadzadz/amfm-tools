@@ -1,0 +1,29 @@
+{
+  "name": "amfm-bylines",
+  "version": "1.0.0",
+  "description": "## Description The AMFM Bylines Plugin is a custom WordPress plugin designed to enhance the functionality of your website. It provides additional features and customization options to improve user experience and streamline content management.",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "tests"
+  },
+  "scripts": {
+    "build": "node esbuild.config.js",
+    "build:watch": "esbuild admin/js/*.js public/js/*.js admin/css/*.css public/css/*.css --outdir=build --minify --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adzadzadz/wp-amfm-bylines.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/adzadzadz/wp-amfm-bylines/issues"
+  },
+  "homepage": "https://github.com/adzadzadz/wp-amfm-bylines#readme",
+  "devDependencies": {
+    "esbuild": "^0.25.8"
+  }
+}

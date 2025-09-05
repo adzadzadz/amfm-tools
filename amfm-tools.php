@@ -40,7 +40,19 @@ add_action('plugins_loaded', function() {
     if (get_option('amfm_shortcodes_dkv') === false) add_option('amfm_shortcodes_dkv', true);
     if (get_option('amfm_shortcodes_limit_words') === false) add_option('amfm_shortcodes_limit_words', true);
     if (get_option('amfm_shortcodes_text_util') === false) add_option('amfm_shortcodes_text_util', true);
+    if (get_option('amfm_shortcodes_amfm_info') === false) add_option('amfm_shortcodes_amfm_info', true);
+    if (get_option('amfm_shortcodes_amfm_author_url') === false) add_option('amfm_shortcodes_amfm_author_url', true);
+    if (get_option('amfm_shortcodes_amfm_editor_url') === false) add_option('amfm_shortcodes_amfm_editor_url', true);
+    if (get_option('amfm_shortcodes_amfm_reviewer_url') === false) add_option('amfm_shortcodes_amfm_reviewer_url', true);
+    if (get_option('amfm_shortcodes_amfm_bylines_grid') === false) add_option('amfm_shortcodes_amfm_bylines_grid', true);
+    if (get_option('amfm_shortcodes_amfm_acf') === false) add_option('amfm_shortcodes_amfm_acf', true);
+    if (get_option('amfm_shortcodes_amfm_acf_object') === false) add_option('amfm_shortcodes_amfm_acf_object', true);
     if (get_option('amfm_elementor_widgets_dkv_widget') === false) add_option('amfm_elementor_widgets_dkv_widget', true);
+    if (get_option('amfm_elementor_widgets_amfm_show') === false) add_option('amfm_elementor_widgets_amfm_show', true);
+    if (get_option('amfm_elementor_widgets_amfm_bylines_posts') === false) add_option('amfm_elementor_widgets_amfm_bylines_posts', true);
+    if (get_option('amfm_elementor_widgets_amfm_bylines_featured_images') === false) add_option('amfm_elementor_widgets_amfm_bylines_featured_images', true);
+    if (get_option('amfm_elementor_widgets_amfm_bylines_display') === false) add_option('amfm_elementor_widgets_amfm_bylines_display', true);
+    if (get_option('amfm_elementor_widgets_amfm_staff_grid') === false) add_option('amfm_elementor_widgets_amfm_staff_grid', true);
     if (get_option('amfm_components_acf_helper') === false) add_option('amfm_components_acf_helper', true);
     if (get_option('amfm_components_import_export') === false) add_option('amfm_components_import_export', true);
     if (get_option('amfm_components_optimization') === false) add_option('amfm_components_optimization', true);
@@ -49,7 +61,19 @@ add_action('plugins_loaded', function() {
     $framework->set('shortcodes.dkv', (bool) get_option('amfm_shortcodes_dkv', true));
     $framework->set('shortcodes.limit_words', (bool) get_option('amfm_shortcodes_limit_words', true));
     $framework->set('shortcodes.text_util', (bool) get_option('amfm_shortcodes_text_util', true));
+    $framework->set('shortcodes.amfm_info', (bool) get_option('amfm_shortcodes_amfm_info', true));
+    $framework->set('shortcodes.amfm_author_url', (bool) get_option('amfm_shortcodes_amfm_author_url', true));
+    $framework->set('shortcodes.amfm_editor_url', (bool) get_option('amfm_shortcodes_amfm_editor_url', true));
+    $framework->set('shortcodes.amfm_reviewer_url', (bool) get_option('amfm_shortcodes_amfm_reviewer_url', true));
+    $framework->set('shortcodes.amfm_bylines_grid', (bool) get_option('amfm_shortcodes_amfm_bylines_grid', true));
+    $framework->set('shortcodes.amfm_acf', (bool) get_option('amfm_shortcodes_amfm_acf', true));
+    $framework->set('shortcodes.amfm_acf_object', (bool) get_option('amfm_shortcodes_amfm_acf_object', true));
     $framework->set('elementor.widgets.dkv_widget', (bool) get_option('amfm_elementor_widgets_dkv_widget', true));
+    $framework->set('elementor.widgets.amfm_show', (bool) get_option('amfm_elementor_widgets_amfm_show', true));
+    $framework->set('elementor.widgets.amfm_bylines_posts', (bool) get_option('amfm_elementor_widgets_amfm_bylines_posts', true));
+    $framework->set('elementor.widgets.amfm_bylines_featured_images', (bool) get_option('amfm_elementor_widgets_amfm_bylines_featured_images', true));
+    $framework->set('elementor.widgets.amfm_bylines_display', (bool) get_option('amfm_elementor_widgets_amfm_bylines_display', true));
+    $framework->set('elementor.widgets.amfm_staff_grid', (bool) get_option('amfm_elementor_widgets_amfm_staff_grid', true));
     $framework->set('components.acf_helper', (bool) get_option('amfm_components_acf_helper', true));
     $framework->set('components.import_export', (bool) get_option('amfm_components_import_export', true));
     $framework->set('components.optimization', (bool) get_option('amfm_components_optimization', true));
@@ -106,6 +130,7 @@ add_action('plugins_loaded', function() {
     // Initialize Controllers
     // Admin Controllers
     new \App\Controllers\Admin\DashboardController();
+    new \App\Controllers\Admin\BylinesController();
     new \App\Controllers\Admin\ElementorController();
     new \App\Controllers\Admin\ShortcodesController();
     new \App\Controllers\Admin\UtilitiesController();
@@ -119,4 +144,20 @@ add_action('plugins_loaded', function() {
     new \App\Controllers\OptimizationController();
     new \App\Controllers\ShortcodeController();
     new \App\Controllers\ElementorController();
+    new \App\Controllers\PublicBylinesController();
+    
+    // Initialize AMFM Bylines addon if it exists
+    $bylines_addon_path = AMFM_TOOLS_PATH . 'addon/amfm-bylines/amfm-bylines.php';
+    if (file_exists($bylines_addon_path)) {
+        // Define the plugin directory path and URL for amfm-bylines
+        if (!defined('AMFM_BYLINES_PLUGIN_PATH')) {
+            define('AMFM_BYLINES_PLUGIN_PATH', AMFM_TOOLS_PATH . 'addon/amfm-bylines/');
+        }
+        if (!defined('AMFM_BYLINES_PLUGIN_URL')) {
+            define('AMFM_BYLINES_PLUGIN_URL', AMFM_TOOLS_URL . 'addon/amfm-bylines/');
+        }
+        
+        // Load the amfm-bylines plugin
+        require_once $bylines_addon_path;
+    }
 });

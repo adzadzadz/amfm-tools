@@ -288,3 +288,305 @@ input:checked + .amfm-toggle-slider:before {
 .amfm-toggle-switch input:focus + .amfm-toggle-slider {
     box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
 }
+
+/* Custom 5-column layout for staff blurbs */
+@media (min-width: 1200px) {
+    .col-xl-fifths {
+        flex: 0 0 20%;
+        max-width: 20%;
+    }
+}
+
+/* Simple bylines staff blurb styling */
+.bylines-staff-blurb {
+    display: flex !important;
+    align-items: center;
+    flex-direction: row;
+    padding: 12px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    cursor: pointer;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease, height 0.2s ease;
+    width: 100%;
+    height: 72px;
+    overflow: hidden;
+}
+
+/* Disable transitions during drag */
+.ui-sortable-helper {
+    position: fixed !important;
+    z-index: 1000 !important;
+}
+
+.ui-sortable-helper .bylines-staff-blurb {
+    transition: none !important;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2) !important;
+    position: static !important;
+    width: 100% !important;
+}
+
+/* Ensure placeholder doesn't break layout */
+.staff-item.sortable-placeholder {
+    position: relative !important;
+    float: none !important;
+    display: block !important;
+}
+
+.bylines-staff-blurb:hover {
+    border-color: #0d6efd;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    height: auto;
+    min-height: 72px;
+    z-index: 100;
+    position: relative;
+    background: white;
+}
+
+/* Image styling */
+.bylines-blurb-image {
+    flex: 0 0 48px;
+    margin-right: 12px;
+    width: 48px;
+    height: 48px;
+}
+
+.bylines-image-thumb {
+    width: 48px;
+    height: 48px;
+    background-color: #f5f5f5;
+    background-position: center;
+    background-size: cover;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    display: block;
+}
+
+.bylines-staff-image {
+    transition: background-image 0.3s ease;
+}
+
+/* Image Error Fallback */
+.bylines-image-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f8f9fa !important;
+}
+
+.bylines-image-error::before {
+    content: "\f007";
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900;
+    font-size: 1.2rem;
+    color: #6c757d;
+}
+
+/* Placeholder image */
+.bylines-placeholder-image {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f5f5f5;
+    color: #999;
+    width: 48px;
+    height: 48px;
+}
+
+/* Content styling */
+.bylines-blurb-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.bylines-name {
+    margin: 0 0 4px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bylines-role {
+    margin: 0;
+    font-size: 12px;
+    color: #666;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Show full text on hover */
+.bylines-staff-blurb:hover .bylines-name,
+.bylines-staff-blurb:hover .bylines-role {
+    white-space: normal;
+    overflow: visible;
+}
+
+/* Drag handle */
+.bylines-drag-handle {
+    color: #999;
+    font-size: 14px;
+    margin-left: auto;
+    padding-left: 12px;
+    opacity: 0.7;
+    flex-shrink: 0;
+}
+
+.bylines-staff-blurb:hover .bylines-drag-handle {
+    opacity: 1;
+}
+
+
+/* Staff Grid and Sortable Functionality */
+.staff-item {
+    cursor: move;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+/* Disable transitions during drag for better performance */
+.is-dragging .staff-item,
+.is-dragging .staff-item * {
+    transition: none !important;
+    animation: none !important;
+}
+
+/* Hide original item when dragging */
+.staff-item.ui-sortable-helper {
+    opacity: 0.4 !important;
+}
+
+/* Sortable helper styling */
+.sortable-helper {
+    z-index: 9999 !important;
+    position: fixed !important;
+    pointer-events: none !important;
+    transform: rotate(2deg) scale(1.02);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
+}
+
+.sortable-helper .bylines-staff-blurb {
+    transition: none !important;
+    border: 2px solid #0d6efd !important;
+    background: white !important;
+}
+
+
+/* Sortable Placeholder - Properly styled */
+.sortable-placeholder {
+    border: 2px dashed #0d6efd !important;
+    border-radius: 8px !important;
+    background: rgba(13, 110, 253, 0.05) !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    margin-bottom: 1rem !important;
+    padding: 0.5rem !important;
+}
+
+.sortable-placeholder::before {
+    content: "Drop here";
+    color: #0d6efd;
+    font-weight: 600;
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+
+/* Sortable Dragging Styles */
+.staff-grid .ui-sortable-helper {
+    z-index: 1000;
+    transform: rotate(1deg);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15) !important;
+}
+
+.staff-grid .ui-sortable-helper .bylines-staff-blurb {
+    border-color: rgba(13, 110, 253, 0.6) !important;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2) !important;
+    background-color: #fff !important;
+}
+
+.staff-grid .ui-sortable-placeholder {
+    visibility: visible !important;
+}
+
+/* Responsive Adjustments for Bylines Blurbs */
+@media (max-width: 992px) {
+    .bylines-name {
+        font-size: 0.8rem;
+    }
+    
+    .bylines-role {
+        font-size: 0.7rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .bylines-staff-blurb {
+        min-height: 56px;
+        padding: 6px;
+    }
+    
+    .bylines-blurb-image {
+        flex: 0 0 40px;
+        margin-right: 10px;
+    }
+    
+    .bylines-image-thumb {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .bylines-name {
+        font-size: 0.8rem;
+    }
+    
+    .bylines-role {
+        font-size: 0.7rem;
+    }
+    
+    .sortable-placeholder {
+        height: 68px !important;
+    }
+}
+
+@media (max-width: 576px) {
+    .bylines-staff-blurb {
+        min-height: 50px;
+        padding: 4px;
+    }
+    
+    .bylines-blurb-image {
+        flex: 0 0 36px;
+        margin-right: 8px;
+    }
+    
+    .bylines-image-thumb {
+        width: 36px;
+        height: 36px;
+    }
+    
+    .bylines-name {
+        font-size: 0.75rem;
+    }
+    
+    .bylines-role {
+        font-size: 0.65rem;
+    }
+    
+    .bylines-drag-handle {
+        font-size: 0.7rem;
+        padding: 2px;
+    }
+    
+    .sortable-placeholder {
+        height: 62px !important;
+    }
+}

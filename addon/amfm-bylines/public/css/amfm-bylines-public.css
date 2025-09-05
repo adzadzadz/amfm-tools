@@ -1,0 +1,100 @@
+/**
+ * All of the CSS for your public-facing functionality should be
+ * included in this file.
+ */
+
+#amfm-byline-wrapper {
+   /* display: none; */
+}
+
+.amfm-hidden {
+   display: none !important;
+}
+
+/* Simple pagination styles - no borders, minimal space usage */
+.amfm-pagination {
+   margin-top: 20px;
+   text-align: center;
+}
+
+.amfm-pagination a, 
+.amfm-pagination span {
+   display: inline-block;
+   margin: 0 3px;
+   padding: 4px 8px;
+   color: #0073aa;
+   text-decoration: none;
+   font-size: 14px;
+}
+
+.amfm-pagination a:hover {
+   text-decoration: underline;
+   color: #005a87;
+}
+
+.amfm-pagination .current {
+   color: #111;
+   font-weight: bold;
+}
+
+.amfm-pagination .prev,
+.amfm-pagination .next {
+   margin: 0 8px;
+}
+
+.amfm-related-posts .amfm-related-post-item {
+   margin-bottom: 15px;
+}
+
+.amfm-related-post-title {
+   font-size: 18px; 
+   font-weight: bold;
+}
+
+.amfm-related-post-link {
+   font-size: 14px; 
+   font-weight: bold;
+}
+
+.amfm-related-posts .amfm-read-more {
+   color: #0073aa;
+   text-decoration: underline;
+   font-weight: bold;
+}
+
+/* AMFM STAFF ELEMENTOR MODULE */
+.amfm-staff-grid {
+   text-align: center;
+}
+.amfm-staff-item {
+   margin-left: auto;
+   margin-right: auto;
+}
+.amfm-staff-image {
+   text-align: center;
+}
+
+@media (max-width: 1024px) {
+
+   /* commons */
+   /* .amfm-border-left {
+      left: -3% !important;
+   } */
+}
+
+@media (max-width: 768px) {
+
+   /* commons */
+   /* .amfm-border-left {
+      display: none;
+   }
+
+   .amfm-byline-col {
+      width: 100%;
+   }
+
+   .amfm-byline-col>.elementor-widget-wrap {
+      border-left: none !important;
+      border-right: none !important;
+   } */
+}

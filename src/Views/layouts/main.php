@@ -37,7 +37,11 @@ $active_tab = $active_tab ?? 'dashboard';
                     <div class="col-md-8">
                         <div class="d-flex align-items-center">
                             <div class="me-3">
-                                <i class="fas fa-tools text-primary fs-4"></i>
+                                <?php if (isset($header_icon) && !empty($header_icon)): ?>
+                                    <i class="<?php echo esc_attr($header_icon); ?> text-primary fs-4"></i>
+                                <?php else: ?>
+                                    <i class="fas fa-tools text-primary fs-4"></i>
+                                <?php endif; ?>
                             </div>
                             <div>
                                 <h1 class="h4 mb-0 text-dark fw-bold"><?php echo esc_html(isset($title) && !empty($title) ? $title : $plugin_name); ?></h1>
@@ -48,21 +52,25 @@ $active_tab = $active_tab ?? 'dashboard';
                         </div>
                     </div>
                     <div class="col-md-4 text-md-end">
-                        <div class="d-flex align-items-center justify-content-md-end justify-content-start gap-2">
-                            <span class="badge bg-primary bg-opacity-10 text-primary px-2 py-1 small">
-                                v<?php echo esc_html(AMFM_TOOLS_VERSION); ?>
-                            </span>
-                            <span class="badge bg-success bg-opacity-10 text-success px-2 py-1 small">
-                                <i class="fas fa-check-circle me-1"></i>
-                                Active
-                            </span>
-                            <?php if (function_exists('acf_get_field_groups')): ?>
-                            <span class="badge bg-info bg-opacity-10 text-info px-2 py-1 small">
-                                <i class="fas fa-puzzle-piece me-1"></i>
-                                ACF
-                            </span>
-                            <?php endif; ?>
-                        </div>
+                        <?php if (isset($header_right) && !empty($header_right)): ?>
+                            <?php echo $header_right; ?>
+                        <?php else: ?>
+                            <div class="d-flex align-items-center justify-content-md-end justify-content-start gap-2">
+                                <span class="badge bg-primary bg-opacity-10 text-primary px-2 py-1 small">
+                                    v<?php echo esc_html(AMFM_TOOLS_VERSION); ?>
+                                </span>
+                                <span class="badge bg-success bg-opacity-10 text-success px-2 py-1 small">
+                                    <i class="fas fa-check-circle me-1"></i>
+                                    Active
+                                </span>
+                                <?php if (function_exists('acf_get_field_groups')): ?>
+                                <span class="badge bg-info bg-opacity-10 text-info px-2 py-1 small">
+                                    <i class="fas fa-puzzle-piece me-1"></i>
+                                    ACF
+                                </span>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>

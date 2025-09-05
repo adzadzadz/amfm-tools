@@ -108,7 +108,9 @@ class ElementorController extends Controller
         }
         
         // Get enabled widgets from settings
-        $enabled_widgets = \get_option('amfm_elementor_enabled_widgets', ['amfm_related_posts']);
+        $enabled_widgets = \get_option('amfm_elementor_enabled_widgets', [
+            'amfm_related_posts'
+        ]);
         
         // Widget registry
         $available_widgets = [

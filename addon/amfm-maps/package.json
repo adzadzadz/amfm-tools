@@ -1,0 +1,19 @@
+{
+  "name": "amfm-maps",
+  "version": "1.0.0",
+  "description": "Build tools for AMFM Maps WordPress plugin",
+  "scripts": {
+    "build": "node build.js",
+    "minify": "node build.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.8"
+  },
+  "keywords": [
+    "wordpress",
+    "elementor",
+    "maps"
+  ],
+  "author": "AMFM Maps",
+  "license": "GPL-2.0"
+}

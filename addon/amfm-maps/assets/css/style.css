@@ -1,0 +1,918 @@
+.elementor-button-wrapper:has(.amfm-map-filter-item) {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    margin-bottom: 5px !important;
+}
+
+/* Cols */
+.elementor-button-wrapper:has(.amfm-col-2) {
+    width: 50%;
+}
+
+.elementor-button-wrapper:has(.amfm-col-3) {
+    width: 33.333%;
+}
+
+.amfm_maps_filter_multiple_buttons.active a {
+    background-color: #cc8f2c !important;
+    /* color: #fff; */
+}
+
+/* Enhanced Drawer Styles */
+.amfm-drawer-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 98;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.amfm-drawer-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.amfm-drawer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: fit-content !important;
+    background: white;
+    z-index: 99;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+    box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+
+.amfm-drawer.open {
+    transform: translateY(0) !important;
+}
+
+.amfm-drawer-content {
+    max-height: calc(70vh - 40px);
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Photo Slider Styles */
+.amfm-maps-photo-slider {
+    margin-bottom: 15px;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.amfm-maps-photo-slider .owl-stage-outer {
+    border-radius: 12px;
+}
+
+.amfm-maps-photo-slide img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+}
+
+.amfm-maps-single-photo {
+    width: 100%;
+    overflow: hidden;
+}
+
+.amfm-maps-single-photo img {
+    /* width: 100%; */
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Owl Carousel Navigation */
+.amfm-maps-photo-slider .owl-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 10px;
+    pointer-events: none;
+}
+
+.amfm-maps-photo-slider .owl-nav button {
+    background: rgba(0, 0, 0, 0.5) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 50% !important;
+    width: 40px !important;
+    height: 40px !important;
+    font-size: 18px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    pointer-events: all;
+    transition: background 0.3s ease;
+}
+
+.amfm-maps-photo-slider .owl-nav button:hover {
+    background: rgba(0, 0, 0, 0.7) !important;
+}
+
+.amfm-maps-photo-slider .owl-dots {
+    text-align: center;
+    padding: 10px 0;
+    position: absolute;
+    bottom: 10px;
+    width: 100%;
+}
+
+.amfm-maps-photo-slider .owl-dots .owl-dot {
+    display: inline-block;
+    margin: 0 5px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    transition: background 0.3s ease;
+}
+
+.amfm-maps-photo-slider .owl-dots .owl-dot.active {
+    background: white;
+}
+
+/* Loading Spinner Animation */
+.amfm-loading-spinner div {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Info Content Styles */
+.amfm-map-info-content {
+    display: flex;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.amfm-maps-drawer-left {
+    display: flex;
+    width: 30%
+}
+
+.amfm-maps-drawer-right {
+    display: flex;
+    flex-wrap: wrap;
+    width: 70%;
+}
+
+.amfm-drawer-action {
+    display: block;
+    background-color: #03B292;
+    color: #fff !important;
+    transition: background-color 0.3s ease, transform 0.2s ease !important;
+    padding: 10px 15px;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: bold;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    width: 130px;
+}
+
+.amfm-drawer-action:hover {
+    background-color: #026b5a !important;
+    transform: translateY(-1px);
+}
+
+@media (min-width: 769px) {
+    .gm-style-iw.gm-style-iw-c {
+        max-height: none !important;
+        max-width: 400px !important;
+        padding: 0 0 0 0 !important;
+    }
+
+    .gm-style-iw-chr {
+        position: absolute !important;
+        top: 0 !important;
+        z-index: 99 !important;
+        right: 0 !important;
+    }
+
+    .gm-style-iw-d {
+        max-height: none !important;
+        overflow: visible !important;
+    }
+
+    /* Desktop popup photo slider */
+    .gm-style-iw .amfm-maps-photo-slider {
+        position: relative;
+    }
+
+    .gm-style-iw .amfm-maps-photo-slide img {
+        height: 180px;
+    }
+}
+
+/* Photos */
+.amfm-maps-photo-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.amfm-maps-photo-item {
+    flex: 1 1 calc(33.333% - 10px);
+    box-sizing: border-box;
+}
+
+.amfm-maps-photo-item img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Photo Slider */
+.amfm-maps-photo-slider {
+    position: relative;
+    width: 100%;
+    /* max-width: 200px; */
+    /* Match the max width of the dialog box */
+    margin: 0 auto 15px;
+    /* Center the slider and add bottom margin */
+    overflow: hidden;
+    touch-action: pan-y;
+    /* Prevent vertical scrolling interference */
+}
+
+.amfm-maps-photo-slide {
+    position: relative;
+    /* Change from absolute to relative for Owl Carousel */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    /* Ensure slides take the full height of the slider */
+    display: block;
+    /* Ensure slides are displayed */
+    transition: transform 0.5s ease-in-out;
+}
+
+.amfm-maps-photo-slide img {
+    width: 100%;
+    height: auto;
+    /* Remove height limitation */
+    object-fit: cover;
+    /* Ensure the image scales properly without distortion */
+    display: block;
+}
+
+.amfm-maps-photo-slider .owl-nav {
+    position: absolute;
+    top: 50%;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    transform: translateY(-50%);
+}
+
+.amfm-maps-photo-slider .owl-nav button {
+    background: rgba(0, 0, 0, 0.5);
+    color: rgba(255, 255, 255, 0.8) !important;
+    /* Change nav button color to white */
+    border: none;
+    padding: 5px 10px;
+    margin-left: 5px;
+    margin-right: 5px;
+    cursor: pointer;
+    font-size: 26px !important;
+}
+
+/* Adjust dots position */
+.amfm-maps-photo-slider .owl-dots {
+    position: absolute;
+    /* Position dots inside the image */
+    bottom: 5px;
+    /* Add 5px margin before the edge */
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    width: 100%;
+    margin: 0;
+    /* Remove margin to keep dots inside */
+}
+
+.amfm-maps-photo-slider .owl-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin: 0 5px;
+    background: #ccc !important;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.amfm-maps-photo-slider .owl-dot.active {
+    background: #fff !important;
+}
+
+.amfm-maps-drawer-actions {
+    /* center vertically the contents of this class */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 30%;
+    gap: 8px;
+    padding-right: 10px;
+}
+
+.amfm-maps-info-wrapper {
+    width: 70%;
+    padding: 15px 25px !important;
+    font-family: Arial, Helvetica, sans-serif;
+    padding: 16px 16px 24px;
+}
+
+.amfm-maps-info-wrapper .phone-number-wrapper {
+    display: inline;
+    margin-right: 5px;
+}
+
+.amfm-maps-info-wrapper .website-button-wrapper {
+    margin-top: 10px;
+    /* display: inline; */
+}
+
+/* Loading spinner styles */
+.amfm-loading-spinner {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100px;
+    width: 100%;
+}
+
+.amfm-loading-spinner::after {
+    content: '';
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(0, 45, 107, 0.5);
+    border-top-color: rgb(0, 45, 107);
+    border-radius: 50%;
+    animation: amfm-spinner 1s linear infinite;
+}
+
+@keyframes amfm-spinner {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* AMFM Map Widget Styles */
+.amfm-map-container {
+    width: 100%;
+    font-family: inherit;
+}
+
+.amfm-map-title {
+    margin-bottom: 20px;
+}
+
+.amfm-map-title h3 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+    color: #333;
+}
+
+.amfm-map-content {
+    display: flex;
+    gap: 20px;
+    height: 100%;
+}
+
+.amfm-filter-panel {
+    background: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.amfm-filter-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.amfm-filter-header h4 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+}
+
+.amfm-clear-filters {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.amfm-clear-filters:hover {
+    background: #c82333;
+}
+
+.amfm-filter-group {
+    margin-bottom: 25px;
+}
+
+.amfm-filter-group h5 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.amfm-filter-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.amfm-filter-options.amfm-scrollable {
+    max-height: 200px;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+.amfm-filter-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 4px 0;
+    font-size: 14px;
+    color: #666;
+    transition: color 0.3s;
+}
+
+.amfm-filter-option:hover {
+    color: #333;
+}
+
+.amfm-filter-option input[type="checkbox"] {
+    margin: 0;
+    accent-color: #007cba;
+}
+
+.amfm-filter-option span {
+    flex: 1;
+    line-height: 1.4;
+}
+
+.amfm-map-panel {
+    position: relative;
+    background: white;
+    border: 1px solid #e0e0e0;
+    overflow: hidden;
+}
+
+.amfm-map-wrapper {
+    width: 100%;
+    height: calc(100% - 50px);
+    min-height: 400px;
+    background: #f0f0f0;
+    position: relative;
+}
+
+.amfm-map-wrapper>div {
+    /* width: 100% !important; */
+    /* height: 100% !important; */
+}
+
+.amfm-results-counter {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 12px 20px;
+    border-top: 1px solid #e0e0e0;
+    font-size: 14px;
+    color: #666;
+    text-align: center;
+}
+
+/* Loading state */
+.amfm-map-container.loading .amfm-map-wrapper {
+    position: relative;
+}
+
+.amfm-map-container.loading .amfm-map-wrapper::before {
+    content: "Loading map...";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 4px;
+    font-size: 16px;
+    color: #666;
+}
+
+/* Filter badges for active filters */
+.amfm-active-filters {
+    margin-bottom: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.amfm-filter-badge {
+    background: #007cba;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.amfm-filter-badge .remove {
+    cursor: pointer;
+    font-weight: bold;
+    margin-left: 4px;
+}
+
+.amfm-filter-badge .remove:hover {
+    color: #ffcccc;
+}
+
+/* Custom scrollbar for filter options */
+.amfm-filter-options.amfm-scrollable::-webkit-scrollbar {
+    width: 6px;
+}
+
+.amfm-filter-options.amfm-scrollable::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.amfm-filter-options.amfm-scrollable::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.amfm-filter-options.amfm-scrollable::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Button Filter Layout Styles */
+.amfm-layout-buttons .amfm-button-layout-content {
+    display: flex;
+    gap: 20px;
+    min-height: 500px;
+}
+
+.amfm-layout-buttons .amfm-filter-buttons-container {
+    width: 35%;
+    background: none;
+    border: none;
+    /* padding: 20px; */
+    overflow-y: auto;
+    max-height: 600px;
+}
+
+.amfm-layout-buttons .amfm-map-panel {
+    width: 65%;
+    background: white;
+    border: 1px solid #e0e0e0;
+    overflow: hidden;
+}
+
+.amfm-filter-buttons-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.amfm-filter-label {
+    font-weight: 600;
+    font-size: 16px;
+    color: #333;
+}
+
+.amfm-filter-buttons-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* Filter group layout for button layout */
+.amfm-layout-buttons .amfm-filter-group-buttons {
+    display: block;
+    margin-bottom: 20px;
+}
+
+.amfm-layout-buttons .amfm-filter-group-title {
+    display: block;
+    font-weight: 600;
+    font-size: 14px;
+    color: #555;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+}
+
+.amfm-layout-buttons .amfm-filter-button {
+    display: inline-block;
+    margin: 3px 5px 3px 0;
+    padding: 6px 12px;
+    background: #ffffff;
+    border: 1px solid #dee2e6;
+    color: #495057;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 12px;
+    text-decoration: none;
+    user-select: none;
+}
+
+.amfm-layout-buttons .amfm-filter-button:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.amfm-layout-buttons .amfm-filter-button.active {
+    background: #007bff;
+    border-color: #007bff;
+    color: white;
+}
+
+.amfm-layout-buttons .amfm-clear-filters {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.3s ease;
+}
+
+.amfm-layout-buttons .amfm-clear-filters:hover {
+    background: #c82333;
+    transform: translateY(-1px);
+}
+
+/* Responsive button layout */
+/* Mobile responsive styles for button layout */
+@media (max-width: 768px) {
+    .amfm-layout-buttons .amfm-button-layout-content {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .amfm-layout-buttons .amfm-filter-buttons-container {
+        width: 100%;
+        max-height: 300px;
+        order: 2;
+    }
+
+    .amfm-layout-buttons .amfm-map-panel {
+        width: 100%;
+        order: 1;
+        min-height: 400px;
+    }
+
+    .amfm-layout-buttons .amfm-filter-group-title {
+        margin-bottom: 8px;
+    }
+
+    /* Prevent filter buttons from becoming full width on mobile */
+    .amfm-layout-buttons .amfm-filter-button {
+        width: auto !important;
+        min-width: 80px;
+        display: inline-block !important;
+        justify-content: center !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .amfm-layout-buttons .amfm-filter-button {
+        padding: 6px 12px;
+        font-size: 12px;
+        margin: 2px 3px 2px 0;
+    }
+
+    .amfm-layout-buttons .amfm-filter-buttons-wrapper {
+        gap: 15px;
+    }
+
+    .amfm-filter-buttons-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+}
+
+/* General responsive styles */
+@media (max-width: 768px) {
+    .amfm-map-content {
+        flex-direction: column;
+    }
+
+    .amfm-filter-panel,
+    .amfm-map-panel {
+        width: 100% !important;
+    }
+
+    /* Standalone widget responsive styles */
+    .amfm-filter-container.amfm-filter-only.amfm-layout-buttons .amfm-filter-buttons-container {
+        padding: 15px;
+    }
+
+    .amfm-filter-container.amfm-filter-only .amfm-filter-buttons-wrapper {
+        gap: 10px;
+    }
+
+    .amfm-filter-container.amfm-filter-only .amfm-filter-group-buttons {
+        margin-bottom: 15px;
+    }
+
+    .amfm-map-container.amfm-map-only .amfm-map-title h3 {
+        font-size: 20px;
+    }
+
+    .amfm-filter-container.amfm-filter-only .amfm-filter-title h3 {
+        font-size: 18px;
+    }
+}
+
+@media (max-width: 480px) {
+    .amfm-map-content {
+        gap: 15px;
+    }
+
+    .amfm-filter-panel {
+        padding: 15px;
+    }
+
+    .amfm-filter-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .amfm-clear-filters {
+        align-self: flex-end;
+    }
+}
+
+/* Tablet responsive styles */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .amfm-layout-buttons .amfm-filter-buttons-container {
+        width: 40%;
+    }
+
+    .amfm-layout-buttons .amfm-map-panel {
+        width: 60%;
+    }
+
+    .amfm-layout-buttons .amfm-filter-button {
+        font-size: 11px;
+        padding: 5px 10px;
+    }
+}
+
+/* Desktop styles - maintain 35/65 split */
+@media (min-width: 1025px) {
+    .amfm-layout-buttons .amfm-filter-buttons-container {
+        width: 35%;
+    }
+
+    .amfm-layout-buttons .amfm-map-panel {
+        width: 65%;
+    }
+}
+
+/* Standalone Widget Layouts */
+.amfm-map-container.amfm-map-only {
+    width: 100%;
+}
+
+.amfm-map-container.amfm-map-only .amfm-map-wrapper {
+    width: 100%;
+    border: 1px solid #e0e0e0;
+    overflow: hidden;
+    background: white;
+}
+
+.amfm-filter-container.amfm-filter-only {
+    width: 100%;
+    overflow-y: auto;
+}
+
+.amfm-filter-container.amfm-filter-only.amfm-layout-buttons .amfm-filter-buttons-container {
+    width: 100%;
+    background: none;
+    border: none;
+    /* padding: 20px; */
+    max-height: none;
+}
+
+.amfm-filter-container.amfm-filter-only.amfm-layout-sidebar .amfm-filter-panel {
+    width: 100%;
+    background: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    padding: 20px;
+}
+
+.amfm-filter-container.amfm-filter-only .amfm-filter-title {
+    margin-bottom: 20px;
+}
+
+.amfm-filter-container.amfm-filter-only .amfm-filter-title h3 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+}
+
+
+/* Map Drawer Info */
+.amfm-map-drawer-info-name {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.amfm-map-drawer-info-address {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+}
+
+.amfm-map-drawer-info-address .fa-map-marker-alt {
+    margin-right: 5px;
+}
+
+.amfm-map-drawer-info-rating {
+    font-size: 14px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+}
+
+.amfm-map-drawer-info-rating span:first-child {
+    color: #333;
+    margin-right: 5px;
+}
+
+.amfm-map-drawer-info-rating span:last-child {
+    color: #ffc107;
+}
+
+/* media query for mobile */
+@media (max-width: 768px) {
+    .amfm-maps-drawer-actions {
+        width: 100%;
+        flex: 1 1 100%;
+        flex-direction: row;
+    }
+
+    .amfm-maps-info-wrapper {
+        width: 100%;
+    }
+}

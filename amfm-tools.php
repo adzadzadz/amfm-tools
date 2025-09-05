@@ -145,4 +145,19 @@ add_action('plugins_loaded', function() {
     new \App\Controllers\ShortcodeController();
     new \App\Controllers\ElementorController();
     new \App\Controllers\PublicBylinesController();
+    
+    // Initialize AMFM Bylines addon if it exists
+    $bylines_addon_path = AMFM_TOOLS_PATH . 'addon/amfm-bylines/amfm-bylines.php';
+    if (file_exists($bylines_addon_path)) {
+        // Define the plugin directory path and URL for amfm-bylines
+        if (!defined('AMFM_BYLINES_PLUGIN_PATH')) {
+            define('AMFM_BYLINES_PLUGIN_PATH', AMFM_TOOLS_PATH . 'addon/amfm-bylines/');
+        }
+        if (!defined('AMFM_BYLINES_PLUGIN_URL')) {
+            define('AMFM_BYLINES_PLUGIN_URL', AMFM_TOOLS_URL . 'addon/amfm-bylines/');
+        }
+        
+        // Load the amfm-bylines plugin
+        require_once $bylines_addon_path;
+    }
 });

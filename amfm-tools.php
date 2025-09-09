@@ -144,7 +144,7 @@ add_action('plugins_loaded', function() {
     new \App\Controllers\OptimizationController();
     new \App\Controllers\ShortcodeController();
     new \App\Controllers\ElementorController();
-    new \App\Controllers\PublicBylinesController();
+    // new \App\Controllers\PublicBylinesController();
     
     // Initialize AMFM Bylines addon if it exists
     $bylines_addon_path = AMFM_TOOLS_PATH . 'addon/amfm-bylines/amfm-bylines.php';

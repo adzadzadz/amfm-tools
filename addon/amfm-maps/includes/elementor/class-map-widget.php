@@ -527,9 +527,10 @@ class MapWidget extends Widget_Base
             $json_data = json_decode($settings['custom_json_data'], true) ?: [];
         }
         
-        // Apply location selector filtering if configured
+        // Apply location and region selector filtering if configured
         $filter_config = \Amfm_Maps_Admin::get_filter_config();
         $json_data = $this->apply_location_selector_filter($json_data, $settings, $filter_config);
+        $json_data = $this->apply_region_selector_filter($json_data, $settings, $filter_config);
         
         ?>
         <div class="amfm-map-container amfm-map-only" 
@@ -689,5 +690,33 @@ class MapWidget extends Widget_Base
         
         // No location selector configuration found
         return false;
+    }
+
+    /**
+     * Apply region selector filtering from filter widget configuration
+     *
+     * @param array $json_data The facility data
+     * @param array $settings Widget settings
+     * @param array $filter_config Global filter configuration
+     * @return array Filtered JSON data
+     */
+    private function apply_region_selector_filter($json_data, $settings, $filter_config)
+    {
+        // Check for region selector configuration from filter widgets
+        $selected_regions = get_transient('amfm_default_regions_' . get_the_ID());
+        
+        if (!$selected_regions || empty($selected_regions)) {
+            return $json_data; // No region selector configured
+        }
+        
+        // Filter the JSON data to only include selected regions
+        $filtered_data = [];
+        foreach ($json_data as $location) {
+            if (!empty($location['Region']) && in_array($location['Region'], $selected_regions)) {
+                $filtered_data[] = $location;
+            }
+        }
+        
+        return $filtered_data;
     }
 }

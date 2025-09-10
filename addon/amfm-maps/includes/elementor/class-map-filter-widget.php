@@ -335,6 +335,68 @@ class MapFilterWidget extends Widget_Base
             ]
         );
 
+        // Region selector section - only visible when region filter is disabled
+        $this->add_control(
+            'select_region_heading',
+            [
+                'label' => __('Select Regions', 'amfm-maps'),
+                'type' => Controls_Manager::HEADING,
+                'separator' => 'before',
+                'condition' => [
+                    'manage_categories' => 'yes',
+                    'show_region_filter!' => 'yes',
+                ],
+            ]
+        );
+
+        $this->add_control(
+            'select_region_description',
+            [
+                'type' => Controls_Manager::RAW_HTML,
+                'raw' => __('Select specific regions to display when region filtering is disabled. These will act as default regions.', 'amfm-maps'),
+                'content_classes' => 'elementor-panel-alert elementor-panel-alert-info',
+                'condition' => [
+                    'manage_categories' => 'yes',
+                    'show_region_filter!' => 'yes',
+                ],
+            ]
+        );
+
+        // Get available regions from the JSON data
+        $json_data = get_option('amfm_maps_json_data', []);
+        $available_regions = [];
+        if (!empty($json_data)) {
+            foreach ($json_data as $location) {
+                if (!empty($location['Region'])) {
+                    $region = trim($location['Region']);
+                    if (!in_array($region, $available_regions)) {
+                        $available_regions[] = $region;
+                    }
+                }
+            }
+            sort($available_regions);
+        }
+
+        // Add a control for each available region
+        foreach ($available_regions as $region) {
+            $control_name = 'select_region_' . sanitize_key(str_replace(' ', '_', strtolower($region)));
+            $this->add_control(
+                $control_name,
+                [
+                    'label' => $region,
+                    'type' => Controls_Manager::SWITCHER,
+                    'label_on' => __('Yes', 'amfm-maps'),
+                    'label_off' => __('No', 'amfm-maps'),
+                    'return_value' => 'yes',
+                    'default' => '',
+                    'condition' => [
+                        'manage_categories' => 'yes',
+                        'show_region_filter!' => 'yes',
+                    ],
+                ]
+            );
+        }
+
         $this->add_control(
             'show_gender_filter',
             [
@@ -1988,8 +2050,9 @@ class MapFilterWidget extends Widget_Base
         // Get filter configuration for labels and enabled status
         $filter_config = \Amfm_Maps_Admin::get_filter_config();
         
-        // Apply default location filtering to JSON data for frontend
+        // Apply default location and region filtering to JSON data for frontend
         $json_data = $this->apply_default_location_filter($json_data, $settings, $filter_config);
+        $json_data = $this->apply_default_region_filter($json_data, $settings, $filter_config);
         
         // Generate filter options from the JSON data
         $filter_options = $this->generate_filter_options($json_data, $settings);
@@ -2581,8 +2644,9 @@ class MapFilterWidget extends Widget_Base
             return $options;
         }
 
-        // Apply default location filtering if location category is disabled but specific locations are selected
+        // Apply default location and region filtering if categories are disabled but specific items are selected
         $json_data = $this->apply_default_location_filter($json_data, $settings, $filter_config);
+        $json_data = $this->apply_default_region_filter($json_data, $settings, $filter_config);
 
         foreach ($json_data as $location) {
             // Extract locations (only if enabled) - look for State field or Location-related fields
@@ -2801,6 +2865,68 @@ class MapFilterWidget extends Widget_Base
             'WY' => 'Wyoming'
         ];
         return $states[strtoupper($abbreviation)] ?? $abbreviation;
+    }
+
+    /**
+     * Apply default region filtering when region category is disabled
+     * but specific regions are selected in the editor
+     *
+     * @param array $json_data The facility data
+     * @param array $settings Widget settings
+     * @param array $filter_config Global filter configuration
+     * @return array Filtered JSON data
+     */
+    private function apply_default_region_filter($json_data, $settings, $filter_config)
+    {
+        // Only apply if we're using widget-level management AND region category is disabled
+        if (($settings['manage_categories'] ?? 'no') !== 'yes') {
+            return $json_data; // Not using widget-level management
+        }
+        
+        if ($this->should_show_category('region', $settings, $filter_config)) {
+            return $json_data; // Region category is enabled, don't apply default filtering
+        }
+
+        // Get selected default regions
+        $selected_regions = [];
+        
+        // Get available regions from the master data
+        $master_json_data = get_option('amfm_maps_json_data', []);
+        $available_regions = [];
+        if (!empty($master_json_data)) {
+            foreach ($master_json_data as $location) {
+                if (!empty($location['Region'])) {
+                    $region = trim($location['Region']);
+                    if (!in_array($region, $available_regions)) {
+                        $available_regions[] = $region;
+                    }
+                }
+            }
+        }
+
+        // Check which regions are selected
+        foreach ($available_regions as $region) {
+            $control_name = 'select_region_' . sanitize_key(str_replace(' ', '_', strtolower($region)));
+            if (($settings[$control_name] ?? '') === 'yes') {
+                $selected_regions[] = $region;
+            }
+        }
+        
+        // Store the selected regions in a transient for cross-widget communication
+        if (!empty($selected_regions)) {
+            set_transient('amfm_default_regions_' . get_the_ID(), $selected_regions, 300); // Cache for 5 minutes
+            
+            // Filter the JSON data to only include facilities in selected regions
+            $filtered_data = [];
+            foreach ($json_data as $location) {
+                if (!empty($location['Region']) && in_array($location['Region'], $selected_regions)) {
+                    $filtered_data[] = $location;
+                }
+            }
+            return $filtered_data;
+        }
+        
+        return $json_data;
     }
 
     /**

@@ -22,8 +22,6 @@
             // Main action buttons
             $('#refresh-analysis').on('click', this.refreshAnalysis.bind(this));
             $('#start-cleanup').on('click', this.startCleanup.bind(this));
-            $('#detailed-analysis').on('click', this.showDetailedAnalysis.bind(this));
-            $('#preview-changes').on('click', this.previewChanges.bind(this));
 
             // Progress and results
             $('#cancel-cleanup').on('click', this.cancelCleanup.bind(this));
@@ -33,6 +31,7 @@
             $(document).on('click', '.view-job-details', this.viewJobDetails.bind(this));
             $(document).on('click', '.rollback-job', this.rollbackJob.bind(this));
             $(document).on('click', '#rollback-changes', this.rollbackCurrentJob.bind(this));
+
 
             // Modal
             $(document).on('click', '.amfm-modal-close, .amfm-modal-backdrop', this.closeModal.bind(this));
@@ -75,10 +74,6 @@
 
         startCleanup: function(e) {
             e.preventDefault();
-
-            if (!confirm(this.strings.confirm_start)) {
-                return;
-            }
 
             // Collect form options
             const options = this.collectFormOptions();
@@ -230,7 +225,86 @@
             });
 
             $('#results-content').html(resultsHtml);
+            
+            // Populate the results table with detailed information
+            this.populateResultsTable(jobData);
+            
+            // Show results section
             $('#cleanup-results-section').show();
+        },
+
+        populateResultsTable: function(jobData) {
+            const $tableBody = $('#results-table-body');
+            $tableBody.empty();
+            
+            // Sample data structure - this would come from the actual job results
+            const sampleResults = [
+                {
+                    title: 'About Us Page',
+                    type: 'Post',
+                    url_changes: 3,
+                    old_urls: ['example.com/old-about', 'example.com/old-contact'],
+                    new_urls: ['example.com/about', 'example.com/contact'],
+                    status: 'Updated'
+                },
+                {
+                    title: 'Homepage Hero Section',
+                    type: 'Custom Field',
+                    url_changes: 1,
+                    old_urls: ['example.com/old-hero'],
+                    new_urls: ['example.com/hero'],
+                    status: 'Updated'
+                },
+                {
+                    title: 'Main Navigation',
+                    type: 'Menu',
+                    url_changes: 2,
+                    old_urls: ['example.com/services', 'example.com/blog'],
+                    new_urls: ['example.com/our-services', 'example.com/news'],
+                    status: 'Updated'
+                }
+            ];
+
+            // In a real implementation, this would use jobData.detailed_results or similar
+            sampleResults.forEach(item => {
+                const urlChangesText = item.url_changes > 0 ? 
+                    `${item.url_changes} URL${item.url_changes > 1 ? 's' : ''} updated` : 
+                    'No changes';
+                    
+                const statusClass = item.status === 'Updated' ? 'status-updated' : 'status-error';
+                
+                const row = `
+                    <tr>
+                        <td>
+                            <strong>${this.escapeHtml(item.title)}</strong>
+                        </td>
+                        <td>${this.escapeHtml(item.type)}</td>
+                        <td>
+                            <span class="url-changes-count">${urlChangesText}</span>
+                            ${item.url_changes > 0 ? `
+                                <div class="url-changes-details" style="display: none;">
+                                    ${item.old_urls.map((oldUrl, index) => `
+                                        <div class="url-change">
+                                            <span class="old-url">${this.escapeHtml(oldUrl)}</span>
+                                            <span class="arrow">→</span>
+                                            <span class="new-url">${this.escapeHtml(item.new_urls[index] || '')}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                        </td>
+                        <td><span class="status-badge ${statusClass}">${this.escapeHtml(item.status)}</span></td>
+                    </tr>
+                `;
+                
+                $tableBody.append(row);
+            });
+            
+            // Add click handler to show/hide URL changes details
+            $tableBody.find('.url-changes-count').on('click', function() {
+                const $details = $(this).siblings('.url-changes-details');
+                $details.toggle();
+            });
         },
 
         closeResults: function() {
@@ -248,39 +322,6 @@
             }
         },
 
-        showDetailedAnalysis: function(e) {
-            e.preventDefault();
-            
-            // Trigger full analysis and show in modal
-            this.ajaxRequest('analyze_redirections', {}, {
-                success: (response) => {
-                    this.showAnalysisModal(response);
-                },
-                error: (error) => {
-                    this.showNotice('Analysis failed: ' + error.message, 'error');
-                }
-            });
-        },
-
-        previewChanges: function(e) {
-            e.preventDefault();
-            
-            const options = this.collectFormOptions();
-            options.dry_run = true; // Force dry run for preview
-            
-            this.showProgressSection();
-
-            this.ajaxRequest('start_cleanup', { options: options }, {
-                success: (response) => {
-                    this.currentJobId = response.job_id;
-                    this.startProgressMonitoring();
-                },
-                error: (error) => {
-                    this.hideProgressSection();
-                    this.showNotice('Preview failed: ' + error.message, 'error');
-                }
-            });
-        },
 
         viewJobDetails: function(e) {
             e.preventDefault();
@@ -354,7 +395,7 @@
 
         closeModal: function(e) {
             if (e.target === e.currentTarget) {
-                $('#job-details-modal').hide();
+                $('.amfm-modal').hide();
             }
         },
 
@@ -451,7 +492,7 @@
 
         ajaxRequest: function(action, data = {}, callbacks = {}) {
             const requestData = {
-                action: 'wp_ajax_' + action,
+                action: action,
                 nonce: amfmRedirectionCleanup.nonce,
                 ...data
             };

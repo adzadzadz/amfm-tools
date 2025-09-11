@@ -49,7 +49,7 @@ class RedirectionCleanupController extends Controller
 
         wp_enqueue_script(
             'amfm-redirection-cleanup',
-            AMFM_TOOLS_URL . 'dist/js/redirection-cleanup.js',
+            AMFM_TOOLS_URL . 'assets/js/redirection-cleanup.js',
             ['jquery'],
             AMFM_TOOLS_VERSION,
             true
@@ -57,7 +57,7 @@ class RedirectionCleanupController extends Controller
 
         wp_enqueue_style(
             'amfm-redirection-cleanup',
-            AMFM_TOOLS_URL . 'dist/css/redirection-cleanup.css',
+            AMFM_TOOLS_URL . 'assets/css/redirection-cleanup.css',
             [],
             AMFM_TOOLS_VERSION
         );
@@ -274,7 +274,7 @@ class RedirectionCleanupController extends Controller
                 'dry_run' => [
                     'label' => __('Dry Run Mode', 'amfm-tools'),
                     'description' => __('Analyze what would be changed without making actual updates', 'amfm-tools'),
-                    'default' => false
+                    'default' => true
                 ],
                 'create_backup' => [
                     'label' => __('Create Backup', 'amfm-tools'),

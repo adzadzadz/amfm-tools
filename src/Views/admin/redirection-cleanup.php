@@ -62,6 +62,21 @@ $recent_jobs = $data['recent_jobs'] ?? [];
             </div>
         </div>
 
+        <!-- Results Section (Hidden by default) -->
+        <div id="cleanup-results-section" class="amfm-card" style="display: none;">
+            <div class="amfm-card-header">
+                <h3><?php esc_html_e('Cleanup Results', 'amfm-tools'); ?></h3>
+                <button type="button" class="button button-link" id="close-results">
+                    <span class="dashicons dashicons-no"></span>
+                </button>
+            </div>
+            <div class="amfm-card-body">
+                <div id="results-content">
+                    <!-- Results will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+
         <!-- Analysis Overview -->
         <div class="amfm-row">
             <div class="amfm-col-8">
@@ -208,72 +223,42 @@ $recent_jobs = $data['recent_jobs'] ?? [];
                     </div>
                 <?php endif; ?>
 
-                <!-- Quick Actions -->
+                <!-- Recent Jobs -->
+                <?php if (!empty($recent_jobs)): ?>
                 <div class="amfm-card">
                     <div class="amfm-card-header">
-                        <h3><?php esc_html_e('Quick Actions', 'amfm-tools'); ?></h3>
+                        <h3><?php esc_html_e('Recent Jobs', 'amfm-tools'); ?></h3>
                     </div>
                     <div class="amfm-card-body">
-                        <div class="action-buttons">
-                            <button type="button" class="button button-secondary button-block" id="detailed-analysis">
-                                <span class="dashicons dashicons-analytics"></span>
-                                <?php esc_html_e('Detailed Analysis', 'amfm-tools'); ?>
-                            </button>
-                            
-                            <?php if ($can_process): ?>
-                                <button type="button" class="button button-secondary button-block" id="preview-changes">
-                                    <span class="dashicons dashicons-visibility"></span>
-                                    <?php esc_html_e('Preview Changes', 'amfm-tools'); ?>
-                                </button>
-                            <?php endif; ?>
-                        </div>
-
-                        <?php if (!empty($recent_jobs)): ?>
-                            <div class="recent-jobs">
-                                <h4><?php esc_html_e('Recent Jobs', 'amfm-tools'); ?></h4>
-                                <ul class="job-list">
-                                    <?php foreach (array_slice($recent_jobs, 0, 3) as $job): ?>
-                                        <li class="job-item status-<?php echo esc_attr($job['status']); ?>">
-                                            <div class="job-info">
-                                                <span class="job-date"><?php echo esc_html(wp_date('M j, Y H:i', strtotime($job['started_at']))); ?></span>
-                                                <span class="job-status status-<?php echo esc_attr($job['status']); ?>">
-                                                    <?php echo esc_html(ucfirst($job['status'])); ?>
-                                                </span>
-                                            </div>
-                                            <div class="job-actions">
-                                                <button type="button" class="button button-small view-job-details" 
+                        <div class="recent-jobs">
+                            <ul class="job-list">
+                                <?php foreach (array_slice($recent_jobs, 0, 3) as $job): ?>
+                                    <li class="job-item status-<?php echo esc_attr($job['status']); ?>">
+                                        <div class="job-info">
+                                            <span class="job-date"><?php echo esc_html(wp_date('M j, Y H:i', strtotime($job['started_at']))); ?></span>
+                                            <span class="job-status status-<?php echo esc_attr($job['status']); ?>">
+                                                <?php echo esc_html(ucfirst($job['status'])); ?>
+                                            </span>
+                                        </div>
+                                        <div class="job-actions">
+                                            <button type="button" class="button button-small view-job-details" 
+                                                    data-job-id="<?php echo esc_attr($job['id']); ?>">
+                                                <?php esc_html_e('Details', 'amfm-tools'); ?>
+                                            </button>
+                                            <?php if ($job['status'] === 'completed' && !empty($job['results'])): ?>
+                                                <button type="button" class="button button-small rollback-job" 
                                                         data-job-id="<?php echo esc_attr($job['id']); ?>">
-                                                    <?php esc_html_e('Details', 'amfm-tools'); ?>
+                                                    <?php esc_html_e('Rollback', 'amfm-tools'); ?>
                                                 </button>
-                                                <?php if ($job['status'] === 'completed' && !empty($job['results'])): ?>
-                                                    <button type="button" class="button button-small rollback-job" 
-                                                            data-job-id="<?php echo esc_attr($job['id']); ?>">
-                                                        <?php esc_html_e('Rollback', 'amfm-tools'); ?>
-                                                    </button>
-                                                <?php endif; ?>
-                                            </div>
-                                        </li>
-                                    <?php endforeach; ?>
-                                </ul>
-                            </div>
-                        <?php endif; ?>
+                                            <?php endif; ?>
+                                        </div>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Results Section (Hidden by default) -->
-        <div id="cleanup-results-section" class="amfm-card" style="display: none;">
-            <div class="amfm-card-header">
-                <h3><?php esc_html_e('Cleanup Results', 'amfm-tools'); ?></h3>
-                <button type="button" class="button button-link" id="close-results">
-                    <span class="dashicons dashicons-no"></span>
-                </button>
-            </div>
-            <div class="amfm-card-body">
-                <div id="results-content">
-                    <!-- Results will be populated by JavaScript -->
-                </div>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -326,6 +311,32 @@ $recent_jobs = $data['recent_jobs'] ?? [];
                 <div class="stat-label"><?php esc_html_e('URLs Replaced', 'amfm-tools'); ?></div>
             </div>
         </div>
+
+        <% if (dry_run) { %>
+            <div class="dry-run-badge">
+                <span class="dashicons dashicons-info"></span>
+                <?php esc_html_e('Dry Run - No Changes Made', 'amfm-tools'); ?>
+            </div>
+        <% } %>
+        
+        <div class="results-details">
+            <h4><?php esc_html_e('Updated Pages & Content', 'amfm-tools'); ?></h4>
+            <div class="results-table-container">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th><?php esc_html_e('Page/Content', 'amfm-tools'); ?></th>
+                            <th><?php esc_html_e('Type', 'amfm-tools'); ?></th>
+                            <th><?php esc_html_e('URL Changes', 'amfm-tools'); ?></th>
+                            <th><?php esc_html_e('Status', 'amfm-tools'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-table-body">
+                        <!-- Table content will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
         
         <div class="results-actions">
             <% if (status === 'completed' && !dry_run) { %>
@@ -335,10 +346,11 @@ $recent_jobs = $data['recent_jobs'] ?? [];
                 </button>
             <% } %>
             
-            <button type="button" class="button button-primary" id="view-detailed-results" data-job-id="<%= job_id %>">
-                <span class="dashicons dashicons-list-view"></span>
-                <?php esc_html_e('View Details', 'amfm-tools'); ?>
+            <button type="button" class="button button-secondary" id="download-results">
+                <span class="dashicons dashicons-download"></span>
+                <?php esc_html_e('Download Report', 'amfm-tools'); ?>
             </button>
         </div>
     </div>
 </script>
+

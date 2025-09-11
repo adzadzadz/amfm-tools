@@ -458,8 +458,12 @@ class RedirectionCleanupService
                 $originalContent = $post['post_content'];
                 $originalExcerpt = $post['post_excerpt'];
                 
-                $newContent = $this->replaceUrlsInContent($originalContent, $urlMapping);
-                $newExcerpt = $this->replaceUrlsInContent($originalExcerpt, $urlMapping);
+                $contentResult = $this->replaceUrlsInContentWithDetails($originalContent, $urlMapping);
+                $excerptResult = $this->replaceUrlsInContentWithDetails($originalExcerpt, $urlMapping);
+                
+                $newContent = $contentResult['content'];
+                $newExcerpt = $excerptResult['content'];
+                $urlChanges = array_merge($contentResult['changes'], $excerptResult['changes']);
                 
                 if ($newContent !== $originalContent || $newExcerpt !== $originalExcerpt) {
                     if (!$isDryRun) {
@@ -478,11 +482,16 @@ class RedirectionCleanupService
                     $totalUpdated++;
                     $contentUpdated = true;
                     
-                    $this->logJobEvent($jobId, 'info', sprintf(
-                        'Post ID %d: %s URLs in content',
-                        $post['ID'],
-                        $isDryRun ? 'Found' : 'Updated'
-                    ));
+                    // Log each URL change
+                    foreach ($urlChanges as $change) {
+                        $this->logJobEvent($jobId, 'info', sprintf(
+                            'Post ID %d: %s URL from "%s" to "%s"',
+                            $post['ID'],
+                            $isDryRun ? 'Found' : 'Updated',
+                            $change['old'],
+                            $change['new']
+                        ));
+                    }
                 }
             }
 
@@ -521,7 +530,9 @@ class RedirectionCleanupService
 
             foreach ($metaFields as $meta) {
                 $originalValue = $meta['meta_value'];
-                $newValue = $this->replaceUrlsInContent($originalValue, $urlMapping);
+                $result = $this->replaceUrlsInContentWithDetails($originalValue, $urlMapping);
+                $newValue = $result['content'];
+                $urlChanges = $result['changes'];
                 
                 if ($newValue !== $originalValue) {
                     if (!$isDryRun) {
@@ -536,13 +547,18 @@ class RedirectionCleanupService
                     
                     $totalUpdated++;
                     
-                    $this->logJobEvent($jobId, 'info', sprintf(
-                        'Meta ID %d (Post %d, Key: %s): %s URLs',
-                        $meta['meta_id'],
-                        $meta['post_id'],
-                        $meta['meta_key'],
-                        $isDryRun ? 'Found' : 'Updated'
-                    ));
+                    // Log each URL change
+                    foreach ($urlChanges as $change) {
+                        $this->logJobEvent($jobId, 'info', sprintf(
+                            'Meta ID %d (Post %d, Key: %s): %s URL from "%s" to "%s"',
+                            $meta['meta_id'],
+                            $meta['post_id'],
+                            $meta['meta_key'],
+                            $isDryRun ? 'Found' : 'Updated',
+                            $change['old'],
+                            $change['new']
+                        ));
+                    }
                 }
             }
 
@@ -635,7 +651,9 @@ class RedirectionCleanupService
 
         foreach ($urlOptions as $option) {
             $originalValue = $option['option_value'];
-            $newValue = $this->replaceUrlsInContent($originalValue, $urlMapping);
+            $result = $this->replaceUrlsInContentWithDetails($originalValue, $urlMapping);
+            $newValue = $result['content'];
+            $urlChanges = $result['changes'];
             
             if ($newValue !== $originalValue) {
                 if (!$isDryRun) {
@@ -644,11 +662,16 @@ class RedirectionCleanupService
                 
                 $totalUpdated++;
                 
-                $this->logJobEvent($jobId, 'info', sprintf(
-                    'Option "%s": %s URLs',
-                    $option['option_name'],
-                    $isDryRun ? 'Found' : 'Updated'
-                ));
+                // Log each URL change
+                foreach ($urlChanges as $change) {
+                    $this->logJobEvent($jobId, 'info', sprintf(
+                        'Option "%s": %s URL from "%s" to "%s"',
+                        $option['option_name'],
+                        $isDryRun ? 'Found' : 'Updated',
+                        $change['old'],
+                        $change['new']
+                    ));
+                }
             }
         }
 
@@ -661,35 +684,61 @@ class RedirectionCleanupService
      */
     private function replaceUrlsInContent(string $content, array $urlMapping): string
     {
+        $result = $this->replaceUrlsInContentWithDetails($content, $urlMapping);
+        return $result['content'];
+    }
+
+    /**
+     * Replace URLs in content with detailed tracking
+     */
+    private function replaceUrlsInContentWithDetails(string $content, array $urlMapping): array
+    {
         if (empty($content) || empty($urlMapping)) {
-            return $content;
+            return [
+                'content' => $content,
+                'changes' => []
+            ];
         }
 
         $updatedContent = $content;
-        $replacementCount = 0;
+        $changes = [];
 
         foreach ($urlMapping as $oldUrl => $newUrl) {
+            $totalCount = 0;
+            
             // Replace exact matches
             $count = 0;
             $updatedContent = str_replace($oldUrl, $newUrl, $updatedContent, $count);
-            $replacementCount += $count;
+            $totalCount += $count;
 
             // Replace URL-encoded versions
             $encodedOldUrl = urlencode($oldUrl);
             $encodedNewUrl = urlencode($newUrl);
             $updatedContent = str_replace($encodedOldUrl, $encodedNewUrl, $updatedContent, $count);
-            $replacementCount += $count;
+            $totalCount += $count;
 
             // Replace in href attributes
             $updatedContent = str_replace('href="' . $oldUrl . '"', 'href="' . $newUrl . '"', $updatedContent, $count);
-            $replacementCount += $count;
+            $totalCount += $count;
 
             // Replace in src attributes
             $updatedContent = str_replace('src="' . $oldUrl . '"', 'src="' . $newUrl . '"', $updatedContent, $count);
-            $replacementCount += $count;
+            $totalCount += $count;
+
+            // If any replacements were made, track the change
+            if ($totalCount > 0) {
+                $changes[] = [
+                    'old' => $oldUrl,
+                    'new' => $newUrl,
+                    'count' => $totalCount
+                ];
+            }
         }
 
-        return $updatedContent;
+        return [
+            'content' => $updatedContent,
+            'changes' => $changes
+        ];
     }
 
     /**

@@ -31,6 +31,7 @@
             $(document).on('click', '.view-job-details', this.viewJobDetails.bind(this));
             $(document).on('click', '.rollback-job', this.rollbackJob.bind(this));
             $(document).on('click', '#rollback-changes', this.rollbackCurrentJob.bind(this));
+            $(document).on('click', '#download-results', this.downloadResults.bind(this));
 
 
             // Modal
@@ -237,57 +238,176 @@
             const $tableBody = $('#results-table-body');
             $tableBody.empty();
             
-            // Sample data structure - this would come from the actual job results
-            const sampleResults = [
-                {
-                    title: 'About Us Page',
-                    type: 'Post',
-                    url_changes: 3,
-                    old_urls: ['example.com/old-about', 'example.com/old-contact'],
-                    new_urls: ['example.com/about', 'example.com/contact'],
-                    status: 'Updated'
+            // Get job details to access logs
+            this.ajaxRequest('get_job_details', { job_id: jobData.id }, {
+                success: (response) => {
+                    const logs = response.logs || [];
+                    const jobOptions = response.job?.options || jobData.options || {};
+                    const results = this.parseLogsForResults(logs, jobOptions);
+                    this.renderResultsTable(results, $tableBody);
                 },
-                {
-                    title: 'Homepage Hero Section',
-                    type: 'Custom Field',
-                    url_changes: 1,
-                    old_urls: ['example.com/old-hero'],
-                    new_urls: ['example.com/hero'],
-                    status: 'Updated'
-                },
-                {
-                    title: 'Main Navigation',
-                    type: 'Menu',
-                    url_changes: 2,
-                    old_urls: ['example.com/services', 'example.com/blog'],
-                    new_urls: ['example.com/our-services', 'example.com/news'],
-                    status: 'Updated'
+                error: () => {
+                    // Fallback: show summary results only
+                    this.renderSummaryResults(jobData.results, $tableBody);
                 }
-            ];
+            });
+        },
 
-            // In a real implementation, this would use jobData.detailed_results or similar
-            sampleResults.forEach(item => {
+        parseLogsForResults: function(logs, jobOptions) {
+            const results = [];
+            const isDryRun = jobOptions?.dry_run || false;
+            const actionWord = isDryRun ? 'Found' : 'Updated';
+            const status = isDryRun ? 'Analyzed' : 'Updated';
+            const siteUrl = window.location.origin;
+            
+            logs.forEach(log => {
+                if (log.level === 'info') {
+                    const message = log.message;
+                    
+                    // Parse Post entries: "Post ID 123: Updated URL from "old-url" to "new-url""
+                    const postMatch = message.match(/^Post ID (\d+): (Found|Updated) URL from "([^"]+)" to "([^"]+)"$/);
+                    if (postMatch) {
+                        const postId = postMatch[1];
+                        const oldUrl = postMatch[3];
+                        const newUrl = postMatch[4];
+                        
+                        // Check if we already have an entry for this post and merge URLs
+                        const existingIndex = results.findIndex(r => r.post_id === postId && r.type === 'Post');
+                        if (existingIndex >= 0) {
+                            results[existingIndex].url_changes++;
+                            results[existingIndex].old_urls.push(oldUrl);
+                            results[existingIndex].new_urls.push(newUrl);
+                        } else {
+                            results.push({
+                                title: `Post ID ${postId}`,
+                                type: 'Post',
+                                url_changes: 1,
+                                status: status,
+                                post_id: postId,
+                                old_urls: [oldUrl],
+                                new_urls: [newUrl],
+                                source_link: `${siteUrl}/wp-admin/post.php?post=${postId}&action=edit`,
+                                edit_link: `${siteUrl}/wp-admin/post.php?post=${postId}&action=edit`
+                            });
+                        }
+                    }
+                    
+                    // Parse Meta entries: "Meta ID 456 (Post 123, Key: hero_image): Updated URL from "old-url" to "new-url""
+                    const metaMatch = message.match(/^Meta ID (\d+) \(Post (\d+), Key: ([^)]+)\): (Found|Updated) URL from "([^"]+)" to "([^"]+)"$/);
+                    if (metaMatch) {
+                        const postId = metaMatch[2];
+                        const metaKey = metaMatch[3];
+                        const oldUrl = metaMatch[5];
+                        const newUrl = metaMatch[6];
+                        
+                        // Check if we already have an entry for this meta key and merge URLs
+                        const existingIndex = results.findIndex(r => r.post_id === postId && r.meta_key === metaKey && r.type === 'Custom Field');
+                        if (existingIndex >= 0) {
+                            results[existingIndex].url_changes++;
+                            results[existingIndex].old_urls.push(oldUrl);
+                            results[existingIndex].new_urls.push(newUrl);
+                        } else {
+                            results.push({
+                                title: `${metaKey} (Post ${postId})`,
+                                type: 'Custom Field',
+                                url_changes: 1,
+                                status: status,
+                                post_id: postId,
+                                meta_key: metaKey,
+                                old_urls: [oldUrl],
+                                new_urls: [newUrl],
+                                source_link: `${siteUrl}/wp-admin/post.php?post=${postId}&action=edit`,
+                                edit_link: `${siteUrl}/wp-admin/post.php?post=${postId}&action=edit`
+                            });
+                        }
+                    }
+                    
+                    // Parse Menu entries: "Menu Item "About": Updated URL from /old-about to /about"
+                    const menuMatch = message.match(/^Menu Item "([^"]+)": (Would update|Updated) URL from (.+) to (.+)$/);
+                    if (menuMatch) {
+                        const oldUrl = menuMatch[3];
+                        const newUrl = menuMatch[4];
+                        results.push({
+                            title: menuMatch[1],
+                            type: 'Menu',
+                            url_changes: 1,
+                            old_urls: [oldUrl],
+                            new_urls: [newUrl],
+                            status: status,
+                            source_link: `${siteUrl}/wp-admin/nav-menus.php`,
+                            old_url: oldUrl,
+                            new_url: newUrl
+                        });
+                    }
+                    
+                    // Parse Option entries: "Option "widget_text": Updated URL from "old-url" to "new-url""
+                    const optionMatch = message.match(/^Option "([^"]+)": (Found|Updated) URL from "([^"]+)" to "([^"]+)"$/);
+                    if (optionMatch) {
+                        const optionName = optionMatch[1];
+                        const oldUrl = optionMatch[3];
+                        const newUrl = optionMatch[4];
+                        
+                        // Check if we already have an entry for this option and merge URLs
+                        const existingIndex = results.findIndex(r => r.option_name === optionName && r.type === 'Widget/Option');
+                        if (existingIndex >= 0) {
+                            results[existingIndex].url_changes++;
+                            results[existingIndex].old_urls.push(oldUrl);
+                            results[existingIndex].new_urls.push(newUrl);
+                        } else {
+                            results.push({
+                                title: optionName,
+                                type: 'Widget/Option',
+                                url_changes: 1,
+                                status: status,
+                                option_name: optionName,
+                                old_urls: [oldUrl],
+                                new_urls: [newUrl],
+                                source_link: `${siteUrl}/wp-admin/options-general.php`
+                            });
+                        }
+                    }
+                }
+            });
+            
+            return results;
+        },
+
+        renderResultsTable: function(results, $tableBody) {
+            if (results.length === 0) {
+                $tableBody.append(`
+                    <tr>
+                        <td colspan="4" class="no-results">
+                            <em>No detailed results available. Check the processing logs for more information.</em>
+                        </td>
+                    </tr>
+                `);
+                return;
+            }
+            
+            results.forEach(item => {
                 const urlChangesText = item.url_changes > 0 ? 
-                    `${item.url_changes} URL${item.url_changes > 1 ? 's' : ''} updated` : 
+                    `${item.url_changes} URL${item.url_changes > 1 ? 's' : ''}` : 
                     'No changes';
                     
-                const statusClass = item.status === 'Updated' ? 'status-updated' : 'status-error';
+                const statusClass = item.status === 'Updated' ? 'status-updated' : 
+                                   item.status === 'Analyzed' ? 'status-analyzed' : 'status-error';
                 
                 const row = `
                     <tr>
                         <td>
                             <strong>${this.escapeHtml(item.title)}</strong>
+                            ${item.source_link ? `<br><a href="${item.source_link}" target="_blank" class="source-link">Edit Source</a>` : ''}
                         </td>
                         <td>${this.escapeHtml(item.type)}</td>
                         <td>
                             <span class="url-changes-count">${urlChangesText}</span>
-                            ${item.url_changes > 0 ? `
+                            ${item.old_urls && item.new_urls ? `
                                 <div class="url-changes-details" style="display: none;">
                                     ${item.old_urls.map((oldUrl, index) => `
                                         <div class="url-change">
-                                            <span class="old-url">${this.escapeHtml(oldUrl)}</span>
+                                            <a href="${this.escapeHtml(oldUrl)}" target="_blank" class="old-url">${this.escapeHtml(oldUrl)}</a>
                                             <span class="arrow">→</span>
-                                            <span class="new-url">${this.escapeHtml(item.new_urls[index] || '')}</span>
+                                            <a href="${this.escapeHtml(item.new_urls[index] || '')}" target="_blank" class="new-url">${this.escapeHtml(item.new_urls[index] || '')}</a>
                                         </div>
                                     `).join('')}
                                 </div>
@@ -301,10 +421,74 @@
             });
             
             // Add click handler to show/hide URL changes details
-            $tableBody.find('.url-changes-count').on('click', function() {
+            $tableBody.find('.url-changes-count').on('click', function(e) {
+                e.preventDefault();
                 const $details = $(this).siblings('.url-changes-details');
-                $details.toggle();
+                $details.slideToggle(200);
+                
+                // Update text to show expand/collapse state
+                const $this = $(this);
+                const isVisible = $details.is(':visible');
+                if (isVisible) {
+                    $this.addClass('expanded');
+                } else {
+                    $this.removeClass('expanded');
+                }
             });
+        },
+
+        renderSummaryResults: function(summary, $tableBody) {
+            // Fallback when detailed logs aren't available
+            const summaryItems = [];
+            
+            if (summary.posts_updated > 0) {
+                summaryItems.push({
+                    title: 'Posts & Pages',
+                    type: 'Content',
+                    url_changes: summary.posts_updated,
+                    status: 'Updated'
+                });
+            }
+            
+            if (summary.custom_fields_updated > 0) {
+                summaryItems.push({
+                    title: 'Custom Fields',
+                    type: 'Meta Data',
+                    url_changes: summary.custom_fields_updated,
+                    status: 'Updated'
+                });
+            }
+            
+            if (summary.menus_updated > 0) {
+                summaryItems.push({
+                    title: 'Navigation Menus',
+                    type: 'Menu',
+                    url_changes: summary.menus_updated,
+                    status: 'Updated'
+                });
+            }
+            
+            if (summary.widgets_updated > 0) {
+                summaryItems.push({
+                    title: 'Widgets & Options',
+                    type: 'Widget',
+                    url_changes: summary.widgets_updated,
+                    status: 'Updated'
+                });
+            }
+            
+            if (summaryItems.length === 0) {
+                $tableBody.append(`
+                    <tr>
+                        <td colspan="4" class="no-results">
+                            <em>No changes were made during this cleanup process.</em>
+                        </td>
+                    </tr>
+                `);
+                return;
+            }
+            
+            this.renderResultsTable(summaryItems, $tableBody);
         },
 
         closeResults: function() {
@@ -369,11 +553,146 @@
         rollbackCurrentJob: function(e) {
             e.preventDefault();
             
-            const jobId = $(e.target).data('job-id');
-            
-            if (jobId) {
-                $(e.target).data('job-id', jobId).trigger('click');
+            if (!confirm(this.strings.confirm_rollback || 'This will revert all changes. Are you sure?')) {
+                return;
             }
+            
+            const jobId = $(e.target).data('job-id');
+            if (!jobId) {
+                this.showNotice('No job ID found for rollback', 'error');
+                return;
+            }
+            
+            const $button = $(e.target);
+            const originalText = $button.text();
+            
+            $button.prop('disabled', true).text('Rolling back...');
+
+            this.ajaxRequest('rollback_cleanup', { job_id: jobId }, {
+                success: (response) => {
+                    this.showNotice('Changes rolled back successfully!', 'success');
+                    // Close results and refresh the page to update UI
+                    this.closeResults();
+                    setTimeout(() => window.location.reload(), 1500);
+                },
+                error: (error) => {
+                    this.showNotice('Rollback failed: ' + error.message, 'error');
+                },
+                complete: () => {
+                    $button.prop('disabled', false).text(originalText);
+                }
+            });
+        },
+
+        downloadResults: function(e) {
+            e.preventDefault();
+            
+            const jobId = this.currentJobId;
+            if (!jobId) {
+                this.showNotice('No job data available for download', 'error');
+                return;
+            }
+
+            // Get job details for the report
+            this.ajaxRequest('get_job_details', { job_id: jobId }, {
+                success: (response) => {
+                    this.generateAndDownloadReport(response);
+                },
+                error: (error) => {
+                    this.showNotice('Failed to generate report: ' + error.message, 'error');
+                }
+            });
+        },
+
+        generateAndDownloadReport: function(jobDetails) {
+            const job = jobDetails.job;
+            const logs = jobDetails.logs || [];
+            
+            // Parse the logs to get detailed results
+            const results = this.parseLogsForResults(logs, job.options || {});
+            
+            // Generate CSV content
+            let csvContent = '';
+            
+            // CSV Headers
+            const headers = [
+                'Item Name',
+                'Type', 
+                'Status',
+                'Post ID',
+                'Meta Key',
+                'Old URL',
+                'New URL',
+                'Source Edit Link',
+                'Timestamp'
+            ];
+            csvContent += headers.map(h => `"${h}"`).join(',') + '\n';
+            
+            // CSV Data rows - create one row per URL change
+            results.forEach(item => {
+                if (item.old_urls && item.new_urls && item.old_urls.length > 0) {
+                    // Multiple URL changes - create one row per URL pair
+                    item.old_urls.forEach((oldUrl, index) => {
+                        const row = [
+                            item.title || '',
+                            item.type || '',
+                            item.status || '',
+                            item.post_id || '',
+                            item.meta_key || '',
+                            oldUrl || '',
+                            item.new_urls[index] || '',
+                            item.source_link || '',
+                            new Date().toISOString()
+                        ];
+                        csvContent += row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(',') + '\n';
+                    });
+                } else {
+                    // Single or no URL changes
+                    const row = [
+                        item.title || '',
+                        item.type || '',
+                        item.status || '',
+                        item.post_id || '',
+                        item.meta_key || '',
+                        item.old_url || '',
+                        item.new_url || '',
+                        item.source_link || '',
+                        new Date().toISOString()
+                    ];
+                    csvContent += row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(',') + '\n';
+                }
+            });
+            
+            // Add summary section
+            csvContent += '\n\n"SUMMARY INFORMATION"\n';
+            csvContent += `"Job ID","${job.id}"\n`;
+            csvContent += `"Status","${job.status}"\n`;
+            csvContent += `"Started","${job.started_at}"\n`;
+            if (job.completed_at) {
+                csvContent += `"Completed","${job.completed_at}"\n`;
+            }
+            csvContent += `"Mode","${job.options?.dry_run ? 'Dry Run (Analysis Only)' : 'Live Update'}"\n`;
+            
+            if (job.results) {
+                csvContent += `"Posts Updated","${job.results.posts_updated || 0}"\n`;
+                csvContent += `"Custom Fields Updated","${job.results.custom_fields_updated || 0}"\n`;
+                csvContent += `"Menus Updated","${job.results.menus_updated || 0}"\n`;
+                csvContent += `"Widgets Updated","${job.results.widgets_updated || 0}"\n`;
+                csvContent += `"Total URL Replacements","${job.results.total_url_replacements || 0}"\n`;
+            }
+            
+            // Create and trigger download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `redirection-cleanup-report-${job.id}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            this.showNotice('CSV report downloaded successfully!', 'success');
         },
 
         showAnalysisModal: function(analysisData) {

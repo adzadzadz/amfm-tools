@@ -738,6 +738,11 @@
         margin: 20px;
         max-height: calc(100vh - 40px);
     }
+    
+    .results-table {
+        min-width: 600px;
+        font-size: 12px;
+    }
 }
 
 /* Results Section Styles */
@@ -775,12 +780,14 @@
 .results-table-container {
     border: 1px solid #dcdcde;
     border-radius: 4px;
-    overflow: hidden;
+    overflow-x: auto;
     background: #fff;
+    margin-top: 15px;
 }
 
 .results-table {
     width: 100%;
+    min-width: 800px;
     border-collapse: collapse;
     font-size: 14px;
 }
@@ -819,6 +826,16 @@
     color: #135e96;
 }
 
+.url-changes-count::after {
+    content: " ▼";
+    font-size: 10px;
+    transition: transform 0.2s ease;
+}
+
+.url-changes-count.expanded::after {
+    transform: rotate(180deg);
+}
+
 .url-changes-details {
     margin-top: 8px;
     padding: 8px;
@@ -839,6 +856,17 @@
     margin-bottom: 0;
 }
 
+.source-link {
+    font-size: 12px;
+    color: #2271b1;
+    text-decoration: none;
+    font-weight: normal;
+}
+
+.source-link:hover {
+    text-decoration: underline;
+}
+
 .old-url {
     color: #d63638;
     text-decoration: line-through;
@@ -847,6 +875,11 @@
 .new-url {
     color: #00a32a;
     font-weight: 500;
+}
+
+.old-url:hover,
+.new-url:hover {
+    text-decoration: underline;
 }
 
 .arrow {
@@ -873,6 +906,19 @@
     background: #f8d7da;
     color: #d63638;
     border: 1px solid #d63638;
+}
+
+.status-analyzed {
+    background: #e7f5ff;
+    color: #0073aa;
+    border: 1px solid #0073aa;
+}
+
+.no-results {
+    text-align: center;
+    color: #646970;
+    font-style: italic;
+    padding: 20px;
 }
 
 .results-actions {

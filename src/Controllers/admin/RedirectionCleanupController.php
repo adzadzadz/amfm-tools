@@ -278,8 +278,9 @@ class RedirectionCleanupController extends Controller
                 ],
                 'create_backup' => [
                     'label' => __('Create Backup', 'amfm-tools'),
-                    'description' => __('Create database backup before processing', 'amfm-tools'),
-                    'default' => true
+                    'description' => __('Create database backup before processing (temporarily disabled)', 'amfm-tools'),
+                    'default' => false,
+                    'disabled' => true
                 ]
             ],
             'url_handling' => [

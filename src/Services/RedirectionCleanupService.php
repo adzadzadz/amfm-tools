@@ -107,6 +107,12 @@ class RedirectionCleanupService
             'handle_query_params' => false
         ]);
 
+        // Convert string boolean values to actual booleans
+        $options['dry_run'] = filter_var($options['dry_run'], FILTER_VALIDATE_BOOLEAN);
+        $options['create_backup'] = false; // Temporarily disabled for performance
+        $options['include_relative'] = filter_var($options['include_relative'], FILTER_VALIDATE_BOOLEAN);
+        $options['handle_query_params'] = filter_var($options['handle_query_params'], FILTER_VALIDATE_BOOLEAN);
+
         // Generate unique job ID
         $jobId = wp_generate_uuid4();
         
@@ -168,6 +174,12 @@ class RedirectionCleanupService
 
             $urlMapping = $jobData['url_mapping'];
             $options = $jobData['options'];
+
+            // Ensure boolean options are properly converted (fix for string 'false' bug)
+            $options['dry_run'] = filter_var($options['dry_run'], FILTER_VALIDATE_BOOLEAN);
+            $options['create_backup'] = filter_var($options['create_backup'], FILTER_VALIDATE_BOOLEAN);
+            $options['include_relative'] = filter_var($options['include_relative'], FILTER_VALIDATE_BOOLEAN);
+            $options['handle_query_params'] = filter_var($options['handle_query_params'], FILTER_VALIDATE_BOOLEAN);
 
             // Process each content type
             if (in_array('posts', $options['content_types'])) {
@@ -440,31 +452,34 @@ class RedirectionCleanupService
         $isDryRun = $options['dry_run'];
         $offset = 0;
         $totalUpdated = 0;
+        $totalUrlReplacements = 0;
 
         $this->updateJobStep($jobId, 'processing_posts');
 
         do {
             $posts = $this->wpdb->get_results($this->wpdb->prepare(
-                "SELECT ID, post_content, post_excerpt 
-                 FROM {$this->wpdb->posts} 
+                "SELECT ID, post_content, post_excerpt
+                 FROM {$this->wpdb->posts}
                  WHERE post_status IN ('publish', 'private', 'draft', 'future')
                  LIMIT %d OFFSET %d",
                 $batchSize,
                 $offset
             ), ARRAY_A);
 
+            $batchUrlReplacements = 0;
+
             foreach ($posts as $post) {
                 $contentUpdated = false;
                 $originalContent = $post['post_content'];
                 $originalExcerpt = $post['post_excerpt'];
-                
+
                 $contentResult = $this->replaceUrlsInContentWithDetails($originalContent, $urlMapping);
                 $excerptResult = $this->replaceUrlsInContentWithDetails($originalExcerpt, $urlMapping);
-                
+
                 $newContent = $contentResult['content'];
                 $newExcerpt = $excerptResult['content'];
                 $urlChanges = array_merge($contentResult['changes'], $excerptResult['changes']);
-                
+
                 if ($newContent !== $originalContent || $newExcerpt !== $originalExcerpt) {
                     if (!$isDryRun) {
                         $this->wpdb->update(
@@ -478,27 +493,32 @@ class RedirectionCleanupService
                             ['%d']
                         );
                     }
-                    
+
                     $totalUpdated++;
                     $contentUpdated = true;
-                    
-                    // Log each URL change
+
+                    // Count total URL replacements for this post
+                    $postUrlReplacements = 0;
                     foreach ($urlChanges as $change) {
+                        $postUrlReplacements += $change['count'];
                         $this->logJobEvent($jobId, 'info', sprintf(
-                            'Post ID %d: %s URL from "%s" to "%s"',
+                            'Post ID %d: %s %d occurrences of URL from "%s" to "%s"',
                             $post['ID'],
                             $isDryRun ? 'Found' : 'Updated',
+                            $change['count'],
                             $change['old'],
                             $change['new']
                         ));
                     }
+                    $batchUrlReplacements += $postUrlReplacements;
                 }
             }
 
+            $totalUrlReplacements += $batchUrlReplacements;
             $offset += $batchSize;
-            
+
             // Update progress
-            $this->incrementJobProgress($jobId, count($posts), $totalUpdated, 'results', 'posts_updated');
+            $this->incrementJobProgress($jobId, count($posts), $totalUpdated, 'results', 'posts_updated', $batchUrlReplacements);
 
         } while (count($posts) === $batchSize);
     }
@@ -512,14 +532,15 @@ class RedirectionCleanupService
         $isDryRun = $options['dry_run'];
         $offset = 0;
         $totalUpdated = 0;
+        $totalUrlReplacements = 0;
 
         $this->updateJobStep($jobId, 'processing_custom_fields');
 
         do {
             $metaFields = $this->wpdb->get_results($this->wpdb->prepare(
-                "SELECT meta_id, post_id, meta_key, meta_value 
-                 FROM {$this->wpdb->postmeta} 
-                 WHERE meta_value LIKE %s 
+                "SELECT meta_id, post_id, meta_key, meta_value
+                 FROM {$this->wpdb->postmeta}
+                 WHERE meta_value LIKE %s
                     OR meta_value LIKE %s
                  LIMIT %d OFFSET %d",
                 '%' . $this->siteUrl . '%',
@@ -528,12 +549,14 @@ class RedirectionCleanupService
                 $offset
             ), ARRAY_A);
 
+            $batchUrlReplacements = 0;
+
             foreach ($metaFields as $meta) {
                 $originalValue = $meta['meta_value'];
                 $result = $this->replaceUrlsInContentWithDetails($originalValue, $urlMapping);
                 $newValue = $result['content'];
                 $urlChanges = $result['changes'];
-                
+
                 if ($newValue !== $originalValue) {
                     if (!$isDryRun) {
                         $this->wpdb->update(
@@ -544,28 +567,33 @@ class RedirectionCleanupService
                             ['%d']
                         );
                     }
-                    
+
                     $totalUpdated++;
-                    
-                    // Log each URL change
+
+                    // Count total URL replacements for this meta field
+                    $metaUrlReplacements = 0;
                     foreach ($urlChanges as $change) {
+                        $metaUrlReplacements += $change['count'];
                         $this->logJobEvent($jobId, 'info', sprintf(
-                            'Meta ID %d (Post %d, Key: %s): %s URL from "%s" to "%s"',
+                            'Meta ID %d (Post %d, Key: %s): %s %d occurrences of URL from "%s" to "%s"',
                             $meta['meta_id'],
                             $meta['post_id'],
                             $meta['meta_key'],
                             $isDryRun ? 'Found' : 'Updated',
+                            $change['count'],
                             $change['old'],
                             $change['new']
                         ));
                     }
+                    $batchUrlReplacements += $metaUrlReplacements;
                 }
             }
 
+            $totalUrlReplacements += $batchUrlReplacements;
             $offset += $batchSize;
             
             // Update progress
-            $this->incrementJobProgress($jobId, count($metaFields), $totalUpdated, 'results', 'custom_fields_updated');
+            $this->incrementJobProgress($jobId, count($metaFields), $totalUpdated, 'results', 'custom_fields_updated', $batchUrlReplacements);
 
         } while (count($metaFields) === $batchSize);
     }
@@ -577,6 +605,7 @@ class RedirectionCleanupService
     {
         $isDryRun = $options['dry_run'];
         $totalUpdated = 0;
+        $totalUrlReplacements = 0;
 
         $this->updateJobStep($jobId, 'processing_menus');
 
@@ -593,7 +622,7 @@ class RedirectionCleanupService
         foreach ($menuItems as $item) {
             $originalUrl = $item['menu_url'];
             $newUrl = $urlMapping[$originalUrl] ?? null;
-            
+
             if ($newUrl && $newUrl !== $originalUrl) {
                 if (!$isDryRun) {
                     $this->wpdb->update(
@@ -607,9 +636,10 @@ class RedirectionCleanupService
                         ['%d', '%s']
                     );
                 }
-                
+
                 $totalUpdated++;
-                
+                $totalUrlReplacements++; // Each menu item update is one URL replacement
+
                 $this->logJobEvent($jobId, 'info', sprintf(
                     'Menu Item "%s": %s URL from %s to %s',
                     $item['post_title'],
@@ -621,7 +651,7 @@ class RedirectionCleanupService
         }
 
         // Update progress
-        $this->incrementJobProgress($jobId, count($menuItems), $totalUpdated, 'results', 'menus_updated');
+        $this->incrementJobProgress($jobId, count($menuItems), $totalUpdated, 'results', 'menus_updated', $totalUrlReplacements);
     }
 
     /**
@@ -631,15 +661,16 @@ class RedirectionCleanupService
     {
         $isDryRun = $options['dry_run'];
         $totalUpdated = 0;
+        $totalUrlReplacements = 0;
 
         $this->updateJobStep($jobId, 'processing_widgets');
 
         // Get all options that might contain URLs
         $urlOptions = $this->wpdb->get_results(
             $this->wpdb->prepare(
-                "SELECT option_id, option_name, option_value 
-                 FROM {$this->wpdb->options} 
-                 WHERE option_value LIKE %s 
+                "SELECT option_id, option_name, option_value
+                 FROM {$this->wpdb->options}
+                 WHERE option_value LIKE %s
                     OR option_value LIKE %s
                  AND option_name NOT LIKE %s",
                 '%' . $this->siteUrl . '%',
@@ -654,29 +685,33 @@ class RedirectionCleanupService
             $result = $this->replaceUrlsInContentWithDetails($originalValue, $urlMapping);
             $newValue = $result['content'];
             $urlChanges = $result['changes'];
-            
+
             if ($newValue !== $originalValue) {
                 if (!$isDryRun) {
                     update_option($option['option_name'], maybe_unserialize($newValue));
                 }
-                
+
                 $totalUpdated++;
-                
-                // Log each URL change
+
+                // Count total URL replacements for this option
+                $optionUrlReplacements = 0;
                 foreach ($urlChanges as $change) {
+                    $optionUrlReplacements += $change['count'];
                     $this->logJobEvent($jobId, 'info', sprintf(
-                        'Option "%s": %s URL from "%s" to "%s"',
+                        'Option "%s": %s %d occurrences of URL from "%s" to "%s"',
                         $option['option_name'],
                         $isDryRun ? 'Found' : 'Updated',
+                        $change['count'],
                         $change['old'],
                         $change['new']
                     ));
                 }
+                $totalUrlReplacements += $optionUrlReplacements;
             }
         }
 
         // Update progress
-        $this->incrementJobProgress($jobId, count($urlOptions), $totalUpdated, 'results', 'widgets_updated');
+        $this->incrementJobProgress($jobId, count($urlOptions), $totalUpdated, 'results', 'widgets_updated', $totalUrlReplacements);
     }
 
     /**
@@ -705,24 +740,63 @@ class RedirectionCleanupService
 
         foreach ($urlMapping as $oldUrl => $newUrl) {
             $totalCount = 0;
-            
-            // Replace exact matches
-            $count = 0;
-            $updatedContent = str_replace($oldUrl, $newUrl, $updatedContent, $count);
-            $totalCount += $count;
 
-            // Replace URL-encoded versions
-            $encodedOldUrl = urlencode($oldUrl);
-            $encodedNewUrl = urlencode($newUrl);
-            $updatedContent = str_replace($encodedOldUrl, $encodedNewUrl, $updatedContent, $count);
-            $totalCount += $count;
+            // Only replace URLs in specific contexts, not plain text
 
-            // Replace in href attributes
+            // Replace in href attributes (with quotes)
             $updatedContent = str_replace('href="' . $oldUrl . '"', 'href="' . $newUrl . '"', $updatedContent, $count);
             $totalCount += $count;
 
-            // Replace in src attributes
+            // Replace in href attributes (with single quotes)
+            $updatedContent = str_replace("href='" . $oldUrl . "'", "href='" . $newUrl . "'", $updatedContent, $count);
+            $totalCount += $count;
+
+            // Replace in src attributes (with quotes)
             $updatedContent = str_replace('src="' . $oldUrl . '"', 'src="' . $newUrl . '"', $updatedContent, $count);
+            $totalCount += $count;
+
+            // Replace in src attributes (with single quotes)
+            $updatedContent = str_replace("src='" . $oldUrl . "'", "src='" . $newUrl . "'", $updatedContent, $count);
+            $totalCount += $count;
+
+            // Replace absolute URLs in content (with domain)
+            $siteUrl = rtrim(site_url(), '/');
+            $homeUrl = rtrim(home_url(), '/');
+
+            // Normalize URLs to prevent double slashes
+            $normalizedOldUrl = ltrim($oldUrl, '/');
+            $normalizedNewUrl = rtrim($newUrl, '/');
+
+            // Try both with and without trailing slash for old URL
+            $absoluteOldUrlNoSlash = $siteUrl . '/' . $normalizedOldUrl;
+            $absoluteOldUrlWithSlash = $siteUrl . '/' . $normalizedOldUrl . '/';
+
+            $updatedContent = str_replace($absoluteOldUrlNoSlash, $normalizedNewUrl, $updatedContent, $count);
+            $totalCount += $count;
+            $updatedContent = str_replace($absoluteOldUrlWithSlash, $normalizedNewUrl, $updatedContent, $count);
+            $totalCount += $count;
+
+            // Same for home URL
+            $absoluteOldUrlNoSlash = $homeUrl . '/' . $normalizedOldUrl;
+            $absoluteOldUrlWithSlash = $homeUrl . '/' . $normalizedOldUrl . '/';
+
+            $updatedContent = str_replace($absoluteOldUrlNoSlash, $normalizedNewUrl, $updatedContent, $count);
+            $totalCount += $count;
+            $updatedContent = str_replace($absoluteOldUrlWithSlash, $normalizedNewUrl, $updatedContent, $count);
+            $totalCount += $count;
+
+            // Replace relative URLs that start with slash
+            if (strpos($oldUrl, '/') === 0) {
+                $updatedContent = str_replace($oldUrl, $newUrl, $updatedContent, $count);
+                $totalCount += $count;
+            }
+
+            // Replace URL-encoded versions in attributes only
+            $encodedOldUrl = urlencode($oldUrl);
+            $encodedNewUrl = urlencode($newUrl);
+            $updatedContent = str_replace('href="' . $encodedOldUrl . '"', 'href="' . $encodedNewUrl . '"', $updatedContent, $count);
+            $totalCount += $count;
+            $updatedContent = str_replace('src="' . $encodedOldUrl . '"', 'src="' . $encodedNewUrl . '"', $updatedContent, $count);
             $totalCount += $count;
 
             // If any replacements were made, track the change
@@ -734,6 +808,9 @@ class RedirectionCleanupService
                 ];
             }
         }
+
+        // Clean up any double slashes that might have been created (except in http:// or https://)
+        $updatedContent = preg_replace('#(?<!http:)(?<!https:)//+#', '/', $updatedContent);
 
         return [
             'content' => $updatedContent,
@@ -951,12 +1028,13 @@ class RedirectionCleanupService
         $this->updateJobProgress($jobId, $jobData);
     }
 
-    private function incrementJobProgress(string $jobId, int $processed, int $updated, string $resultKey, string $resultField): void
+    private function incrementJobProgress(string $jobId, int $processed, int $updated, string $resultKey, string $resultField, int $urlReplacements = 0): void
     {
         $jobData = get_option(self::OPTION_PREFIX . 'job_' . $jobId, []);
         $jobData['progress']['processed_items'] = ($jobData['progress']['processed_items'] ?? 0) + $processed;
         $jobData['progress']['updated_items'] = ($jobData['progress']['updated_items'] ?? 0) + $updated;
         $jobData[$resultKey][$resultField] = ($jobData[$resultKey][$resultField] ?? 0) + $updated;
+        $jobData[$resultKey]['total_url_replacements'] = ($jobData[$resultKey]['total_url_replacements'] ?? 0) + $urlReplacements;
         $this->updateJobProgress($jobId, $jobData);
     }
 
@@ -990,24 +1068,54 @@ class RedirectionCleanupService
         // Create backup of critical tables before processing
         $tables = ['posts', 'postmeta', 'options'];
         $backupData = [];
-        
+
+        // Set longer timeout for backup operations
+        set_time_limit(300); // 5 minutes
+
         foreach ($tables as $table) {
             $fullTable = $this->wpdb->prefix . $table;
-            
-            // Create backup table
             $backupTable = $fullTable . '_backup_' . $jobId;
-            $this->wpdb->query("CREATE TABLE {$backupTable} AS SELECT * FROM {$fullTable}");
-            
+
+            $this->logJobEvent($jobId, 'info', "Creating backup of {$table} table...");
+
+            // Create empty backup table with same structure
+            $this->wpdb->query("CREATE TABLE {$backupTable} LIKE {$fullTable}");
+
+            // Copy data in chunks to avoid memory/timeout issues
+            $batchSize = 1000;
+            $offset = 0;
+            $totalCopied = 0;
+
+            do {
+                $copied = $this->wpdb->query($this->wpdb->prepare(
+                    "INSERT INTO {$backupTable} SELECT * FROM {$fullTable} LIMIT %d OFFSET %d",
+                    $batchSize,
+                    $offset
+                ));
+
+                $totalCopied += $copied;
+                $offset += $batchSize;
+
+                // Log progress for large tables
+                if ($totalCopied > 0 && $totalCopied % 5000 === 0) {
+                    $this->logJobEvent($jobId, 'info', "Backed up {$totalCopied} rows from {$table} table");
+                }
+
+            } while ($copied === $batchSize);
+
             $backupData[$table] = [
                 'original' => $fullTable,
                 'backup' => $backupTable,
-                'created' => current_time('mysql')
+                'created' => current_time('mysql'),
+                'rows_backed_up' => $totalCopied
             ];
+
+            $this->logJobEvent($jobId, 'info', "Completed backup of {$table} table ({$totalCopied} rows)");
         }
-        
+
         update_option(self::OPTION_PREFIX . 'backup_' . $jobId, $backupData, false);
-        
-        $this->logJobEvent($jobId, 'info', 'Database backup created');
+
+        $this->logJobEvent($jobId, 'info', 'Database backup completed successfully');
     }
 
     private function getBackupInfo(string $jobId): array

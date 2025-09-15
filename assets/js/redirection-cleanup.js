@@ -107,7 +107,7 @@
             // Processing settings
             options.batch_size = parseInt($form.find('input[name="batch_size"]').val()) || 50;
             options.dry_run = $form.find('input[name="dry_run"]').is(':checked');
-            options.create_backup = $form.find('input[name="create_backup"]').is(':checked');
+            options.create_backup = $form.find('input[name="create_backup"]:not(:disabled)').is(':checked');
 
             // URL handling
             options.include_relative = $form.find('input[name="include_relative"]').is(':checked');
@@ -155,7 +155,7 @@
             this.ajaxRequest('get_cleanup_progress', { job_id: this.currentJobId }, {
                 success: (response) => {
                     this.updateProgressFromResponse(response);
-                    
+
                     if (response.status === 'completed' || response.status === 'error') {
                         this.stopProgressMonitoring();
                         this.handleJobCompletion(response);

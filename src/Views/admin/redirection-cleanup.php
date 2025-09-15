@@ -193,9 +193,10 @@ $recent_jobs = $data['recent_jobs'] ?? [];
 
                                     <?php foreach (['dry_run', 'create_backup'] as $key): ?>
                                         <?php $option = $processing_options['processing'][$key]; ?>
-                                        <label class="checkbox-label">
+                                        <label class="checkbox-label <?php echo !empty($option['disabled']) ? 'disabled' : ''; ?>">
                                             <input type="checkbox" name="<?php echo esc_attr($key); ?>" value="1"
-                                                   <?php checked($option['default']); ?>>
+                                                   <?php checked($option['default']); ?>
+                                                   <?php disabled(!empty($option['disabled'])); ?>>
                                             <span class="checkbox-text">
                                                 <strong><?php echo esc_html($option['label']); ?></strong>
                                                 <small><?php echo esc_html($option['description']); ?></small>

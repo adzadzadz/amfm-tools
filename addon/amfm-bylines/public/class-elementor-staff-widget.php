@@ -833,18 +833,18 @@ class Elementor_Staff_Grid_Widget extends \Elementor\Widget_Base
                     echo '<div class="amfm-staff-image"><img src="' . esc_url($fallback_image) . '" alt="' . esc_attr(get_the_title($post_id)) . '"></div>';
                 }
 
-                // Display the staff's name
-                echo '<h3 class="amfm-staff-name">' . get_the_title($post_id) . '</h3>';
-
                 // Get custom fields: title and region
                 $title = get_field('title', $post_id);
                 $region = get_field('region', $post_id);
                 $credentials = get_field('credential_name', $post_id);
 
-                // Display credentials if they exist and setting is enabled
+                // Display credentials before name if they exist and setting is enabled
                 if ($credentials && $settings['show_credentials'] === 'yes') {
                     echo '<div class="amfm-staff-credentials">' . esc_html($credentials) . '</div>';
                 }
+
+                // Display the staff's name
+                echo '<h3 class="amfm-staff-name">' . get_the_title($post_id) . '</h3>';
 
                 // Display custom fields if they exist
                 if ($title || $region) {

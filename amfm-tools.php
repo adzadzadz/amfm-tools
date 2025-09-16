@@ -136,6 +136,7 @@ add_action('plugins_loaded', function() {
     new \App\Controllers\Admin\UtilitiesController();
     new \App\Controllers\Admin\ACFController();
     new \App\Controllers\Admin\ImportExportController();
+    new \App\Controllers\Admin\RedirectionCleanupController();
     new \App\Controllers\Admin\AjaxController();
 
     // Feature Controllers (check their own config for enabling/disabling features)
@@ -146,6 +147,14 @@ add_action('plugins_loaded', function() {
     new \App\Controllers\ElementorController();
     // new \App\Controllers\PublicBylinesController();
     
+    // Set up redirection cleanup cron hook
+    add_action('amfm_process_redirection_cleanup', function($jobId) {
+        if (class_exists('\App\Services\RedirectionCleanupService')) {
+            $service = new \App\Services\RedirectionCleanupService();
+            $service->processCleanupJob($jobId);
+        }
+    });
+
     // Initialize AMFM Bylines addon if it exists
     $bylines_addon_path = AMFM_TOOLS_PATH . 'addon/amfm-bylines/amfm-bylines.php';
     if (file_exists($bylines_addon_path)) {

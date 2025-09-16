@@ -145,6 +145,40 @@ class DashboardController extends Controller
                 ]
             ]
         ]);
+
+        // Ensure amfm_ajax is properly localized (fallback for AssetManager)
+        \wp_localize_script('amfm-admin-script', 'amfm_ajax', [
+            'ajax_url' => \admin_url('admin-ajax.php'),
+            'export_nonce' => $this->createNonce('amfm_export_nonce'),
+            'update_channel_nonce' => $this->createNonce('amfm_update_channel_nonce')
+        ]);
+    }
+
+    /**
+     * Enqueue admin scripts - framework auto-hook
+     */
+    public function actionAdminEnqueueScripts($hook)
+    {
+        // Only load on our admin pages
+        if (strpos($hook, 'amfm-tools') === false) {
+            return;
+        }
+
+        // Enqueue the script directly
+        wp_enqueue_script(
+            'amfm-admin-script',
+            AMFM_TOOLS_URL . 'assets/js/admin-script.js',
+            ['jquery'],
+            AMFM_TOOLS_VERSION,
+            true
+        );
+
+        // Localize the script
+        wp_localize_script('amfm-admin-script', 'amfm_ajax', [
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'export_nonce' => $this->createNonce('amfm_export_nonce'),
+            'update_channel_nonce' => $this->createNonce('amfm_update_channel_nonce')
+        ]);
     }
 
     /**

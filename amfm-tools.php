@@ -3,7 +3,7 @@
  * Plugin Name: AMFM Tools
  * Plugin URI: https://adzbyte.com/
  * Description: A plugin for AMFM custom functionalities.
- * Version: 3.5.0
+ * Version: 3.5.1
  * Author: Adrian T. Saycon
  * Author URI: https://adzbyte.com/adz
  * License: GPL2
@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Plugin constants
-define('AMFM_TOOLS_VERSION', '3.5.0');
+define('AMFM_TOOLS_VERSION', '3.5.1');
 define('AMFM_TOOLS_PATH', plugin_dir_path(__FILE__));
 define('AMFM_TOOLS_URL', plugin_dir_url(__FILE__));
 

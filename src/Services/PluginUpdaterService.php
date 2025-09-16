@@ -44,7 +44,7 @@ class PluginUpdaterService extends Service
     /**
      * Initialize hooks
      */
-    private function init(): void
+    public function init(): void
     {
         add_filter('pre_set_site_transient_update_plugins', [$this, 'checkForUpdate']);
         add_filter('plugins_api', [$this, 'pluginInfo'], 20, 3);

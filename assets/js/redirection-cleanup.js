@@ -264,24 +264,25 @@
                 if (log.level === 'info') {
                     const message = log.message;
                     
-                    // Parse Post entries: "Post ID 123: Updated URL from "old-url" to "new-url""
-                    const postMatch = message.match(/^Post ID (\d+): (Found|Updated) URL from "([^"]+)" to "([^"]+)"$/);
+                    // Parse Post entries: "Post ID 123: Updated 2 occurrences of URL from "old-url" to "new-url""
+                    const postMatch = message.match(/^Post ID (\d+): (Found|Updated) (\d+) occurrences? of URL from "([^"]+)" to "([^"]+)"$/);
                     if (postMatch) {
                         const postId = postMatch[1];
-                        const oldUrl = postMatch[3];
-                        const newUrl = postMatch[4];
+                        const count = parseInt(postMatch[3]);
+                        const oldUrl = postMatch[4];
+                        const newUrl = postMatch[5];
                         
                         // Check if we already have an entry for this post and merge URLs
                         const existingIndex = results.findIndex(r => r.post_id === postId && r.type === 'Post');
                         if (existingIndex >= 0) {
-                            results[existingIndex].url_changes++;
+                            results[existingIndex].url_changes += count;
                             results[existingIndex].old_urls.push(oldUrl);
                             results[existingIndex].new_urls.push(newUrl);
                         } else {
                             results.push({
                                 title: `Post ID ${postId}`,
                                 type: 'Post',
-                                url_changes: 1,
+                                url_changes: count,
                                 status: status,
                                 post_id: postId,
                                 old_urls: [oldUrl],
@@ -292,25 +293,26 @@
                         }
                     }
                     
-                    // Parse Meta entries: "Meta ID 456 (Post 123, Key: hero_image): Updated URL from "old-url" to "new-url""
-                    const metaMatch = message.match(/^Meta ID (\d+) \(Post (\d+), Key: ([^)]+)\): (Found|Updated) URL from "([^"]+)" to "([^"]+)"$/);
+                    // Parse Meta entries: "Meta ID 456 (Post 123, Key: hero_image): Updated 2 occurrences of URL from "old-url" to "new-url""
+                    const metaMatch = message.match(/^Meta ID (\d+) \(Post (\d+), Key: ([^)]+)\): (Found|Updated) (\d+) occurrences? of URL from "([^"]+)" to "([^"]+)"$/);
                     if (metaMatch) {
                         const postId = metaMatch[2];
                         const metaKey = metaMatch[3];
-                        const oldUrl = metaMatch[5];
-                        const newUrl = metaMatch[6];
+                        const count = parseInt(metaMatch[5]);
+                        const oldUrl = metaMatch[6];
+                        const newUrl = metaMatch[7];
                         
                         // Check if we already have an entry for this meta key and merge URLs
                         const existingIndex = results.findIndex(r => r.post_id === postId && r.meta_key === metaKey && r.type === 'Custom Field');
                         if (existingIndex >= 0) {
-                            results[existingIndex].url_changes++;
+                            results[existingIndex].url_changes += count;
                             results[existingIndex].old_urls.push(oldUrl);
                             results[existingIndex].new_urls.push(newUrl);
                         } else {
                             results.push({
                                 title: `${metaKey} (Post ${postId})`,
                                 type: 'Custom Field',
-                                url_changes: 1,
+                                url_changes: count,
                                 status: status,
                                 post_id: postId,
                                 meta_key: metaKey,
@@ -340,24 +342,25 @@
                         });
                     }
                     
-                    // Parse Option entries: "Option "widget_text": Updated URL from "old-url" to "new-url""
-                    const optionMatch = message.match(/^Option "([^"]+)": (Found|Updated) URL from "([^"]+)" to "([^"]+)"$/);
+                    // Parse Option entries: "Option "widget_text": Updated 2 occurrences of URL from "old-url" to "new-url""
+                    const optionMatch = message.match(/^Option "([^"]+)": (Found|Updated) (\d+) occurrences? of URL from "([^"]+)" to "([^"]+)"$/);
                     if (optionMatch) {
                         const optionName = optionMatch[1];
-                        const oldUrl = optionMatch[3];
-                        const newUrl = optionMatch[4];
+                        const count = parseInt(optionMatch[3]);
+                        const oldUrl = optionMatch[4];
+                        const newUrl = optionMatch[5];
                         
                         // Check if we already have an entry for this option and merge URLs
                         const existingIndex = results.findIndex(r => r.option_name === optionName && r.type === 'Widget/Option');
                         if (existingIndex >= 0) {
-                            results[existingIndex].url_changes++;
+                            results[existingIndex].url_changes += count;
                             results[existingIndex].old_urls.push(oldUrl);
                             results[existingIndex].new_urls.push(newUrl);
                         } else {
                             results.push({
                                 title: optionName,
                                 type: 'Widget/Option',
-                                url_changes: 1,
+                                url_changes: count,
                                 status: status,
                                 option_name: optionName,
                                 old_urls: [oldUrl],

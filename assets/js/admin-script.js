@@ -514,4 +514,55 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 300);
         }
     }
+
+    // Handle Update Channel Toggle
+    const channelRadios = document.querySelectorAll('input[name="update_channel"]');
+    channelRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            const channel = this.value;
+            const badge = document.getElementById('channel-badge');
+            const description = document.getElementById('channel-description');
+
+            // Update UI immediately
+            badge.className = `badge text-white ${channel === 'development' ? 'bg-warning' : 'bg-success'}`;
+            badge.textContent = channel.charAt(0).toUpperCase() + channel.slice(1);
+
+            description.textContent = channel === 'development'
+                ? 'Get latest features from development branch'
+                : 'Get stable releases only (recommended)';
+
+            // Show saving indicator
+            showSavingIndicator('channel');
+
+            // Save to server
+            const formData = new FormData();
+            formData.append('action', 'amfm_update_channel');
+            formData.append('channel', channel);
+            formData.append('nonce', amfm_ajax.update_channel_nonce);
+
+            fetch(amfm_ajax.ajax_url, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                hideSavingIndicator('channel');
+                if (data.success) {
+                    // Optionally show a subtle success message
+                    console.log('Update channel changed to:', channel);
+                } else {
+                    showNotice('Failed to update channel: ' + (data.data || 'Unknown error'), 'error');
+                    // Revert UI on error
+                    location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Error updating channel:', error);
+                hideSavingIndicator('channel');
+                showNotice('Failed to update channel. Please try again.', 'error');
+                // Revert UI on error
+                location.reload();
+            });
+        });
+    });
 });

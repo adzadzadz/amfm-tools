@@ -212,7 +212,37 @@ $field_groups_count = function_exists('acf_get_field_groups') ? count(acf_get_fi
                 </div>
                 
                 <hr class="my-2">
-                
+
+                <!-- Update Channel Setting -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span style="font-size: 0.85rem; font-weight: 600;">Update Channel</span>
+                        <span class="badge bg-<?php echo get_option('amfm_update_channel', 'stable') === 'development' ? 'warning' : 'success'; ?> text-white" style="font-size: 0.7rem;" id="channel-badge">
+                            <?php echo ucfirst(get_option('amfm_update_channel', 'stable')); ?>
+                        </span>
+                    </div>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="update_channel" id="channel_stable" value="stable" <?php checked(get_option('amfm_update_channel', 'stable'), 'stable'); ?>>
+                        <label class="btn btn-outline-success btn-sm" for="channel_stable" style="font-size: 0.75rem;">
+                            <i class="fas fa-shield-alt me-1"></i> Stable
+                        </label>
+
+                        <input type="radio" class="btn-check" name="update_channel" id="channel_development" value="development" <?php checked(get_option('amfm_update_channel', 'stable'), 'development'); ?>>
+                        <label class="btn btn-outline-warning btn-sm" for="channel_development" style="font-size: 0.75rem;">
+                            <i class="fas fa-code-branch me-1"></i> Development
+                        </label>
+                    </div>
+                    <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">
+                        <span id="channel-description">
+                            <?php if (get_option('amfm_update_channel', 'stable') === 'development'): ?>
+                                Get latest features from development branch
+                            <?php else: ?>
+                                Get stable releases only (recommended)
+                            <?php endif; ?>
+                        </span>
+                    </small>
+                </div>
+
                 <div class="text-center">
                     <a href="https://adzbyte.com/" target="_blank" rel="noopener" class="btn btn-outline-primary btn-sm" style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">
                         <i class="fas fa-external-link-alt me-1" style="font-size: 0.7rem;"></i>

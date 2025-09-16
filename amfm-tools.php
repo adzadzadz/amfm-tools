@@ -126,6 +126,7 @@ add_action('plugins_loaded', function() {
     new \App\Services\CsvExportService();
     new \App\Services\CsvImportService();
     new \App\Services\SettingsService();
+    new \App\Services\PluginUpdaterService();
 
     // Initialize Controllers
     // Admin Controllers

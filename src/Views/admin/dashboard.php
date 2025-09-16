@@ -4,6 +4,8 @@ if (!defined('ABSPATH')) exit;
 // Extract variables for easier access
 $plugin_version = $plugin_version ?? AMFM_TOOLS_VERSION;
 
+// Test update notification - v3.5.3
+
 // Get statistics
 global $wpdb;
 $posts_with_keywords = 0;

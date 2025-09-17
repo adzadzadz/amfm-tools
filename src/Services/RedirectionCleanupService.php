@@ -1837,8 +1837,15 @@ class RedirectionCleanupService
         $updated = 0;
         $errors = [];
 
+        // Update progress
+        $jobData['progress']['message'] = 'Starting live URL updates...';
+        update_option(self::OPTION_PREFIX . 'job_' . $jobId, $jobData, false);
+
         // Process based on selected content types
         foreach ($options['content_types'] ?? [] as $contentType) {
+            $jobData['progress']['message'] = "Processing {$contentType}...";
+            update_option(self::OPTION_PREFIX . 'job_' . $jobId, $jobData, false);
+
             switch ($contentType) {
                 case 'posts':
                     $result = $this->updatePostsContent($urlMap, $options['batch_size'] ?? 50);
@@ -1863,14 +1870,177 @@ class RedirectionCleanupService
         // Update job status
         $jobData['status'] = 'completed';
         $jobData['completed_at'] = current_time('mysql');
+        $jobData['progress']['message'] = "Live processing completed! Updated {$updated} items.";
         $jobData['result'] = [
-            'type' => 'actual_processing',
+            'type' => 'live_processing',
             'processed' => $processed,
             'updated' => $updated,
-            'errors' => $errors
+            'errors' => $errors,
+            'summary' => [
+                'total_processed_items' => $processed,
+                'total_updated_items' => $updated,
+                'processing_mode' => 'live'
+            ]
         ];
 
         update_option(self::OPTION_PREFIX . 'job_' . $jobId, $jobData, false);
+    }
+
+    /**
+     * Update posts content with URL mappings (CSV live processing)
+     */
+    private function updatePostsContent(array $urlMapping, int $batchSize = 50): array
+    {
+        $offset = 0;
+        $totalProcessed = 0;
+        $totalUpdated = 0;
+
+        do {
+            $posts = $this->wpdb->get_results($this->wpdb->prepare(
+                "SELECT ID, post_content, post_excerpt
+                 FROM {$this->wpdb->posts}
+                 WHERE post_status IN ('publish', 'private', 'draft', 'future')
+                 LIMIT %d OFFSET %d",
+                $batchSize,
+                $offset
+            ), ARRAY_A);
+
+            foreach ($posts as $post) {
+                $totalProcessed++;
+                $originalContent = $post['post_content'];
+                $originalExcerpt = $post['post_excerpt'];
+
+                $contentResult = $this->replaceUrlsInContentWithDetails($originalContent, $urlMapping);
+                $excerptResult = $this->replaceUrlsInContentWithDetails($originalExcerpt, $urlMapping);
+
+                $newContent = $contentResult['content'];
+                $newExcerpt = $excerptResult['content'];
+
+                if ($newContent !== $originalContent || $newExcerpt !== $originalExcerpt) {
+                    $this->wpdb->update(
+                        $this->wpdb->posts,
+                        [
+                            'post_content' => $newContent,
+                            'post_excerpt' => $newExcerpt
+                        ],
+                        ['ID' => $post['ID']],
+                        ['%s', '%s'],
+                        ['%d']
+                    );
+                    $totalUpdated++;
+                }
+            }
+
+            $offset += $batchSize;
+        } while (count($posts) === $batchSize);
+
+        return ['processed' => $totalProcessed, 'updated' => $totalUpdated];
+    }
+
+    /**
+     * Update custom fields with URL mappings (CSV live processing)
+     */
+    private function updateCustomFields(array $urlMapping, int $batchSize = 50): array
+    {
+        $offset = 0;
+        $totalProcessed = 0;
+        $totalUpdated = 0;
+
+        do {
+            $metas = $this->wpdb->get_results($this->wpdb->prepare(
+                "SELECT meta_id, post_id, meta_key, meta_value
+                 FROM {$this->wpdb->postmeta}
+                 WHERE meta_value != ''
+                 LIMIT %d OFFSET %d",
+                $batchSize,
+                $offset
+            ), ARRAY_A);
+
+            foreach ($metas as $meta) {
+                $totalProcessed++;
+                $originalValue = $meta['meta_value'];
+                $result = $this->replaceUrlsInContentWithDetails($originalValue, $urlMapping);
+                $newValue = $result['content'];
+
+                if ($newValue !== $originalValue) {
+                    $this->wpdb->update(
+                        $this->wpdb->postmeta,
+                        ['meta_value' => $newValue],
+                        ['meta_id' => $meta['meta_id']],
+                        ['%s'],
+                        ['%d']
+                    );
+                    $totalUpdated++;
+                }
+            }
+
+            $offset += $batchSize;
+        } while (count($metas) === $batchSize);
+
+        return ['processed' => $totalProcessed, 'updated' => $totalUpdated];
+    }
+
+    /**
+     * Update menu items with URL mappings (CSV live processing)
+     */
+    private function updateMenuItems(array $urlMapping): array
+    {
+        $totalProcessed = 0;
+        $totalUpdated = 0;
+
+        $menuItems = $this->wpdb->get_results(
+            "SELECT ID, post_content, guid
+             FROM {$this->wpdb->posts}
+             WHERE post_type = 'nav_menu_item'
+             AND post_status = 'publish'",
+            ARRAY_A
+        );
+
+        foreach ($menuItems as $item) {
+            $totalProcessed++;
+            $originalGuid = $item['guid'];
+            $result = $this->replaceUrlsInContentWithDetails($originalGuid, $urlMapping);
+            $newGuid = $result['content'];
+
+            if ($newGuid !== $originalGuid) {
+                $this->wpdb->update(
+                    $this->wpdb->posts,
+                    ['guid' => $newGuid],
+                    ['ID' => $item['ID']],
+                    ['%s'],
+                    ['%d']
+                );
+                $totalUpdated++;
+            }
+
+            // Also check menu item meta
+            $menuItemMetas = $this->wpdb->get_results($this->wpdb->prepare(
+                "SELECT meta_id, meta_value
+                 FROM {$this->wpdb->postmeta}
+                 WHERE post_id = %d
+                 AND meta_key IN ('_menu_item_url', '_menu_item_object_id')",
+                $item['ID']
+            ), ARRAY_A);
+
+            foreach ($menuItemMetas as $meta) {
+                $originalValue = $meta['meta_value'];
+                $result = $this->replaceUrlsInContentWithDetails($originalValue, $urlMapping);
+                $newValue = $result['content'];
+
+                if ($newValue !== $originalValue) {
+                    $this->wpdb->update(
+                        $this->wpdb->postmeta,
+                        ['meta_value' => $newValue],
+                        ['meta_id' => $meta['meta_id']],
+                        ['%s'],
+                        ['%d']
+                    );
+                    $totalUpdated++;
+                }
+            }
+        }
+
+        return ['processed' => $totalProcessed, 'updated' => $totalUpdated];
     }
 
     /**

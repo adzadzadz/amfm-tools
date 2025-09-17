@@ -6,8 +6,7 @@
         "build": "node tools/build.js",
         "build:assets": "node tools/build-assets.js",
         "build:watch": "node tools/build-assets.js --watch",
-        "build:zip": "node tools/build-zip.js",
-        "build:deploy": "node tools/build-and-deploy.js"
+        "build:zip": "node tools/build-zip.js"
     },
     "devDependencies": {
         "archiver": "^7.0.1",

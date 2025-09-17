@@ -277,12 +277,13 @@ class PluginUpdaterService extends Service
     {
         // For releases, try to get from release assets first
         if ($version !== 'latest') {
-            // TODO: Implement release asset lookup
-            // For now, fallback to dist branch
+            // TODO: Implement release asset lookup when we have GitHub releases with assets
+            // For now, use latest.zip for all versions
         }
 
-        // Use built package from dist branch
-        return "https://github.com/" . self::GITHUB_USER . "/" . self::GITHUB_REPO . "/raw/dist/amfm-tools-latest.zip";
+        // Use built package from main repository
+        $branch = $this->getBranchName();
+        return "https://github.com/" . self::GITHUB_USER . "/" . self::GITHUB_REPO . "/raw/{$branch}/dist/latest.zip";
     }
 
     /**

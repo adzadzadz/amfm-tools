@@ -3,7 +3,7 @@
  * Plugin Name: AMFM Tools
  * Plugin URI: https://adzbyte.com/
  * Description: A plugin for AMFM custom functionalities.
- * Version: 3.6.2
+ * Version: 3.7.0
  * Author: Adrian T. Saycon
  * Author URI: https://adzbyte.com/adz
  * License: GPL2
@@ -17,27 +17,13 @@ if (!defined('ABSPATH')) {
 }
 
 // Plugin constants
-define('AMFM_TOOLS_VERSION', '3.6.2');
+define('AMFM_TOOLS_VERSION', '3.7.0');
 define('AMFM_TOOLS_PATH', plugin_dir_path(__FILE__));
 define('AMFM_TOOLS_URL', plugin_dir_url(__FILE__));
 
 // Load Composer autoloader if available
 if (file_exists(AMFM_TOOLS_PATH . 'vendor/autoload.php')) {
     require_once AMFM_TOOLS_PATH . 'vendor/autoload.php';
-}
-
-// Always check if essential classes are loaded, if not include them manually
-$essential_classes = [
-    'AdzWP\\Core\\Controller' => 'vendor/adzadzadz/wp-plugin-framework/src/Core/Controller.php',
-    'AdzWP\\Core\\Service' => 'vendor/adzadzadz/wp-plugin-framework/src/Core/Service.php',
-    'App\\Controllers\\Admin\\DashboardController' => 'src/Controllers/Admin/DashboardController.php',
-    'App\\Services\\PluginUpdaterService' => 'src/Services/PluginUpdaterService.php',
-];
-
-foreach ($essential_classes as $class => $file) {
-    if (!class_exists($class) && file_exists(AMFM_TOOLS_PATH . $file)) {
-        require_once AMFM_TOOLS_PATH . $file;
-    }
 }
 
 // Initialize the plugin after WordPress is loaded

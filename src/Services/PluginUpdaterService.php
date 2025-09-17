@@ -49,7 +49,7 @@ class PluginUpdaterService extends Service
         add_filter('pre_set_site_transient_update_plugins', [$this, 'checkForUpdate']);
         add_filter('plugins_api', [$this, 'pluginInfo'], 20, 3);
         add_filter('upgrader_pre_download', [$this, 'downloadPackage'], 10, 3);
-        add_filter('upgrader_source_selection', [$this, 'fixSourceDirectory'], 10, 4);
+        // No need for source directory fixing with proper built packages
     }
 
     /**
@@ -138,44 +138,6 @@ class PluginUpdaterService extends Service
         return $result;
     }
 
-    /**
-     * Fix the source directory name after extraction
-     * GitHub archives extract as 'repo-branch' but WordPress expects 'plugin-name'
-     */
-    public function fixSourceDirectory($source, $remote_source, $upgrader, $args = [])
-    {
-        global $wp_filesystem;
-
-        // Only process our plugin updates
-        if (!isset($args['plugin']) || $args['plugin'] !== $this->plugin_file) {
-            return $source;
-        }
-
-        // Build the corrected source path
-        $corrected_source = trailingslashit($remote_source) . 'amfm-tools/';
-
-        // Check if the source needs to be renamed
-        if ($source !== $corrected_source) {
-            // Check if the incorrect folder exists (like amfm-tools-development)
-            $source_files = $wp_filesystem->dirlist($remote_source);
-
-            if ($source_files) {
-                // Find the extracted folder (should be something like amfm-tools-development)
-                foreach ($source_files as $file => $file_info) {
-                    if ($file_info['type'] === 'd' && strpos($file, 'amfm-tools') === 0) {
-                        $old_source = trailingslashit($remote_source) . $file;
-
-                        // Rename the folder to the correct name
-                        if ($wp_filesystem->move($old_source, $corrected_source)) {
-                            return $corrected_source;
-                        }
-                    }
-                }
-            }
-        }
-
-        return $source;
-    }
 
     /**
      * Get the current update channel setting
@@ -253,7 +215,7 @@ class PluginUpdaterService extends Service
 
         return [
             'version' => ltrim($data['tag_name'], 'v'),
-            'download_url' => $data['zipball_url'] ?? $data['tarball_url'] ?? null,
+            'download_url' => $this->getBuiltPackageUrl($data['tag_name']),
             'homepage' => $data['html_url'],
             'last_updated' => $data['published_at'],
             'changelog' => $data['body'] ?? '',
@@ -297,7 +259,7 @@ class PluginUpdaterService extends Service
 
             return [
                 'version' => $version,
-                'download_url' => "https://github.com/" . self::GITHUB_USER . "/" . self::GITHUB_REPO . "/archive/refs/heads/" . $branch . ".zip",
+                'download_url' => $this->getBuiltPackageUrl('latest'),
                 'homepage' => "https://github.com/" . self::GITHUB_USER . "/" . self::GITHUB_REPO,
                 'last_updated' => date('Y-m-d H:i:s'),
                 'changelog' => "Latest updates from the {$branch} branch.",
@@ -306,6 +268,21 @@ class PluginUpdaterService extends Service
         }
 
         return null;
+    }
+
+    /**
+     * Get URL for built plugin package
+     */
+    private function getBuiltPackageUrl(string $version): string
+    {
+        // For releases, try to get from release assets first
+        if ($version !== 'latest') {
+            // TODO: Implement release asset lookup
+            // For now, fallback to dist branch
+        }
+
+        // Use built package from dist branch
+        return "https://github.com/" . self::GITHUB_USER . "/" . self::GITHUB_REPO . "/raw/dist/amfm-tools-latest.zip";
     }
 
     /**

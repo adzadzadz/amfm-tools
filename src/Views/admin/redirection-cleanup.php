@@ -361,6 +361,11 @@ $recent_jobs = $data['recent_jobs'] ?? [];
                 <span class="dashicons dashicons-info"></span>
                 <?php esc_html_e('Dry Run - No Changes Made', 'amfm-tools'); ?>
             </div>
+        <% } else { %>
+            <div class="live-processing-badge">
+                <span class="dashicons dashicons-yes-alt"></span>
+                <?php esc_html_e('Live Processing - Changes Applied', 'amfm-tools'); ?>
+            </div>
         <% } %>
         
         <div class="results-details">

@@ -246,22 +246,27 @@
                            (jobData.id && jobData.id.startsWith('csv_job_'));
 
             if (isCsvJob && jobData.result) {
-                // CSV job dry run results
+                // CSV job results (dry run or live processing)
+                const isDryRun = jobData.result.type === 'dry_run';
                 const affectedContent = jobData.result.affected_content || {};
+                const summary = jobData.result.summary || {};
+
                 templateData = {
-                    posts_updated: affectedContent.posts || 0,
-                    custom_fields_updated: affectedContent.custom_fields || 0,
-                    menus_updated: affectedContent.menus || 0,
-                    widgets_updated: affectedContent.widgets || 0,
-                    total_url_replacements: jobData.result.total_changes || 0,
+                    posts_updated: isDryRun ? (affectedContent.posts || 0) : (summary.total_updated_items || jobData.result.updated || 0),
+                    custom_fields_updated: isDryRun ? (affectedContent.custom_fields || 0) : 0,
+                    menus_updated: isDryRun ? (affectedContent.menus || 0) : 0,
+                    widgets_updated: isDryRun ? (affectedContent.widgets || 0) : 0,
+                    total_url_replacements: isDryRun ? (jobData.result.total_changes || 0) : (jobData.result.updated || 0),
                     job_id: jobData.id,
                     status: jobData.status,
-                    dry_run: true,
+                    dry_run: isDryRun,
                     csv_results: jobData.result // Store full CSV results for detailed display
                 };
 
             } else if (isCsvJob && !jobData.result) {
                 // CSV job without result data - use defaults and fetch details in populateResultsTable
+                // Check if this was a dry run based on the job options
+                const wasDryRun = jobData.options?.dry_run !== false;
                 templateData = {
                     posts_updated: 0,
                     custom_fields_updated: 0,
@@ -270,7 +275,7 @@
                     total_url_replacements: 0,
                     job_id: jobData.id,
                     status: jobData.status,
-                    dry_run: true
+                    dry_run: wasDryRun
                 };
             } else {
                 // Regular job results

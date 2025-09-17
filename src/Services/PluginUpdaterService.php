@@ -49,6 +49,7 @@ class PluginUpdaterService extends Service
         add_filter('pre_set_site_transient_update_plugins', [$this, 'checkForUpdate']);
         add_filter('plugins_api', [$this, 'pluginInfo'], 20, 3);
         add_filter('upgrader_pre_download', [$this, 'downloadPackage'], 10, 3);
+        add_filter('upgrader_source_selection', [$this, 'fixSourceDirectory'], 10, 4);
     }
 
     /**
@@ -135,6 +136,45 @@ class PluginUpdaterService extends Service
 
         // Let WordPress handle the download normally
         return $result;
+    }
+
+    /**
+     * Fix the source directory name after extraction
+     * GitHub archives extract as 'repo-branch' but WordPress expects 'plugin-name'
+     */
+    public function fixSourceDirectory($source, $remote_source, $upgrader, $args = [])
+    {
+        global $wp_filesystem;
+
+        // Only process our plugin updates
+        if (!isset($args['plugin']) || $args['plugin'] !== $this->plugin_file) {
+            return $source;
+        }
+
+        // Build the corrected source path
+        $corrected_source = trailingslashit($remote_source) . 'amfm-tools/';
+
+        // Check if the source needs to be renamed
+        if ($source !== $corrected_source) {
+            // Check if the incorrect folder exists (like amfm-tools-development)
+            $source_files = $wp_filesystem->dirlist($remote_source);
+
+            if ($source_files) {
+                // Find the extracted folder (should be something like amfm-tools-development)
+                foreach ($source_files as $file => $file_info) {
+                    if ($file_info['type'] === 'd' && strpos($file, 'amfm-tools') === 0) {
+                        $old_source = trailingslashit($remote_source) . $file;
+
+                        // Rename the folder to the correct name
+                        if ($wp_filesystem->move($old_source, $corrected_source)) {
+                            return $corrected_source;
+                        }
+                    }
+                }
+            }
+        }
+
+        return $source;
     }
 
     /**

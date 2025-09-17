@@ -213,9 +213,25 @@ class PluginUpdaterService extends Service
             return null;
         }
 
+        // Look for built package in release assets
+        $download_url = null;
+        if (isset($data['assets']) && is_array($data['assets'])) {
+            foreach ($data['assets'] as $asset) {
+                if (isset($asset['name']) && strpos($asset['name'], 'amfm-tools') === 0 && substr($asset['name'], -4) === '.zip') {
+                    $download_url = $asset['browser_download_url'];
+                    break;
+                }
+            }
+        }
+
+        // Fallback to zipball if no built asset found
+        if (!$download_url) {
+            $download_url = $data['zipball_url'] ?? $data['tarball_url'] ?? null;
+        }
+
         return [
             'version' => ltrim($data['tag_name'], 'v'),
-            'download_url' => $this->getBuiltPackageUrl($data['tag_name']),
+            'download_url' => $download_url,
             'homepage' => $data['html_url'],
             'last_updated' => $data['published_at'],
             'changelog' => $data['body'] ?? '',
@@ -259,10 +275,10 @@ class PluginUpdaterService extends Service
 
             return [
                 'version' => $version,
-                'download_url' => $this->getBuiltPackageUrl('latest'),
+                'download_url' => "https://github.com/" . self::GITHUB_USER . "/" . self::GITHUB_REPO . "/archive/refs/heads/" . $branch . ".zip",
                 'homepage' => "https://github.com/" . self::GITHUB_USER . "/" . self::GITHUB_REPO,
                 'last_updated' => date('Y-m-d H:i:s'),
-                'changelog' => "Latest updates from the {$branch} branch.",
+                'changelog' => "Latest updates from the {$branch} branch. Note: Development versions use raw source and may require manual dependency installation.",
                 'channel' => $channel
             ];
         }
@@ -270,21 +286,6 @@ class PluginUpdaterService extends Service
         return null;
     }
 
-    /**
-     * Get URL for built plugin package
-     */
-    private function getBuiltPackageUrl(string $version): string
-    {
-        // For releases, try to get from release assets first
-        if ($version !== 'latest') {
-            // TODO: Implement release asset lookup when we have GitHub releases with assets
-            // For now, use latest.zip for all versions
-        }
-
-        // Use built package from main repository
-        $branch = $this->getBranchName();
-        return "https://github.com/" . self::GITHUB_USER . "/" . self::GITHUB_REPO . "/raw/{$branch}/dist/latest.zip";
-    }
 
     /**
      * Format changelog for display

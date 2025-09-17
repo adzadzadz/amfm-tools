@@ -14,9 +14,8 @@
 # Exclude node_modules entirely (build tools only)
 /node_modules/
 
-# Allow dist directory but exclude old builds (keep only latest)
-/dist/*
-!/dist/latest.zip
+# Exclude all dist files (releases will use built packages)
+/dist/
 /coverage/
 .env
 .env.local

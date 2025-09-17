@@ -147,7 +147,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => {
-            console.error('Error loading taxonomies:', error);
             taxonomyList.innerHTML = '<p>Error loading taxonomies.</p>';
         });
     }
@@ -199,7 +198,6 @@ document.addEventListener('DOMContentLoaded', function() {
             formData.append('action', 'amfm_export_data');
             formData.append('nonce', amfm_ajax.export_nonce);
             
-            console.log('Export form data:', Object.fromEntries(formData.entries()));
             
             // Make AJAX request
             fetch(amfm_ajax.ajax_url, {
@@ -207,8 +205,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: formData
             })
             .then(response => {
-                console.log('Export response status:', response.status);
-                console.log('Export response headers:', response.headers);
                 if (!response.ok) {
                     throw new Error('Network response was not ok: ' + response.statusText);
                 }
@@ -218,7 +214,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!contentType || !contentType.includes('application/json')) {
                     // If not JSON, get the text to see what we actually received
                     return response.text().then(text => {
-                        console.error('Expected JSON but got:', text);
                         throw new Error('Server returned non-JSON response: ' + text.substring(0, 100));
                     });
                 }
@@ -226,7 +221,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 return response.json();
             })
             .then(data => {
-                console.log('Export response data:', data);
                 if (data.success) {
                     // Create and download CSV file
                     downloadCSV(data.data.data, data.data.filename);
@@ -238,7 +232,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
-                console.error('Export error:', error);
                 showNotice('Export failed due to a network error. Please try again.', 'error');
             })
             .finally(() => {
@@ -435,7 +428,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => {
-            console.error('Error saving component settings:', error);
             hideSavingIndicator('components');
             showNotice('Failed to save component settings. Please try again.', 'error');
         });
@@ -466,7 +458,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => {
-            console.error('Error saving widget settings:', error);
             hideSavingIndicator('widgets');
             showNotice('Failed to save widget settings. Please try again.', 'error');
         });
@@ -548,8 +539,6 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 hideSavingIndicator('channel');
                 if (data.success) {
-                    // Optionally show a subtle success message
-                    console.log('Update channel changed to:', channel);
                 } else {
                     showNotice('Failed to update channel: ' + (data.data || 'Unknown error'), 'error');
                     // Revert UI on error
@@ -557,7 +546,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
-                console.error('Error updating channel:', error);
                 hideSavingIndicator('channel');
                 showNotice('Failed to update channel. Please try again.', 'error');
                 // Revert UI on error

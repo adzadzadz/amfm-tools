@@ -245,18 +245,7 @@
                            (!jobData.results || (Array.isArray(jobData.results) && jobData.results.length === 0)) ||
                            (jobData.id && jobData.id.startsWith('csv_job_'));
 
-            console.log('CSV job detection:', {
-                hasResult: !!jobData.result,
-                resultType: jobData.result?.type,
-                jobType: jobData.type,
-                hasResults: !!jobData.results,
-                resultsLength: Array.isArray(jobData.results) ? jobData.results.length : 'not array',
-                jobId: jobData.id,
-                isCsvJob: isCsvJob
-            });
-
             if (isCsvJob && jobData.result) {
-                console.log('CSV job with result data found');
                 // CSV job dry run results
                 const affectedContent = jobData.result.affected_content || {};
                 templateData = {
@@ -271,11 +260,7 @@
                     csv_results: jobData.result // Store full CSV results for detailed display
                 };
 
-                // Debug log to see the actual structure
-                console.log('CSV Job Data:', jobData);
-                console.log('Template Data:', templateData);
             } else if (isCsvJob && !jobData.result) {
-                console.log('CSV job detected but no result data - using defaults');
                 // CSV job without result data - use defaults and fetch details in populateResultsTable
                 templateData = {
                     posts_updated: 0,
@@ -288,7 +273,6 @@
                     dry_run: true
                 };
             } else {
-                console.log('Regular job results');
                 // Regular job results
                 templateData = {
                     ...jobData.results,
@@ -326,7 +310,6 @@
             const $tableBody = $('#results-table-body');
             $tableBody.empty();
 
-            console.log('populateResultsTable called with:', jobData);
 
             // Handle CSV results differently - check multiple possible locations
             let csvResult = null;
@@ -337,10 +320,8 @@
                 csvResult = jobData.result;
             } else if (jobData.type === 'csv_import') {
                 // For CSV jobs, we need to get the full job details
-                console.log('CSV job detected, fetching full details...');
                 this.ajaxRequest('get_job_details', { job_id: jobData.id }, {
                     success: (response) => {
-                        console.log('Full job details:', response);
                         if (response.job && response.job.result) {
                             this.renderCsvResults(response.job.result, $tableBody);
                         } else {
@@ -355,7 +336,6 @@
             }
 
             if (csvResult) {
-                console.log('Calling renderCsvResults with:', csvResult);
                 this.renderCsvResults(csvResult, $tableBody);
                 return;
             }
@@ -376,9 +356,6 @@
         },
 
         renderCsvResults: function(csvResult, $tableBody) {
-            console.log('renderCsvResults called with csvResult:', csvResult);
-            console.log('detailed_report:', csvResult.detailed_report);
-            console.log('would_fix items:', csvResult.detailed_report?.would_fix);
 
             // Show CSV-specific detailed results
             if (csvResult.detailed_report && csvResult.detailed_report.would_fix) {

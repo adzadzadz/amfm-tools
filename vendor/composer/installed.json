@@ -1,0 +1,71 @@
+{
+    "packages": [
+        {
+            "name": "adzadzadz/wp-plugin-framework",
+            "version": "dev-develop",
+            "version_normalized": "dev-develop",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/adzadzadz/wp-plugin-framework.git",
+                "reference": "29fcc1896c7baada054691eaca95f5bae899e11f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/adzadzadz/wp-plugin-framework/zipball/29fcc1896c7baada054691eaca95f5bae899e11f",
+                "reference": "29fcc1896c7baada054691eaca95f5bae899e11f",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.4"
+            },
+            "require-dev": {
+                "doctrine/instantiator": "^1.5.0",
+                "mockery/mockery": "^1.4",
+                "phpunit/phpunit": "^9.0"
+            },
+            "time": "2025-09-09T14:50:30+00:00",
+            "bin": [
+                "bin/adz",
+                "bin/setup-plugin"
+            ],
+            "type": "library",
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "AdzWP\\": "src/"
+                },
+                "classmap": [
+                    "src/AdzMain.php"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "GPL-2.0-or-later"
+            ],
+            "authors": [
+                {
+                    "name": "Adrian T. Saycon",
+                    "email": "adzbite@gmail.com",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Modern MVC framework for WordPress plugin development - Build professional plugins with clean architecture",
+            "homepage": "https://github.com/adzadzadz/wp-plugin-framework",
+            "keywords": [
+                "development",
+                "framework",
+                "mvc",
+                "php",
+                "plugin",
+                "wordpress"
+            ],
+            "support": {
+                "issues": "https://github.com/adzadzadz/wp-plugin-framework/issues",
+                "source": "https://github.com/adzadzadz/wp-plugin-framework"
+            },
+            "install-path": "../adzadzadz/wp-plugin-framework"
+        }
+    ],
+    "dev": false,
+    "dev-package-names": []
+}

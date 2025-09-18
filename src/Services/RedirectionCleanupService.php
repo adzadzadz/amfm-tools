@@ -1836,14 +1836,20 @@ class RedirectionCleanupService
         $processed = 0;
         $updated = 0;
         $errors = [];
+        $totalContentTypes = count($options['content_types'] ?? []);
+        $currentType = 0;
 
-        // Update progress
+        // Update progress to show live processing mode
         $jobData['progress']['message'] = 'Starting live URL updates...';
+        $jobData['progress']['current'] = 0;
+        $jobData['progress']['total'] = $totalContentTypes;
         update_option(self::OPTION_PREFIX . 'job_' . $jobId, $jobData, false);
 
         // Process based on selected content types
         foreach ($options['content_types'] ?? [] as $contentType) {
+            $currentType++;
             $jobData['progress']['message'] = "Processing {$contentType}...";
+            $jobData['progress']['current'] = $currentType;
             update_option(self::OPTION_PREFIX . 'job_' . $jobId, $jobData, false);
 
             switch ($contentType) {
@@ -1871,6 +1877,7 @@ class RedirectionCleanupService
         $jobData['status'] = 'completed';
         $jobData['completed_at'] = current_time('mysql');
         $jobData['progress']['message'] = "Live processing completed! Updated {$updated} items.";
+        $jobData['progress']['current'] = $totalContentTypes;
         $jobData['result'] = [
             'type' => 'live_processing',
             'processed' => $processed,
@@ -2060,7 +2067,8 @@ class RedirectionCleanupService
             $jobData['progress']['current_step'] = 'Starting CSV analysis...';
             update_option(self::OPTION_PREFIX . 'job_' . $jobId, $jobData, false);
 
-            if ($jobData['options']['dry_run'] ?? true) {
+            $isDryRun = $jobData['options']['dry_run'] ?? true;
+            if ($isDryRun) {
                 $this->performBatchedCsvDryRun($jobId, $jobData['url_map'], $jobData['options']);
             } else {
                 $this->performCsvProcessing($jobId, $jobData['url_map'], $jobData['options']);

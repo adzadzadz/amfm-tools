@@ -147,7 +147,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => {
-            console.error('Error loading taxonomies:', error);
             taxonomyList.innerHTML = '<p>Error loading taxonomies.</p>';
         });
     }
@@ -199,7 +198,6 @@ document.addEventListener('DOMContentLoaded', function() {
             formData.append('action', 'amfm_export_data');
             formData.append('nonce', amfm_ajax.export_nonce);
             
-            console.log('Export form data:', Object.fromEntries(formData.entries()));
             
             // Make AJAX request
             fetch(amfm_ajax.ajax_url, {
@@ -207,8 +205,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: formData
             })
             .then(response => {
-                console.log('Export response status:', response.status);
-                console.log('Export response headers:', response.headers);
                 if (!response.ok) {
                     throw new Error('Network response was not ok: ' + response.statusText);
                 }
@@ -218,7 +214,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!contentType || !contentType.includes('application/json')) {
                     // If not JSON, get the text to see what we actually received
                     return response.text().then(text => {
-                        console.error('Expected JSON but got:', text);
                         throw new Error('Server returned non-JSON response: ' + text.substring(0, 100));
                     });
                 }
@@ -226,7 +221,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 return response.json();
             })
             .then(data => {
-                console.log('Export response data:', data);
                 if (data.success) {
                     // Create and download CSV file
                     downloadCSV(data.data.data, data.data.filename);
@@ -238,7 +232,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
-                console.error('Export error:', error);
                 showNotice('Export failed due to a network error. Please try again.', 'error');
             })
             .finally(() => {
@@ -435,7 +428,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => {
-            console.error('Error saving component settings:', error);
             hideSavingIndicator('components');
             showNotice('Failed to save component settings. Please try again.', 'error');
         });
@@ -466,7 +458,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => {
-            console.error('Error saving widget settings:', error);
             hideSavingIndicator('widgets');
             showNotice('Failed to save widget settings. Please try again.', 'error');
         });
@@ -514,4 +505,52 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 300);
         }
     }
+
+    // Handle Update Channel Toggle
+    const channelRadios = document.querySelectorAll('input[name="update_channel"]');
+    channelRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            const channel = this.value;
+            const badge = document.getElementById('channel-badge');
+            const description = document.getElementById('channel-description');
+
+            // Update UI immediately
+            badge.className = `badge text-white ${channel === 'development' ? 'bg-warning' : 'bg-success'}`;
+            badge.textContent = channel.charAt(0).toUpperCase() + channel.slice(1);
+
+            description.textContent = channel === 'development'
+                ? 'Get latest features from development branch'
+                : 'Get stable releases only (recommended)';
+
+            // Show saving indicator
+            showSavingIndicator('channel');
+
+            // Save to server
+            const formData = new FormData();
+            formData.append('action', 'amfm_update_channel');
+            formData.append('channel', channel);
+            formData.append('nonce', amfm_ajax.update_channel_nonce);
+
+            fetch(amfm_ajax.ajax_url, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                hideSavingIndicator('channel');
+                if (data.success) {
+                } else {
+                    showNotice('Failed to update channel: ' + (data.data || 'Unknown error'), 'error');
+                    // Revert UI on error
+                    location.reload();
+                }
+            })
+            .catch(error => {
+                hideSavingIndicator('channel');
+                showNotice('Failed to update channel. Please try again.', 'error');
+                // Revert UI on error
+                location.reload();
+            });
+        });
+    });
 });

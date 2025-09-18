@@ -1,0 +1,69 @@
+{
+    "name": "adzadzadz/wp-plugin-framework",
+    "description": "Modern MVC framework for WordPress plugin development - Build professional plugins with clean architecture",
+    "type": "library",
+    "keywords": [
+        "wordpress",
+        "framework",
+        "mvc",
+        "plugin",
+        "development",
+        "php"
+    ],
+    "homepage": "https://github.com/adzadzadz/wp-plugin-framework",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "Adrian T. Saycon",
+            "email": "adzbite@gmail.com",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": ">=7.4"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.0",
+        "mockery/mockery": "^1.4",
+        "doctrine/instantiator": "^1.5.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "AdzWP\\": "src/"
+        },
+        "classmap": [
+            "src/AdzMain.php"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "bin": [
+        "bin/adz",
+        "bin/setup-plugin"
+    ],
+    "scripts": {
+        "test": "phpunit",
+        "test:unit": "phpunit --testsuite=Unit",
+        "test:coverage": "phpunit --coverage-html coverage",
+        "post-create-project-cmd": [
+            "php bin/setup-plugin",
+            "composer update"
+        ],
+        "post-install-cmd": [
+            "@create-adz-command"
+        ],
+        "post-update-cmd": [
+            "@create-adz-command"
+        ],
+        "create-adz-command": "AdzWP\\Scripts\\ComposerScripts::copyAdzCommand"
+    },
+    "support": {
+        "issues": "https://github.com/adzadzadz/wp-plugin-framework/issues",
+        "source": "https://github.com/adzadzadz/wp-plugin-framework"
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

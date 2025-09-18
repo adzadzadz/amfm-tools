@@ -3,7 +3,7 @@
  * Plugin Name: AMFM Tools
  * Plugin URI: https://adzbyte.com/
  * Description: A plugin for AMFM custom functionalities.
- * Version: 3.5.1
+ * Version: 3.8.4
  * Author: Adrian T. Saycon
  * Author URI: https://adzbyte.com/adz
  * License: GPL2
@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Plugin constants
-define('AMFM_TOOLS_VERSION', '3.5.1');
+define('AMFM_TOOLS_VERSION', '3.8.4');
 define('AMFM_TOOLS_PATH', plugin_dir_path(__FILE__));
 define('AMFM_TOOLS_URL', plugin_dir_url(__FILE__));
 
@@ -126,6 +126,7 @@ add_action('plugins_loaded', function() {
     new \App\Services\CsvExportService();
     new \App\Services\CsvImportService();
     new \App\Services\SettingsService();
+    new \App\Services\PluginUpdaterService();
 
     // Initialize Controllers
     // Admin Controllers
@@ -152,6 +153,14 @@ add_action('plugins_loaded', function() {
         if (class_exists('\App\Services\RedirectionCleanupService')) {
             $service = new \App\Services\RedirectionCleanupService();
             $service->processCleanupJob($jobId);
+        }
+    });
+
+    // Set up CSV redirection cleanup cron hook
+    add_action('amfm_process_csv_redirection_cleanup', function($jobId) {
+        if (class_exists('\App\Services\RedirectionCleanupService')) {
+            $service = new \App\Services\RedirectionCleanupService();
+            $service->processCsvRedirectionCleanup($jobId);
         }
     });
 

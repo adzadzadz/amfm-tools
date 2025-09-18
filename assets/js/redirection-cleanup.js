@@ -33,6 +33,11 @@
             $(document).on('click', '#rollback-changes', this.rollbackCurrentJob.bind(this));
             $(document).on('click', '#download-results', this.downloadResults.bind(this));
 
+            // CSV Import
+            $('#csv-upload-button').on('click', this.triggerFileUpload.bind(this));
+            $('#csv-file-input').on('change', this.handleFileSelect.bind(this));
+            $('#csv-import-form').on('submit', this.handleCsvImport.bind(this));
+            $(document).on('click', '#process-csv-redirections', this.processCsvRedirections.bind(this));
 
             // Modal
             $(document).on('click', '.amfm-modal-close, .amfm-modal-backdrop', this.closeModal.bind(this));
@@ -168,14 +173,27 @@
         },
 
         updateProgressFromResponse: function(progress) {
-            const { total_items, processed_items, current_step, errors } = progress.progress;
-            const percentage = total_items > 0 ? Math.round((processed_items / total_items) * 100) : 0;
-            
-            this.updateProgress(percentage, current_step, `${processed_items} / ${total_items} items processed`);
+            const progressData = progress.progress;
+
+            // Handle CSV progress format
+            if (progressData.current !== undefined && progressData.total !== undefined) {
+                const percentage = progressData.total > 0 ? Math.round((progressData.current / progressData.total) * 100) : 0;
+                const message = progressData.message || 'Processing...';
+                const stats = `${progressData.current} / ${progressData.total} URLs analyzed`;
+
+                this.updateProgress(percentage, message, stats);
+                this.addLogEntry('info', `Batch completed: ${progressData.current}/${progressData.total} URLs`);
+            } else {
+                // Handle regular progress format
+                const { total_items, processed_items, current_step, errors } = progressData;
+                const percentage = total_items > 0 ? Math.round((processed_items / total_items) * 100) : 0;
+
+                this.updateProgress(percentage, current_step, `${processed_items} / ${total_items} items processed`);
+            }
 
             // Add any new errors to log
-            if (errors && errors.length > 0) {
-                errors.forEach(error => this.addLogEntry('error', error));
+            if (progressData.errors && progressData.errors.length > 0) {
+                progressData.errors.forEach(error => this.addLogEntry('error', error));
             }
         },
 
@@ -218,12 +236,71 @@
                 return;
             }
 
-            const resultsHtml = this.templates.results({
-                ...jobData.results,
-                job_id: jobData.id,
-                status: jobData.status,
-                dry_run: jobData.options?.dry_run || false
-            });
+            // Handle different result structures (CSV vs regular jobs)
+            let templateData;
+
+            // Check for CSV job (can be identified by having 'result' instead of 'results' or by job type)
+            const isCsvJob = (jobData.result && (jobData.result.type === 'dry_run' || jobData.result.summary)) ||
+                           (jobData.type === 'csv_import') ||
+                           (!jobData.results || (Array.isArray(jobData.results) && jobData.results.length === 0)) ||
+                           (jobData.id && jobData.id.startsWith('csv_job_'));
+
+            if (isCsvJob && jobData.result) {
+                // CSV job results (dry run or live processing)
+                const isDryRun = jobData.result.type === 'dry_run';
+                const affectedContent = jobData.result.affected_content || {};
+                const summary = jobData.result.summary || {};
+
+                templateData = {
+                    posts_updated: isDryRun ? (affectedContent.posts || 0) : (summary.total_updated_items || jobData.result.updated || 0),
+                    custom_fields_updated: isDryRun ? (affectedContent.custom_fields || 0) : 0,
+                    menus_updated: isDryRun ? (affectedContent.menus || 0) : 0,
+                    widgets_updated: isDryRun ? (affectedContent.widgets || 0) : 0,
+                    total_url_replacements: isDryRun ? (jobData.result.total_changes || 0) : (jobData.result.updated || 0),
+                    job_id: jobData.id,
+                    status: jobData.status,
+                    dry_run: isDryRun,
+                    csv_results: jobData.result // Store full CSV results for detailed display
+                };
+
+            } else if (isCsvJob && !jobData.result) {
+                // CSV job without result data - use defaults and fetch details in populateResultsTable
+                // Check if this was a dry run based on the job options
+                const wasDryRun = jobData.options?.dry_run !== false;
+                templateData = {
+                    posts_updated: 0,
+                    custom_fields_updated: 0,
+                    menus_updated: 0,
+                    widgets_updated: 0,
+                    total_url_replacements: 0,
+                    job_id: jobData.id,
+                    status: jobData.status,
+                    dry_run: wasDryRun
+                };
+            } else {
+                // Regular job results
+                templateData = {
+                    ...jobData.results,
+                    job_id: jobData.id,
+                    status: jobData.status,
+                    dry_run: jobData.options?.dry_run || false
+                };
+            }
+
+            // Ensure all required template variables exist with fallbacks
+            templateData = {
+                posts_updated: 0,
+                custom_fields_updated: 0,
+                menus_updated: 0,
+                widgets_updated: 0,
+                total_url_replacements: 0,
+                job_id: jobData.id || 'unknown',
+                status: jobData.status || 'unknown',
+                dry_run: false,
+                ...templateData // Override with actual values
+            };
+
+            const resultsHtml = this.templates.results(templateData);
 
             $('#results-content').html(resultsHtml);
             
@@ -237,8 +314,38 @@
         populateResultsTable: function(jobData) {
             const $tableBody = $('#results-table-body');
             $tableBody.empty();
-            
-            // Get job details to access logs
+
+
+            // Handle CSV results differently - check multiple possible locations
+            let csvResult = null;
+
+            if (jobData.result && jobData.result.type === 'dry_run') {
+                csvResult = jobData.result;
+            } else if (jobData.result && jobData.result.summary) {
+                csvResult = jobData.result;
+            } else if (jobData.type === 'csv_import') {
+                // For CSV jobs, we need to get the full job details
+                this.ajaxRequest('get_job_details', { job_id: jobData.id }, {
+                    success: (response) => {
+                        if (response.job && response.job.result) {
+                            this.renderCsvResults(response.job.result, $tableBody);
+                        } else {
+                            $tableBody.append('<tr><td colspan="4">No CSV results found in job details</td></tr>');
+                        }
+                    },
+                    error: () => {
+                        $tableBody.append('<tr><td colspan="4">Failed to load CSV results</td></tr>');
+                    }
+                });
+                return;
+            }
+
+            if (csvResult) {
+                this.renderCsvResults(csvResult, $tableBody);
+                return;
+            }
+
+            // Get job details to access logs for regular jobs
             this.ajaxRequest('get_job_details', { job_id: jobData.id }, {
                 success: (response) => {
                     const logs = response.logs || [];
@@ -251,6 +358,70 @@
                     this.renderSummaryResults(jobData.results, $tableBody);
                 }
             });
+        },
+
+        renderCsvResults: function(csvResult, $tableBody) {
+
+            // Show CSV-specific detailed results
+            if (csvResult.detailed_report && csvResult.detailed_report.would_fix) {
+                csvResult.detailed_report.would_fix.forEach(item => {
+                    const row = `
+                        <tr>
+                            <td>
+                                <strong>${this.escapeHtml(item.type.replace('_', ' '))}</strong>
+                                ${item.sample_posts ? '<br><small>Sample: ' + item.sample_posts.map(p => p.title).slice(0, 2).join(', ') + '</small>' : ''}
+                                ${item.sample_fields ? '<br><small>Fields: ' + item.sample_fields.map(f => f.meta_key).slice(0, 2).join(', ') + '</small>' : ''}
+                            </td>
+                            <td>
+                                <span class="content-type-badge">${this.escapeHtml(item.type)}</span>
+                            </td>
+                            <td>
+                                <div class="url-change">
+                                    <div class="old-url">${this.escapeHtml(item.old_url)}</div>
+                                    <div class="arrow">→</div>
+                                    <div class="new-url">${this.escapeHtml(item.new_url)}</div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="status-badge dry-run">
+                                    ${item.occurrences} would be updated
+                                </span>
+                            </td>
+                        </tr>
+                    `;
+                    $tableBody.append(row);
+                });
+            }
+
+            // Show recommendations if available
+            if (csvResult.recommendations && csvResult.recommendations.length > 0) {
+                const recommendationsRow = `
+                    <tr class="recommendations-row">
+                        <td colspan="4">
+                            <div class="csv-recommendations">
+                                <h5>Recommendations:</h5>
+                                <ul>
+                                    ${csvResult.recommendations.map(rec =>
+                                        `<li class="recommendation-${rec.level}">${this.escapeHtml(rec.message)}</li>`
+                                    ).join('')}
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                $tableBody.append(recommendationsRow);
+            }
+
+            // If no results to show
+            if (!csvResult.detailed_report || csvResult.detailed_report.would_fix.length === 0) {
+                $tableBody.append(`
+                    <tr>
+                        <td colspan="4" class="no-results">
+                            No matching content found for the imported URLs.
+                        </td>
+                    </tr>
+                `);
+            }
         },
 
         parseLogsForResults: function(logs, jobOptions) {
@@ -609,11 +780,17 @@
 
         generateAndDownloadReport: function(jobDetails) {
             const job = jobDetails.job;
+
+            // Check if this is a CSV import job
+            if (job.type === 'csv_import' && job.result) {
+                return this.generateCsvImportReport(job);
+            }
+
             const logs = jobDetails.logs || [];
-            
+
             // Parse the logs to get detailed results
             const results = this.parseLogsForResults(logs, job.options || {});
-            
+
             // Generate CSV content
             let csvContent = '';
             
@@ -696,6 +873,68 @@
             window.URL.revokeObjectURL(url);
             
             this.showNotice('CSV report downloaded successfully!', 'success');
+        },
+
+        generateCsvImportReport: function(job) {
+            let csvContent = '';
+
+            // Main data - URLs that need fixing
+            csvContent += '"Old URL","New URL","Content Type","Occurrences"\n';
+
+            if (job.result && job.result.detailed_report && job.result.detailed_report.would_fix) {
+                // Sort by occurrences (highest first)
+                const sortedItems = [...job.result.detailed_report.would_fix].sort((a, b) =>
+                    (b.occurrences || 0) - (a.occurrences || 0)
+                );
+
+                sortedItems.forEach(item => {
+                    const row = [
+                        item.old_url || '',
+                        item.new_url || '',
+                        item.type?.replace(/_/g, ' ') || '',
+                        item.occurrences || '0'
+                    ];
+                    csvContent += row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(',') + '\n';
+                });
+            }
+
+            // Add empty line before summary
+            csvContent += '\n';
+
+            // Summary at the bottom
+            csvContent += '"SUMMARY"\n';
+
+            if (job.result && job.result.summary) {
+                csvContent += `"Total URLs Analyzed","${job.result.summary.total_url_mappings || 0}"\n`;
+                csvContent += `"URLs Found in Content","${job.result.summary.urls_with_matches || 0}"\n`;
+                csvContent += `"URLs Not Found","${job.result.summary.urls_without_matches || 0}"\n`;
+                csvContent += `"Total Changes Needed","${job.result.summary.total_potential_changes || 0}"\n`;
+            }
+
+            if (job.result && job.result.affected_content) {
+                csvContent += '\n"CONTENT BREAKDOWN"\n';
+                csvContent += `"Posts with URLs","${job.result.affected_content.posts || 0}"\n`;
+                csvContent += `"Custom Fields with URLs","${job.result.affected_content.custom_fields || 0}"\n`;
+                csvContent += `"Menu Items with URLs","${job.result.affected_content.menus || 0}"\n`;
+                csvContent += `"Widgets with URLs","${job.result.affected_content.widgets || 0}"\n`;
+            }
+
+            csvContent += '\n"PROCESSING INFO"\n';
+            csvContent += `"Analysis Date","${job.completed_at || job.started_at}"\n`;
+            csvContent += `"Job ID","${job.id}"\n`;
+
+            // Create and trigger download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `csv-import-analysis-${job.id}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+
+            this.showNotice('CSV import analysis report downloaded successfully!', 'success');
         },
 
         showAnalysisModal: function(analysisData) {
@@ -866,6 +1105,165 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        },
+
+        // CSV Import Methods
+        triggerFileUpload: function(e) {
+            e.preventDefault();
+            $('#csv-file-input').trigger('click');
+        },
+
+        handleFileSelect: function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                // Validate file size (10MB max)
+                if (file.size > 10 * 1024 * 1024) {
+                    this.showNotice('File size exceeds 10MB limit', 'error');
+                    e.target.value = '';
+                    return;
+                }
+
+                // Show file info
+                $('#csv-file-name').text(file.name);
+                $('#csv-file-info').show();
+                $('#csv-import-button').prop('disabled', false);
+            }
+        },
+
+        handleCsvImport: function(e) {
+            e.preventDefault();
+
+            const fileInput = $('#csv-file-input')[0];
+            if (!fileInput.files.length) {
+                this.showNotice('Please select a CSV file', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('csv_file', fileInput.files[0]);
+            formData.append('action', 'import_csv_redirections');
+            formData.append('nonce', amfmRedirectionCleanup.nonce);
+
+            const $button = $('#csv-import-button');
+            const originalText = $button.text();
+            $button.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Importing...');
+
+            $.ajax({
+                url: amfmRedirectionCleanup.ajaxUrl,
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: (response) => {
+                    if (response.success) {
+                        this.displayCsvImportResults(response.data);
+                        this.showNotice('CSV imported successfully!', 'success');
+                    } else {
+                        this.showNotice(response.data.message || 'Import failed', 'error');
+                    }
+                },
+                error: () => {
+                    this.showNotice('Failed to import CSV file', 'error');
+                },
+                complete: () => {
+                    $button.prop('disabled', false).text(originalText);
+                }
+            });
+        },
+
+        displayCsvImportResults: function(data) {
+            const resultsHtml = `
+                <div class="csv-import-summary">
+                    <h4>Import Summary</h4>
+                    <ul>
+                        <li><strong>Total Rows:</strong> ${data.total_rows}</li>
+                        <li><strong>Valid Redirections:</strong> ${data.valid_redirections}</li>
+                        <li><strong>Skipped (Query Strings):</strong> ${data.skipped_count || 0}</li>
+                        <li><strong>Unique Sources:</strong> ${data.unique_sources}</li>
+                        <li><strong>Unique Destinations:</strong> ${data.unique_destinations}</li>
+                    </ul>
+
+                    ${data.skipped_count > 0 && data.skipped_samples ? `
+                        <div class="skipped-urls" style="margin-top: 10px;">
+                            <h5>Sample Skipped URLs (Query String Variations):</h5>
+                            <ul style="font-size: 12px; color: #666;">
+                                ${data.skipped_samples.map(skip => `<li>${this.escapeHtml(skip)}</li>`).join('')}
+                            </ul>
+                            <p style="font-size: 11px; color: #999;">
+                                These URLs only differ by query parameters (pagination, filters, etc.) and are not true redirections.
+                            </p>
+                        </div>
+                    ` : ''}
+
+                    ${data.errors.length > 0 ? `
+                        <div class="import-errors">
+                            <h5>Errors:</h5>
+                            <ul style="color: #d63638; font-size: 12px;">
+                                ${data.errors.map(error => `<li>${this.escapeHtml(error)}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+
+                    ${data.valid_redirections > 0 ? `
+                        <div style="margin-top: 15px;">
+                            <button type="button" class="button button-primary" id="process-csv-redirections">
+                                Process ${data.valid_redirections} Redirections
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+
+            $('#csv-import-results').html(resultsHtml).show();
+        },
+
+        processCsvRedirections: function(e) {
+            e.preventDefault();
+
+            const options = this.collectFormOptions();
+            options.fix_redirections = true;
+
+            const $button = $(e.target);
+            const originalText = $button.text();
+            $button.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Processing...');
+
+            this.ajaxRequest('process_csv_redirections', {
+                options: options,
+                dry_run: options.dry_run,
+                batch_size: options.batch_size || 50,
+                content_types: options.content_types || ['posts', 'custom_fields', 'menus', 'widgets']
+            }, {
+                success: (response) => {
+                    this.currentJobId = response.job_id;
+                    this.showProgressSection();
+                    this.startProgressMonitoring();
+                    const modeText = options.dry_run ? 'analysis' : 'processing';
+                    this.showNotice(`CSV ${modeText} started! Processing in batches...`, 'success');
+                },
+                error: (error) => {
+                    this.showNotice('Failed to process CSV: ' + error.message, 'error');
+                },
+                complete: () => {
+                    $button.prop('disabled', false).text(originalText);
+                }
+            });
+        },
+
+        checkJobCompletion: function() {
+            if (!this.currentJobId) return;
+
+            this.ajaxRequest('get_cleanup_progress', { job_id: this.currentJobId }, {
+                success: (response) => {
+                    if (response.status === 'completed') {
+                        this.stopProgressMonitoring();
+                        this.showResults(response);
+                        this.showNotice('Processing completed!', 'success');
+                    }
+                },
+                error: () => {
+                    // Continue with normal monitoring if immediate check fails
+                }
+            });
         }
     };
 

@@ -1,5 +1,20 @@
-/vendor/
+# Allow production vendor dependencies but exclude dev dependencies
+/vendor/mockery/
+/vendor/phpunit/
+/vendor/sebastian/
+/vendor/hamcrest/
+/vendor/theseer/
+/vendor/phar-io/
+/vendor/myclabs/
+/vendor/nikic/
+/vendor/doctrine/
+/vendor/antecedent/
+/vendor/brain/
+
+# Exclude node_modules entirely (build tools only)
 /node_modules/
+
+# Exclude all dist files (releases will use built packages)
 /dist/
 /coverage/
 .env

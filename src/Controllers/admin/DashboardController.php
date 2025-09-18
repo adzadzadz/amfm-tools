@@ -140,9 +140,44 @@ class DashboardController extends Controller
                 'object_name' => 'amfm_ajax',
                 'data' => [
                     'ajax_url' => \admin_url('admin-ajax.php'),
-                    'export_nonce' => $this->createNonce('amfm_export_nonce')
+                    'export_nonce' => $this->createNonce('amfm_export_nonce'),
+                    'update_channel_nonce' => $this->createNonce('amfm_update_channel_nonce')
                 ]
             ]
+        ]);
+
+        // Ensure amfm_ajax is properly localized (fallback for AssetManager)
+        \wp_localize_script('amfm-admin-script', 'amfm_ajax', [
+            'ajax_url' => \admin_url('admin-ajax.php'),
+            'export_nonce' => $this->createNonce('amfm_export_nonce'),
+            'update_channel_nonce' => $this->createNonce('amfm_update_channel_nonce')
+        ]);
+    }
+
+    /**
+     * Enqueue admin scripts - framework auto-hook
+     */
+    public function actionAdminEnqueueScripts($hook)
+    {
+        // Only load on our admin pages
+        if (strpos($hook, 'amfm-tools') === false) {
+            return;
+        }
+
+        // Enqueue the script directly
+        wp_enqueue_script(
+            'amfm-admin-script',
+            AMFM_TOOLS_URL . 'assets/js/admin-script.js',
+            ['jquery'],
+            AMFM_TOOLS_VERSION,
+            true
+        );
+
+        // Localize the script
+        wp_localize_script('amfm-admin-script', 'amfm_ajax', [
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'export_nonce' => $this->createNonce('amfm_export_nonce'),
+            'update_channel_nonce' => $this->createNonce('amfm_update_channel_nonce')
         ]);
     }
 
@@ -176,6 +211,38 @@ class DashboardController extends Controller
         $ajaxService = $this->service('ajax');
         if ($ajaxService) {
             $ajaxService->exportData();
+        }
+    }
+
+    /**
+     * AJAX: Update channel change - framework auto-hook
+     */
+    public function actionWpAjaxAmfmUpdateChannel()
+    {
+        if (!wp_verify_nonce($_POST['nonce'], 'amfm_update_channel_nonce')) {
+            wp_send_json_error('Security check failed');
+        }
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Insufficient permissions');
+        }
+
+        $channel = sanitize_text_field($_POST['channel'] ?? '');
+
+        if (!in_array($channel, ['stable', 'development'])) {
+            wp_send_json_error('Invalid channel');
+        }
+
+        // Get the plugin updater service and update the channel
+        $updater = new \App\Services\PluginUpdaterService();
+
+        if ($updater->setUpdateChannel($channel)) {
+            wp_send_json_success([
+                'message' => 'Update channel changed to ' . $channel,
+                'channel' => $channel
+            ]);
+        } else {
+            wp_send_json_error('Failed to update channel');
         }
     }
 }

@@ -155,6 +155,49 @@ $recent_jobs = $data['recent_jobs'] ?? [];
             </div>
 
             <div class="amfm-col-4">
+                <!-- CSV Import Section -->
+                <div class="amfm-card">
+                    <div class="amfm-card-header">
+                        <h3><?php esc_html_e('CSV Import', 'amfm-tools'); ?></h3>
+                    </div>
+                    <div class="amfm-card-body">
+                        <p><?php esc_html_e('Import redirections from a CSV file containing link analysis data.', 'amfm-tools'); ?></p>
+
+                        <form id="csv-import-form" enctype="multipart/form-data">
+                            <div class="csv-upload-area">
+                                <input type="file" id="csv-file-input" name="csv_file" accept=".csv" style="display: none;">
+                                <button type="button" class="button button-primary" id="csv-upload-button">
+                                    <span class="dashicons dashicons-upload"></span>
+                                    <?php esc_html_e('Choose CSV File', 'amfm-tools'); ?>
+                                </button>
+                                <div id="csv-file-info" style="margin-top: 10px; display: none;">
+                                    <strong><?php esc_html_e('Selected:', 'amfm-tools'); ?></strong>
+                                    <span id="csv-file-name"></span>
+                                </div>
+                            </div>
+
+                            <div class="csv-requirements" style="margin-top: 15px;">
+                                <h4><?php esc_html_e('CSV Requirements:', 'amfm-tools'); ?></h4>
+                                <ul style="font-size: 12px; margin-left: 20px;">
+                                    <li><?php esc_html_e('Must contain "Source" and "Final URL" columns', 'amfm-tools'); ?></li>
+                                    <li><?php esc_html_e('Optional columns: Type, Status Code, Anchor, Path', 'amfm-tools'); ?></li>
+                                    <li><?php esc_html_e('Max file size: 10MB', 'amfm-tools'); ?></li>
+                                </ul>
+                            </div>
+
+                            <div style="margin-top: 15px;">
+                                <button type="submit" class="button button-primary" id="csv-import-button" disabled>
+                                    <?php esc_html_e('Import & Validate', 'amfm-tools'); ?>
+                                </button>
+                            </div>
+                        </form>
+
+                        <div id="csv-import-results" style="display: none; margin-top: 15px;">
+                            <!-- Import results will be displayed here -->
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Cleanup Options -->
                 <?php if ($can_process): ?>
                     <div class="amfm-card">
@@ -317,6 +360,11 @@ $recent_jobs = $data['recent_jobs'] ?? [];
             <div class="dry-run-badge">
                 <span class="dashicons dashicons-info"></span>
                 <?php esc_html_e('Dry Run - No Changes Made', 'amfm-tools'); ?>
+            </div>
+        <% } else { %>
+            <div class="live-processing-badge">
+                <span class="dashicons dashicons-yes-alt"></span>
+                <?php esc_html_e('Live Processing - Changes Applied', 'amfm-tools'); ?>
             </div>
         <% } %>
         

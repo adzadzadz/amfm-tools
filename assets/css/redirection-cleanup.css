@@ -779,6 +779,26 @@
     height: 16px;
 }
 
+.live-processing-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #e6ffed;
+    border: 1px solid #00a32a;
+    border-radius: 4px;
+    color: #00a32a;
+    font-size: 14px;
+    font-weight: 500;
+    margin: 10px 0;
+}
+
+.live-processing-badge .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
 .results-details {
     margin-top: 20px;
 }

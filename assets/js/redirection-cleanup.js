@@ -1229,7 +1229,7 @@
 
             this.ajaxRequest('process_csv_redirections', {
                 options: options,
-                dry_run: options.dry_run || true,
+                dry_run: options.dry_run,
                 batch_size: options.batch_size || 50,
                 content_types: options.content_types || ['posts', 'custom_fields', 'menus', 'widgets']
             }, {
@@ -1237,7 +1237,8 @@
                     this.currentJobId = response.job_id;
                     this.showProgressSection();
                     this.startProgressMonitoring();
-                    this.showNotice('CSV analysis started! Processing in batches...', 'success');
+                    const modeText = options.dry_run ? 'analysis' : 'processing';
+                    this.showNotice(`CSV ${modeText} started! Processing in batches...`, 'success');
                 },
                 error: (error) => {
                     this.showNotice('Failed to process CSV: ' + error.message, 'error');
@@ -1256,7 +1257,7 @@
                     if (response.status === 'completed') {
                         this.stopProgressMonitoring();
                         this.showResults(response);
-                        this.showNotice('Analysis completed!', 'success');
+                        this.showNotice('Processing completed!', 'success');
                     }
                 },
                 error: () => {

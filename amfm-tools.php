@@ -3,7 +3,7 @@
  * Plugin Name: AMFM Tools
  * Plugin URI: https://adzbyte.com/
  * Description: A plugin for AMFM custom functionalities.
- * Version: 3.8.6
+ * Version: 3.8.7
  * Author: Adrian T. Saycon
  * Author URI: https://adzbyte.com/adz
  * License: GPL2
@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Plugin constants
-define('AMFM_TOOLS_VERSION', '3.8.6');
+define('AMFM_TOOLS_VERSION', '3.8.7');
 define('AMFM_TOOLS_PATH', plugin_dir_path(__FILE__));
 define('AMFM_TOOLS_URL', plugin_dir_url(__FILE__));
 
@@ -156,13 +156,6 @@ add_action('plugins_loaded', function() {
         }
     });
 
-    // Set up CSV redirection cleanup cron hook
-    add_action('amfm_process_csv_redirection_cleanup', function($jobId) {
-        if (class_exists('\App\Services\RedirectionCleanupService')) {
-            $service = new \App\Services\RedirectionCleanupService();
-            $service->processCsvRedirectionCleanup($jobId);
-        }
-    });
 
     // Initialize AMFM Bylines addon if it exists
     $bylines_addon_path = AMFM_TOOLS_PATH . 'addon/amfm-bylines/amfm-bylines.php';

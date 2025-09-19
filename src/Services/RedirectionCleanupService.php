@@ -128,14 +128,21 @@ class RedirectionCleanupService
         }
 
         // Initialize job tracking
+        $urlMapping = $fullAnalysis['url_mapping'];
+
+        // Filter out invalid URLs (empty destinations) for accurate counting
+        $validUrlMapping = array_filter($urlMapping, function($destination) {
+            return !empty(trim($destination));
+        });
+
         $jobData = [
             'id' => $jobId,
             'status' => 'initialized',
             'options' => $options,
-            'url_mapping' => $fullAnalysis['url_mapping'],
+            'url_mapping' => $urlMapping, // Keep full mapping for processing
             'started_at' => current_time('mysql'),
             'progress' => [
-                'total_items' => 0,
+                'total_items' => count($validUrlMapping), // Count only valid URLs
                 'processed_items' => 0,
                 'updated_items' => 0,
                 'current_step' => 'initializing',
@@ -170,10 +177,17 @@ class RedirectionCleanupService
 
         try {
             $jobData['status'] = 'processing';
-            $this->updateJobProgress($jobId, $jobData);
-
             $urlMapping = $jobData['url_mapping'];
             $options = $jobData['options'];
+
+            // Filter out invalid URLs for accurate total count
+            $validUrlMapping = array_filter($urlMapping, function($destination) {
+                return !empty(trim($destination));
+            });
+
+            // Set the total count for progress tracking (only valid URLs)
+            $jobData['progress']['total_items'] = count($validUrlMapping);
+            $this->updateJobProgress($jobId, $jobData);
 
             // Ensure boolean options are properly converted (fix for string 'false' bug)
             $options['dry_run'] = filter_var($options['dry_run'], FILTER_VALIDATE_BOOLEAN);
@@ -234,8 +248,7 @@ class RedirectionCleanupService
             'status' => $jobData['status'],
             'progress' => $jobData['progress'],
             'results' => $jobData['results'] ?? [],
-            'result' => $jobData['result'] ?? null,  // Include CSV result data
-            'type' => $jobData['type'] ?? null,      // Include job type
+            'options' => $jobData['options'] ?? [],   // Include job options (contains dry_run flag)
             'started_at' => $jobData['started_at'],
             'completed_at' => $jobData['completed_at'] ?? null,
             'error' => $jobData['error'] ?? null
@@ -351,8 +364,9 @@ class RedirectionCleanupService
                     
                     if ($absoluteUrl) {
                         $finalDestination = $this->resolveFinalDestination($destination, $redirections);
+                        $finalDestination = $this->ensureTrailingSlash($finalDestination);
                         $urlMap[$absoluteUrl] = $finalDestination;
-                        
+
                         if ($relativeUrl && $relativeUrl !== $absoluteUrl) {
                             $urlMap[$relativeUrl] = $finalDestination;
                         }
@@ -395,6 +409,24 @@ class RedirectionCleanupService
     }
 
     /**
+     * Ensure URL has trailing slash
+     */
+    private function ensureTrailingSlash(string $url): string
+    {
+        // Don't add slash to URLs with file extensions or query parameters
+        if (preg_match('/\.[a-z]{2,4}(\?.*)?$/i', $url) || strpos($url, '?') !== false) {
+            return $url;
+        }
+
+        // Don't add slash if it already has one
+        if (substr($url, -1) === '/') {
+            return $url;
+        }
+
+        return $url . '/';
+    }
+
+    /**
      * Resolve redirect chains in URL mapping
      *
      * @param array $urlMap URL mapping array
@@ -414,7 +446,7 @@ class RedirectionCleanupService
                 $finalDestination = $urlMap[$finalDestination];
             }
 
-            $resolved[$source] = $finalDestination;
+            $resolved[$source] = $this->ensureTrailingSlash($finalDestination);
         }
 
         return $resolved;
@@ -765,67 +797,70 @@ class RedirectionCleanupService
 
         $updatedContent = $content;
         $changes = [];
+        $siteUrl = rtrim(site_url(), '/');
+        $homeUrl = rtrim(home_url(), '/');
 
         foreach ($urlMapping as $oldUrl => $newUrl) {
             $totalCount = 0;
 
-            // Only replace URLs in specific contexts, not plain text
+            // Check if this is a relative URL (starts with /)
+            $isRelativeUrl = strpos($oldUrl, '/') === 0;
 
-            // Replace in href attributes (with quotes)
-            $updatedContent = str_replace('href="' . $oldUrl . '"', 'href="' . $newUrl . '"', $updatedContent, $count);
-            $totalCount += $count;
+            if ($isRelativeUrl) {
+                // For relative URLs, only replace in href attributes
+                $updatedContent = str_replace('href="' . $oldUrl . '"', 'href="' . $newUrl . '"', $updatedContent, $count);
+                $totalCount += $count;
 
-            // Replace in href attributes (with single quotes)
-            $updatedContent = str_replace("href='" . $oldUrl . "'", "href='" . $newUrl . "'", $updatedContent, $count);
-            $totalCount += $count;
+                $updatedContent = str_replace("href='" . $oldUrl . "'", "href='" . $newUrl . "'", $updatedContent, $count);
+                $totalCount += $count;
 
-            // Replace in src attributes (with quotes)
-            $updatedContent = str_replace('src="' . $oldUrl . '"', 'src="' . $newUrl . '"', $updatedContent, $count);
-            $totalCount += $count;
+                // Also check for absolute URL variations (https and http)
+                $httpsVariation = 'https://' . parse_url($siteUrl, PHP_URL_HOST) . $oldUrl;
+                $httpVariation = 'http://' . parse_url($siteUrl, PHP_URL_HOST) . $oldUrl;
 
-            // Replace in src attributes (with single quotes)
-            $updatedContent = str_replace("src='" . $oldUrl . "'", "src='" . $newUrl . "'", $updatedContent, $count);
-            $totalCount += $count;
+                // Replace https variation anywhere in content
+                $updatedContent = str_replace($httpsVariation, $newUrl, $updatedContent, $count);
+                $totalCount += $count;
 
-            // Replace absolute URLs in content (with domain)
-            $siteUrl = rtrim(site_url(), '/');
-            $homeUrl = rtrim(home_url(), '/');
+                // Replace http variation anywhere in content
+                $updatedContent = str_replace($httpVariation, $newUrl, $updatedContent, $count);
+                $totalCount += $count;
 
-            // Normalize URLs to prevent double slashes
-            $normalizedOldUrl = ltrim($oldUrl, '/');
-            $normalizedNewUrl = rtrim($newUrl, '/');
+                // Check with trailing slashes
+                $httpsVariationWithSlash = $httpsVariation . '/';
+                $httpVariationWithSlash = $httpVariation . '/';
 
-            // Try both with and without trailing slash for old URL
-            $absoluteOldUrlNoSlash = $siteUrl . '/' . $normalizedOldUrl;
-            $absoluteOldUrlWithSlash = $siteUrl . '/' . $normalizedOldUrl . '/';
+                $updatedContent = str_replace($httpsVariationWithSlash, $newUrl, $updatedContent, $count);
+                $totalCount += $count;
 
-            $updatedContent = str_replace($absoluteOldUrlNoSlash, $normalizedNewUrl, $updatedContent, $count);
-            $totalCount += $count;
-            $updatedContent = str_replace($absoluteOldUrlWithSlash, $normalizedNewUrl, $updatedContent, $count);
-            $totalCount += $count;
+                $updatedContent = str_replace($httpVariationWithSlash, $newUrl, $updatedContent, $count);
+                $totalCount += $count;
 
-            // Same for home URL
-            $absoluteOldUrlNoSlash = $homeUrl . '/' . $normalizedOldUrl;
-            $absoluteOldUrlWithSlash = $homeUrl . '/' . $normalizedOldUrl . '/';
-
-            $updatedContent = str_replace($absoluteOldUrlNoSlash, $normalizedNewUrl, $updatedContent, $count);
-            $totalCount += $count;
-            $updatedContent = str_replace($absoluteOldUrlWithSlash, $normalizedNewUrl, $updatedContent, $count);
-            $totalCount += $count;
-
-            // Replace relative URLs that start with slash
-            if (strpos($oldUrl, '/') === 0) {
+                // Replace URL-encoded versions in href attributes only
+                $encodedOldUrl = urlencode($oldUrl);
+                $encodedNewUrl = urlencode($newUrl);
+                $updatedContent = str_replace('href="' . $encodedOldUrl . '"', 'href="' . $encodedNewUrl . '"', $updatedContent, $count);
+                $totalCount += $count;
+                $updatedContent = str_replace("href='" . $encodedOldUrl . "'", "href='" . $encodedNewUrl . "'", $updatedContent, $count);
+                $totalCount += $count;
+            } else {
+                // For absolute URLs, replace anywhere in the content
                 $updatedContent = str_replace($oldUrl, $newUrl, $updatedContent, $count);
                 $totalCount += $count;
-            }
 
-            // Replace URL-encoded versions in attributes only
-            $encodedOldUrl = urlencode($oldUrl);
-            $encodedNewUrl = urlencode($newUrl);
-            $updatedContent = str_replace('href="' . $encodedOldUrl . '"', 'href="' . $encodedNewUrl . '"', $updatedContent, $count);
-            $totalCount += $count;
-            $updatedContent = str_replace('src="' . $encodedOldUrl . '"', 'src="' . $encodedNewUrl . '"', $updatedContent, $count);
-            $totalCount += $count;
+                // Also try with trailing slash
+                $oldUrlWithSlash = rtrim($oldUrl, '/') . '/';
+                if ($oldUrlWithSlash !== $oldUrl) {
+                    $updatedContent = str_replace($oldUrlWithSlash, $newUrl, $updatedContent, $count);
+                    $totalCount += $count;
+                }
+
+                // Replace URL-encoded versions
+                $encodedOldUrl = urlencode($oldUrl);
+                $encodedNewUrl = urlencode($newUrl);
+                $updatedContent = str_replace($encodedOldUrl, $encodedNewUrl, $updatedContent, $count);
+                $totalCount += $count;
+            }
 
             // If any replacements were made, track the change
             if ($totalCount > 0) {
@@ -1211,1328 +1246,5 @@ class RedirectionCleanupService
         } else {
             return sprintf('%.1f hours', $estimatedSeconds / 3600);
         }
-    }
-
-    /**
-     * Import redirections from CSV file
-     *
-     * @param string $csvFilePath Path to the CSV file
-     * @return array Import results
-     */
-    public function importCsvRedirections(string $csvFilePath): array
-    {
-        if (!file_exists($csvFilePath) || !is_readable($csvFilePath)) {
-            throw new \Exception(__('CSV file not found or not readable', 'amfm-tools'));
-        }
-
-        $handle = fopen($csvFilePath, 'r');
-        if (!$handle) {
-            throw new \Exception(__('Failed to open CSV file', 'amfm-tools'));
-        }
-
-        // Read and validate header
-        $header = fgetcsv($handle);
-        $validatedHeader = $this->validateCsvHeader($header);
-
-        if (!$validatedHeader['valid']) {
-            fclose($handle);
-            throw new \Exception($validatedHeader['message']);
-        }
-
-        $columnMap = $validatedHeader['column_map'];
-        $redirections = [];
-        $errors = [];
-        $skipped = [];
-        $lineNumber = 1;
-
-        // Read and validate data rows
-        while (($row = fgetcsv($handle)) !== false) {
-            $lineNumber++;
-
-            try {
-                // Get the raw URLs for tracking
-                $source = trim($row[$columnMap['source']] ?? '');
-                $finalUrl = trim($row[$columnMap['final_url']] ?? '');
-
-                $redirection = $this->parseCsvRow($row, $columnMap);
-                if ($redirection) {
-                    $redirections[] = $redirection;
-                } elseif (!empty($source) && !empty($finalUrl)) {
-                    // Track skipped URLs (query string variations, etc.)
-                    if ($this->isSameUrlWithQueryString($source, $finalUrl)) {
-                        $skipped[] = sprintf('Line %d: %s → %s (query string variation)',
-                            $lineNumber, $source, $finalUrl);
-                    }
-                }
-            } catch (\Exception $e) {
-                $errors[] = sprintf(__('Line %d: %s', 'amfm-tools'), $lineNumber, $e->getMessage());
-                if (count($errors) > 10) {
-                    $errors[] = __('Too many errors, stopping import', 'amfm-tools');
-                    break;
-                }
-            }
-        }
-
-        fclose($handle);
-
-        // Store imported data for processing (dual storage for reliability)
-        $timestamp = time();
-        $importId = 'csv_import_' . $timestamp;
-
-        // Primary storage: Transient (fast, but can be lost with caching)
-        set_transient($importId, $redirections, DAY_IN_SECONDS);
-
-        // Fallback storage: Persistent option (always available)
-        $persistent_key = 'amfm_' . $importId;
-        update_option($persistent_key, $redirections, false);
-
-        // Clean up old persistent imports (keep only last 3)
-        global $wpdb;
-        $old_persistent = $wpdb->get_col(
-            "SELECT option_name FROM {$wpdb->options}
-             WHERE option_name LIKE 'amfm_csv_import_%'
-             ORDER BY option_name DESC LIMIT 100 OFFSET 3"
-        );
-
-        foreach ($old_persistent as $old_key) {
-            delete_option($old_key);
-        }
-
-        return [
-            'import_id' => $importId,
-            'total_rows' => $lineNumber - 1,
-            'valid_redirections' => count($redirections),
-            'skipped_count' => count($skipped),
-            'skipped_samples' => array_slice($skipped, 0, 5),
-            'errors' => $errors,
-            'sample_data' => array_slice($redirections, 0, 5),
-            'unique_sources' => count(array_unique(array_column($redirections, 'source'))),
-            'unique_destinations' => count(array_unique(array_column($redirections, 'final_url')))
-        ];
-    }
-
-    /**
-     * Validate CSV header columns
-     *
-     * @param array $header CSV header row
-     * @return array Validation result
-     */
-    private function validateCsvHeader(array $header): array
-    {
-        $requiredColumns = [
-            'source' => ['Source', 'source', 'Source URL', 'source_url', 'URL'],
-            'final_url' => ['Final URL', 'final_url', 'Destination', 'destination', 'Target URL', 'Redirected URL']
-        ];
-
-        $optionalColumns = [
-            'type' => ['Type', 'type', 'Link Type'],
-            'status_code' => ['Status Code', 'status_code', 'Response Code', 'HTTP Status'],
-            'anchor' => ['Anchor', 'anchor', 'Anchor Text', 'Link Text'],
-            'path' => ['Path', 'path', 'Link Path', 'XPath']
-        ];
-
-        $columnMap = [];
-
-        // Map required columns
-        foreach ($requiredColumns as $key => $variations) {
-            $found = false;
-            foreach ($header as $index => $column) {
-                if (in_array($column, $variations, true)) {
-                    $columnMap[$key] = $index;
-                    $found = true;
-                    break;
-                }
-            }
-
-            if (!$found) {
-                return [
-                    'valid' => false,
-                    'message' => sprintf(__('Required column "%s" not found in CSV', 'amfm-tools'), $key)
-                ];
-            }
-        }
-
-        // Map optional columns
-        foreach ($optionalColumns as $key => $variations) {
-            foreach ($header as $index => $column) {
-                if (in_array($column, $variations, true)) {
-                    $columnMap[$key] = $index;
-                    break;
-                }
-            }
-        }
-
-        return [
-            'valid' => true,
-            'column_map' => $columnMap
-        ];
-    }
-
-    /**
-     * Parse a CSV row into redirection data
-     *
-     * @param array $row CSV data row
-     * @param array $columnMap Column index mapping
-     * @return array|null Parsed redirection data
-     */
-    private function parseCsvRow(array $row, array $columnMap): ?array
-    {
-        // Get required fields
-        $source = trim($row[$columnMap['source']] ?? '');
-        $finalUrl = trim($row[$columnMap['final_url']] ?? '');
-
-        if (empty($source) || empty($finalUrl)) {
-            return null;
-        }
-
-        // Validate URLs
-        $source = $this->normalizeUrl($source);
-        $finalUrl = $this->normalizeUrl($finalUrl);
-
-        if ($source === $finalUrl) {
-            return null; // Skip if source and destination are the same
-        }
-
-        // Check if this is just a query string variation of the same URL
-        if ($this->isSameUrlWithQueryString($source, $finalUrl)) {
-            return null; // Skip pagination and query parameter variations
-        }
-
-        return [
-            'source' => $source,
-            'final_url' => $finalUrl,
-            'type' => $row[$columnMap['type']] ?? 'Hyperlink',
-            'status_code' => $row[$columnMap['status_code']] ?? '301',
-            'anchor' => $row[$columnMap['anchor']] ?? '',
-            'path' => $row[$columnMap['path']] ?? ''
-        ];
-    }
-
-    /**
-     * Process imported CSV redirections
-     *
-     * @param array $options Processing options
-     * @return string Job ID
-     */
-    public function processCsvRedirections(array $options = []): string
-    {
-        // Get the most recent import
-        global $wpdb;
-
-        // First, try to find transients
-        $imports = $wpdb->get_col(
-            "SELECT option_name FROM {$wpdb->options}
-             WHERE option_name LIKE '_transient_csv_import_%'
-             ORDER BY option_name DESC LIMIT 1"
-        );
-
-        $redirections = null;
-        $importId = null;
-
-        if (!empty($imports)) {
-            $importId = str_replace('_transient_', '', $imports[0]);
-            $redirections = get_transient($importId);
-        }
-
-        // If no transient found, try to find persistent option as fallback
-        if (!$redirections) {
-            $persistent_imports = $wpdb->get_col(
-                "SELECT option_name FROM {$wpdb->options}
-                 WHERE option_name LIKE 'amfm_csv_import_%'
-                 ORDER BY option_name DESC LIMIT 1"
-            );
-
-            if (!empty($persistent_imports)) {
-                $importId = str_replace('amfm_', '', $persistent_imports[0]);
-                $redirections = get_option($persistent_imports[0]);
-            }
-        }
-
-        if (!$redirections) {
-            // Debug information for troubleshooting
-            $debug_info = [
-                'transient_count' => count($imports),
-                'persistent_count' => isset($persistent_imports) ? count($persistent_imports) : 0,
-                'last_transient' => !empty($imports) ? $imports[0] : 'none',
-                'last_persistent' => !empty($persistent_imports) ? $persistent_imports[0] : 'none'
-            ];
-
-            error_log('CSV Import Debug: ' . json_encode($debug_info));
-            throw new \Exception(__('No CSV import found. Please import a CSV file first. Debug info logged.', 'amfm-tools'));
-        }
-
-        // Create URL mapping from CSV data
-        $urlMap = [];
-        foreach ($redirections as $redirection) {
-            $urlMap[$redirection['source']] = $redirection['final_url'];
-        }
-
-        // Resolve redirect chains
-        $urlMap = $this->resolveRedirectChains($urlMap);
-
-        // Create a job for processing
-        $jobId = 'csv_job_' . time();
-        $jobData = [
-            'id' => $jobId,
-            'type' => 'csv_import',
-            'status' => 'processing',
-            'options' => $options,
-            'url_map' => $urlMap,
-            'total_redirections' => count($redirections),
-            'unique_mappings' => count($urlMap),
-            'started_at' => current_time('mysql'),
-            'progress' => [
-                'current' => 0,
-                'total' => count($urlMap),
-                'message' => __('Starting CSV redirection processing...', 'amfm-tools')
-            ]
-        ];
-
-        update_option(self::OPTION_PREFIX . 'job_' . $jobId, $jobData, false);
-
-        // Schedule background processing for CSV analysis
-        wp_schedule_single_event(time() + 2, 'amfm_process_csv_redirection_cleanup', [$jobId]);
-
-        return $jobId;
-    }
-
-    /**
-     * Perform dry run for CSV redirections
-     *
-     * @param string $jobId Job identifier
-     * @param array $urlMap URL mappings
-     * @param array $options Processing options
-     */
-    private function performCsvDryRun(string $jobId, array $urlMap, array $options): void
-    {
-        $jobData = get_option(self::OPTION_PREFIX . 'job_' . $jobId);
-
-        // Initialize comprehensive analysis
-        $affectedContent = [
-            'posts' => 0,
-            'custom_fields' => 0,
-            'menus' => 0,
-            'widgets' => 0
-        ];
-
-        $detailedReport = [
-            'would_fix' => [],
-            'cannot_fix' => [],
-            'already_fixed' => []
-        ];
-
-        $urlAnalysis = [];
-
-        // Analyze each URL mapping
-        foreach ($urlMap as $oldUrl => $newUrl) {
-            $urlAnalysis[$oldUrl] = [
-                'new_url' => $newUrl,
-                'found_in' => [],
-                'total_occurrences' => 0
-            ];
-
-            // Check posts content
-            if (in_array('posts', $options['content_types'] ?? [])) {
-                $postCount = $this->wpdb->get_var($this->wpdb->prepare(
-                    "SELECT COUNT(DISTINCT ID) FROM {$this->wpdb->posts}
-                     WHERE (post_content LIKE %s OR post_excerpt LIKE %s)
-                     AND post_status IN ('publish', 'private', 'draft')",
-                    '%' . $oldUrl . '%',
-                    '%' . $oldUrl . '%'
-                ));
-
-                if ($postCount > 0) {
-                    $affectedContent['posts'] += $postCount;
-                    $urlAnalysis[$oldUrl]['found_in'][] = 'posts';
-                    $urlAnalysis[$oldUrl]['total_occurrences'] += $postCount;
-
-                    // Get specific post details
-                    $affectedPosts = $this->wpdb->get_results($this->wpdb->prepare(
-                        "SELECT ID, post_title, post_type FROM {$this->wpdb->posts}
-                         WHERE (post_content LIKE %s OR post_excerpt LIKE %s)
-                         AND post_status IN ('publish', 'private', 'draft')
-                         LIMIT 5",
-                        '%' . $oldUrl . '%',
-                        '%' . $oldUrl . '%'
-                    ));
-
-                    $detailedReport['would_fix'][] = [
-                        'type' => 'post_content',
-                        'old_url' => $oldUrl,
-                        'new_url' => $newUrl,
-                        'occurrences' => $postCount,
-                        'sample_posts' => array_map(function($post) {
-                            return [
-                                'id' => $post->ID,
-                                'title' => $post->post_title,
-                                'type' => $post->post_type
-                            ];
-                        }, $affectedPosts)
-                    ];
-                }
-            }
-
-            // Check custom fields/meta data
-            if (in_array('custom_fields', $options['content_types'] ?? [])) {
-                $metaCount = $this->wpdb->get_var($this->wpdb->prepare(
-                    "SELECT COUNT(DISTINCT meta_id) FROM {$this->wpdb->postmeta}
-                     WHERE meta_value LIKE %s
-                     AND meta_key NOT LIKE '\_%'",
-                    '%' . $oldUrl . '%'
-                ));
-
-                if ($metaCount > 0) {
-                    $affectedContent['custom_fields'] += $metaCount;
-                    $urlAnalysis[$oldUrl]['found_in'][] = 'custom_fields';
-                    $urlAnalysis[$oldUrl]['total_occurrences'] += $metaCount;
-
-                    // Get specific meta field details
-                    $affectedMeta = $this->wpdb->get_results($this->wpdb->prepare(
-                        "SELECT pm.meta_key, p.post_title, pm.post_id
-                         FROM {$this->wpdb->postmeta} pm
-                         JOIN {$this->wpdb->posts} p ON pm.post_id = p.ID
-                         WHERE pm.meta_value LIKE %s
-                         AND pm.meta_key NOT LIKE '\_%'
-                         LIMIT 5",
-                        '%' . $oldUrl . '%'
-                    ));
-
-                    $detailedReport['would_fix'][] = [
-                        'type' => 'custom_fields',
-                        'old_url' => $oldUrl,
-                        'new_url' => $newUrl,
-                        'occurrences' => $metaCount,
-                        'sample_fields' => array_map(function($meta) {
-                            return [
-                                'post_id' => $meta->post_id,
-                                'post_title' => $meta->post_title,
-                                'meta_key' => $meta->meta_key
-                            ];
-                        }, $affectedMeta)
-                    ];
-                }
-            }
-
-            // Check navigation menus
-            if (in_array('menus', $options['content_types'] ?? [])) {
-                $menuCount = $this->wpdb->get_var($this->wpdb->prepare(
-                    "SELECT COUNT(*) FROM {$this->wpdb->posts}
-                     WHERE post_type = 'nav_menu_item'
-                     AND (post_content LIKE %s OR post_excerpt LIKE %s)",
-                    '%' . $oldUrl . '%',
-                    '%' . $oldUrl . '%'
-                ));
-
-                // Also check menu item meta (like URL field)
-                $menuMetaCount = $this->wpdb->get_var($this->wpdb->prepare(
-                    "SELECT COUNT(*) FROM {$this->wpdb->postmeta} pm
-                     JOIN {$this->wpdb->posts} p ON pm.post_id = p.ID
-                     WHERE p.post_type = 'nav_menu_item'
-                     AND pm.meta_value LIKE %s",
-                    '%' . $oldUrl . '%'
-                ));
-
-                $totalMenuOccurrences = $menuCount + $menuMetaCount;
-
-                if ($totalMenuOccurrences > 0) {
-                    $affectedContent['menus'] += $totalMenuOccurrences;
-                    $urlAnalysis[$oldUrl]['found_in'][] = 'menus';
-                    $urlAnalysis[$oldUrl]['total_occurrences'] += $totalMenuOccurrences;
-
-                    $detailedReport['would_fix'][] = [
-                        'type' => 'navigation_menus',
-                        'old_url' => $oldUrl,
-                        'new_url' => $newUrl,
-                        'occurrences' => $totalMenuOccurrences,
-                        'details' => [
-                            'menu_content' => $menuCount,
-                            'menu_meta' => $menuMetaCount
-                        ]
-                    ];
-                }
-            }
-
-            // Check widgets and customizer settings
-            if (in_array('widgets', $options['content_types'] ?? [])) {
-                $widgetCount = $this->wpdb->get_var($this->wpdb->prepare(
-                    "SELECT COUNT(*) FROM {$this->wpdb->options}
-                     WHERE (option_name LIKE 'widget_%' OR option_name LIKE 'theme_mods_%')
-                     AND option_value LIKE %s",
-                    '%' . $oldUrl . '%'
-                ));
-
-                if ($widgetCount > 0) {
-                    $affectedContent['widgets'] += $widgetCount;
-                    $urlAnalysis[$oldUrl]['found_in'][] = 'widgets';
-                    $urlAnalysis[$oldUrl]['total_occurrences'] += $widgetCount;
-
-                    $detailedReport['would_fix'][] = [
-                        'type' => 'widgets_customizer',
-                        'old_url' => $oldUrl,
-                        'new_url' => $newUrl,
-                        'occurrences' => $widgetCount
-                    ];
-                }
-            }
-        }
-
-        // Create summary statistics
-        $totalChanges = array_sum($affectedContent);
-        $affectedUrls = count(array_filter($urlAnalysis, function($analysis) {
-            return $analysis['total_occurrences'] > 0;
-        }));
-
-        $summary = [
-            'total_url_mappings' => count($urlMap),
-            'urls_with_matches' => $affectedUrls,
-            'urls_without_matches' => count($urlMap) - $affectedUrls,
-            'total_potential_changes' => $totalChanges,
-            'content_breakdown' => $affectedContent
-        ];
-
-        // Update job with comprehensive results
-        $jobData['status'] = 'completed';
-        $jobData['completed_at'] = current_time('mysql');
-        $jobData['result'] = [
-            'type' => 'dry_run',
-            'summary' => $summary,
-            'affected_content' => $affectedContent,
-            'total_changes' => $totalChanges,
-            'url_analysis' => $urlAnalysis,
-            'detailed_report' => $detailedReport,
-            'recommendations' => $this->generateDryRunRecommendations($urlAnalysis, $affectedContent)
-        ];
-
-        update_option(self::OPTION_PREFIX . 'job_' . $jobId, $jobData, false);
-    }
-
-    /**
-     * Generate recommendations based on dry run analysis
-     *
-     * @param array $urlAnalysis URL analysis results
-     * @param array $affectedContent Content breakdown
-     * @return array Recommendations
-     */
-    private function generateDryRunRecommendations(array $urlAnalysis, array $affectedContent): array
-    {
-        $recommendations = [];
-        $totalChanges = array_sum($affectedContent);
-
-        // Performance recommendations
-        if ($totalChanges > 1000) {
-            $recommendations[] = [
-                'type' => 'performance',
-                'level' => 'warning',
-                'message' => sprintf(
-                    __('Large dataset detected (%d changes). Consider processing in smaller batches or during off-peak hours.', 'amfm-tools'),
-                    $totalChanges
-                ),
-                'action' => 'reduce_batch_size'
-            ];
-        }
-
-        // Backup recommendation
-        if ($totalChanges > 0) {
-            $recommendations[] = [
-                'type' => 'safety',
-                'level' => 'info',
-                'message' => __('Create a database backup before proceeding with actual changes.', 'amfm-tools'),
-                'action' => 'create_backup'
-            ];
-        }
-
-        // Content type specific recommendations
-        if ($affectedContent['custom_fields'] > 100) {
-            $recommendations[] = [
-                'type' => 'content',
-                'level' => 'caution',
-                'message' => sprintf(
-                    __('%d custom fields will be updated. Review ACF and other meta field configurations.', 'amfm-tools'),
-                    $affectedContent['custom_fields']
-                ),
-                'action' => 'review_custom_fields'
-            ];
-        }
-
-        if ($affectedContent['menus'] > 0) {
-            $recommendations[] = [
-                'type' => 'content',
-                'level' => 'info',
-                'message' => sprintf(
-                    __('%d menu items will be updated. Test navigation after processing.', 'amfm-tools'),
-                    $affectedContent['menus']
-                ),
-                'action' => 'test_navigation'
-            ];
-        }
-
-        if ($affectedContent['widgets'] > 0) {
-            $recommendations[] = [
-                'type' => 'content',
-                'level' => 'info',
-                'message' => sprintf(
-                    __('%d widgets/customizer settings will be updated. Check theme appearance after processing.', 'amfm-tools'),
-                    $affectedContent['widgets']
-                ),
-                'action' => 'check_theme'
-            ];
-        }
-
-        // URL pattern analysis
-        $noMatchUrls = array_filter($urlAnalysis, function($analysis) {
-            return $analysis['total_occurrences'] === 0;
-        });
-
-        if (count($noMatchUrls) > 0) {
-            $recommendations[] = [
-                'type' => 'optimization',
-                'level' => 'info',
-                'message' => sprintf(
-                    __('%d URLs from the CSV were not found in content. Consider reviewing the URL list.', 'amfm-tools'),
-                    count($noMatchUrls)
-                ),
-                'action' => 'review_url_list'
-            ];
-        }
-
-        // Processing recommendations
-        if ($totalChanges === 0) {
-            $recommendations[] = [
-                'type' => 'result',
-                'level' => 'success',
-                'message' => __('No matching content found. No changes would be made.', 'amfm-tools'),
-                'action' => 'no_action_needed'
-            ];
-        } else {
-            $recommendations[] = [
-                'type' => 'result',
-                'level' => 'ready',
-                'message' => sprintf(
-                    __('Ready to process %d potential changes across %d content types.', 'amfm-tools'),
-                    $totalChanges,
-                    count(array_filter($affectedContent))
-                ),
-                'action' => 'proceed_with_caution'
-            ];
-        }
-
-        return $recommendations;
-    }
-
-    /**
-     * Check if two URLs are the same except for query strings
-     *
-     * @param string $url1 First URL
-     * @param string $url2 Second URL
-     * @return bool True if URLs have same path but different query strings
-     */
-    private function isSameUrlWithQueryString(string $url1, string $url2): bool
-    {
-        // Parse both URLs
-        $parsed1 = parse_url($url1);
-        $parsed2 = parse_url($url2);
-
-        // Compare scheme, host, and path
-        $scheme1 = $parsed1['scheme'] ?? '';
-        $scheme2 = $parsed2['scheme'] ?? '';
-        $host1 = $parsed1['host'] ?? '';
-        $host2 = $parsed2['host'] ?? '';
-        $path1 = $parsed1['path'] ?? '/';
-        $path2 = $parsed2['path'] ?? '/';
-
-        // If base URLs are different, this is a real redirection
-        if ($scheme1 !== $scheme2 || $host1 !== $host2 || $path1 !== $path2) {
-            return false;
-        }
-
-        // Check if one has query string and other doesn't, or both have different query strings
-        $query1 = $parsed1['query'] ?? '';
-        $query2 = $parsed2['query'] ?? '';
-
-        // Common pagination/filter parameters to ignore
-        $ignoredParams = ['paged', 'page', 'p', 'orderby', 'order', 'sort', 'filter',
-                         's', 'search', 'tab', 'view', 'mode', 'show', 'display',
-                         'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
-                         'fbclid', 'gclid', 'ref', 'source'];
-
-        // Parse query strings
-        parse_str($query1, $params1);
-        parse_str($query2, $params2);
-
-        // Check if the difference is only in ignored parameters
-        foreach ($ignoredParams as $param) {
-            unset($params1[$param], $params2[$param]);
-        }
-
-        // If after removing ignored params they're the same, treat as same URL
-        return empty(array_diff_assoc($params1, $params2)) && empty(array_diff_assoc($params2, $params1));
-    }
-
-    /**
-     * Perform actual processing for CSV redirections
-     *
-     * @param string $jobId Job identifier
-     * @param array $urlMap URL mappings
-     * @param array $options Processing options
-     */
-    private function performCsvProcessing(string $jobId, array $urlMap, array $options): void
-    {
-        // Use batched approach similar to dry run for better progress reporting
-        $this->performBatchedCsvLiveProcessing($jobId, $urlMap, $options);
-    }
-
-    /**
-     * Perform batched CSV live processing with proper progress updates
-     */
-    private function performBatchedCsvLiveProcessing(string $jobId, array $urlMap, array $options): void
-    {
-        $batchSize = 10; // Process 10 URLs at a time
-        $urlList = array_keys($urlMap);
-        $totalUrls = count($urlList);
-        $processed = 0;
-        $updated = 0;
-        $errors = [];
-
-        $jobData = get_option(self::OPTION_PREFIX . 'job_' . $jobId);
-
-        // Initialize progress for URL-based processing
-        $jobData['progress']['current'] = 0;
-        $jobData['progress']['total'] = $totalUrls;
-        $jobData['progress']['message'] = 'Starting live URL updates...';
-        update_option(self::OPTION_PREFIX . 'job_' . $jobId, $jobData, false);
-
-        // Process URLs in batches
-        for ($offset = 0; $offset < $totalUrls; $offset += $batchSize) {
-            $batchUrls = array_slice($urlList, $offset, $batchSize);
-            $batchUrlMap = array_intersect_key($urlMap, array_flip($batchUrls));
-
-            // Process each content type for this batch
-            foreach ($options['content_types'] ?? [] as $contentType) {
-                $this->updateCsvJobProgress($jobId, $offset, $totalUrls, "Processing {$contentType} for batch " . (intval($offset / $batchSize) + 1));
-
-                switch ($contentType) {
-                    case 'posts':
-                        $result = $this->updatePostsContentBatch($batchUrlMap, $options['batch_size'] ?? 50);
-                        $processed += $result['processed'];
-                        $updated += $result['updated'];
-                        break;
-
-                    case 'custom_fields':
-                        $result = $this->updateCustomFieldsBatch($batchUrlMap, $options['batch_size'] ?? 50);
-                        $processed += $result['processed'];
-                        $updated += $result['updated'];
-                        break;
-
-                    case 'menus':
-                        $result = $this->updateMenuItemsBatch($batchUrlMap);
-                        $processed += $result['processed'];
-                        $updated += $result['updated'];
-                        break;
-                }
-            }
-
-            $processedSoFar = min($offset + $batchSize, $totalUrls);
-            $this->updateCsvJobProgress($jobId, $processedSoFar, $totalUrls, "Batch completed: {$processedSoFar}/{$totalUrls} URLs");
-        }
-
-        // Update job status
-        $jobData = get_option(self::OPTION_PREFIX . 'job_' . $jobId);
-        $jobData['status'] = 'completed';
-        $jobData['completed_at'] = current_time('mysql');
-        $jobData['progress']['message'] = "Live processing completed! Updated {$updated} items.";
-        $jobData['progress']['current'] = $totalUrls;
-        $jobData['result'] = [
-            'type' => 'live_processing',
-            'processed' => $processed,
-            'updated' => $updated,
-            'errors' => $errors,
-            'summary' => [
-                'total_processed_items' => $processed,
-                'total_updated_items' => $updated,
-                'processing_mode' => 'live'
-            ]
-        ];
-
-        update_option(self::OPTION_PREFIX . 'job_' . $jobId, $jobData, false);
-    }
-
-    /**
-     * Update posts content for a specific batch of URLs
-     */
-    private function updatePostsContentBatch(array $urlMapping, int $batchSize = 50): array
-    {
-        $totalProcessed = 0;
-        $totalUpdated = 0;
-        $offset = 0;
-
-        do {
-            $posts = $this->wpdb->get_results($this->wpdb->prepare(
-                "SELECT ID, post_content, post_excerpt
-                 FROM {$this->wpdb->posts}
-                 WHERE post_status IN ('publish', 'private', 'draft', 'future')
-                 LIMIT %d OFFSET %d",
-                $batchSize,
-                $offset
-            ), ARRAY_A);
-
-            foreach ($posts as $post) {
-                $totalProcessed++;
-                $originalContent = $post['post_content'];
-                $originalExcerpt = $post['post_excerpt'];
-
-                $contentResult = $this->replaceUrlsInContentWithDetails($originalContent, $urlMapping);
-                $excerptResult = $this->replaceUrlsInContentWithDetails($originalExcerpt, $urlMapping);
-
-                $newContent = $contentResult['content'];
-                $newExcerpt = $excerptResult['content'];
-
-                if ($newContent !== $originalContent || $newExcerpt !== $originalExcerpt) {
-                    $this->wpdb->update(
-                        $this->wpdb->posts,
-                        [
-                            'post_content' => $newContent,
-                            'post_excerpt' => $newExcerpt
-                        ],
-                        ['ID' => $post['ID']],
-                        ['%s', '%s'],
-                        ['%d']
-                    );
-                    $totalUpdated++;
-                }
-            }
-
-            $offset += $batchSize;
-        } while (count($posts) === $batchSize);
-
-        return ['processed' => $totalProcessed, 'updated' => $totalUpdated];
-    }
-
-    /**
-     * Update custom fields for a specific batch of URLs
-     */
-    private function updateCustomFieldsBatch(array $urlMapping, int $batchSize = 50): array
-    {
-        $totalProcessed = 0;
-        $totalUpdated = 0;
-        $offset = 0;
-
-        do {
-            $metas = $this->wpdb->get_results($this->wpdb->prepare(
-                "SELECT meta_id, post_id, meta_key, meta_value
-                 FROM {$this->wpdb->postmeta}
-                 WHERE meta_value != ''
-                 LIMIT %d OFFSET %d",
-                $batchSize,
-                $offset
-            ), ARRAY_A);
-
-            foreach ($metas as $meta) {
-                $totalProcessed++;
-                $originalValue = $meta['meta_value'];
-                $result = $this->replaceUrlsInContentWithDetails($originalValue, $urlMapping);
-                $newValue = $result['content'];
-
-                if ($newValue !== $originalValue) {
-                    $this->wpdb->update(
-                        $this->wpdb->postmeta,
-                        ['meta_value' => $newValue],
-                        ['meta_id' => $meta['meta_id']],
-                        ['%s'],
-                        ['%d']
-                    );
-                    $totalUpdated++;
-                }
-            }
-
-            $offset += $batchSize;
-        } while (count($metas) === $batchSize);
-
-        return ['processed' => $totalProcessed, 'updated' => $totalUpdated];
-    }
-
-    /**
-     * Update menu items for a specific batch of URLs
-     */
-    private function updateMenuItemsBatch(array $urlMapping): array
-    {
-        $totalProcessed = 0;
-        $totalUpdated = 0;
-
-        $menuItems = $this->wpdb->get_results(
-            "SELECT ID, post_content, guid
-             FROM {$this->wpdb->posts}
-             WHERE post_type = 'nav_menu_item'
-             AND post_status = 'publish'",
-            ARRAY_A
-        );
-
-        foreach ($menuItems as $item) {
-            $totalProcessed++;
-            $originalGuid = $item['guid'];
-            $result = $this->replaceUrlsInContentWithDetails($originalGuid, $urlMapping);
-            $newGuid = $result['content'];
-
-            if ($newGuid !== $originalGuid) {
-                $this->wpdb->update(
-                    $this->wpdb->posts,
-                    ['guid' => $newGuid],
-                    ['ID' => $item['ID']],
-                    ['%s'],
-                    ['%d']
-                );
-                $totalUpdated++;
-            }
-
-            // Also check menu item meta
-            $menuItemMetas = $this->wpdb->get_results($this->wpdb->prepare(
-                "SELECT meta_id, meta_value
-                 FROM {$this->wpdb->postmeta}
-                 WHERE post_id = %d
-                 AND meta_key IN ('_menu_item_url', '_menu_item_object_id')",
-                $item['ID']
-            ), ARRAY_A);
-
-            foreach ($menuItemMetas as $meta) {
-                $originalValue = $meta['meta_value'];
-                $result = $this->replaceUrlsInContentWithDetails($originalValue, $urlMapping);
-                $newValue = $result['content'];
-
-                if ($newValue !== $originalValue) {
-                    $this->wpdb->update(
-                        $this->wpdb->postmeta,
-                        ['meta_value' => $newValue],
-                        ['meta_id' => $meta['meta_id']],
-                        ['%s'],
-                        ['%d']
-                    );
-                    $totalUpdated++;
-                }
-            }
-        }
-
-        return ['processed' => $totalProcessed, 'updated' => $totalUpdated];
-    }
-
-    /**
-     * Update posts content with URL mappings (CSV live processing)
-     */
-    private function updatePostsContent(array $urlMapping, int $batchSize = 50): array
-    {
-        $offset = 0;
-        $totalProcessed = 0;
-        $totalUpdated = 0;
-
-        do {
-            $posts = $this->wpdb->get_results($this->wpdb->prepare(
-                "SELECT ID, post_content, post_excerpt
-                 FROM {$this->wpdb->posts}
-                 WHERE post_status IN ('publish', 'private', 'draft', 'future')
-                 LIMIT %d OFFSET %d",
-                $batchSize,
-                $offset
-            ), ARRAY_A);
-
-            foreach ($posts as $post) {
-                $totalProcessed++;
-                $originalContent = $post['post_content'];
-                $originalExcerpt = $post['post_excerpt'];
-
-                $contentResult = $this->replaceUrlsInContentWithDetails($originalContent, $urlMapping);
-                $excerptResult = $this->replaceUrlsInContentWithDetails($originalExcerpt, $urlMapping);
-
-                $newContent = $contentResult['content'];
-                $newExcerpt = $excerptResult['content'];
-
-                if ($newContent !== $originalContent || $newExcerpt !== $originalExcerpt) {
-                    $this->wpdb->update(
-                        $this->wpdb->posts,
-                        [
-                            'post_content' => $newContent,
-                            'post_excerpt' => $newExcerpt
-                        ],
-                        ['ID' => $post['ID']],
-                        ['%s', '%s'],
-                        ['%d']
-                    );
-                    $totalUpdated++;
-                }
-            }
-
-            $offset += $batchSize;
-        } while (count($posts) === $batchSize);
-
-        return ['processed' => $totalProcessed, 'updated' => $totalUpdated];
-    }
-
-    /**
-     * Update custom fields with URL mappings (CSV live processing)
-     */
-    private function updateCustomFields(array $urlMapping, int $batchSize = 50): array
-    {
-        $offset = 0;
-        $totalProcessed = 0;
-        $totalUpdated = 0;
-
-        do {
-            $metas = $this->wpdb->get_results($this->wpdb->prepare(
-                "SELECT meta_id, post_id, meta_key, meta_value
-                 FROM {$this->wpdb->postmeta}
-                 WHERE meta_value != ''
-                 LIMIT %d OFFSET %d",
-                $batchSize,
-                $offset
-            ), ARRAY_A);
-
-            foreach ($metas as $meta) {
-                $totalProcessed++;
-                $originalValue = $meta['meta_value'];
-                $result = $this->replaceUrlsInContentWithDetails($originalValue, $urlMapping);
-                $newValue = $result['content'];
-
-                if ($newValue !== $originalValue) {
-                    $this->wpdb->update(
-                        $this->wpdb->postmeta,
-                        ['meta_value' => $newValue],
-                        ['meta_id' => $meta['meta_id']],
-                        ['%s'],
-                        ['%d']
-                    );
-                    $totalUpdated++;
-                }
-            }
-
-            $offset += $batchSize;
-        } while (count($metas) === $batchSize);
-
-        return ['processed' => $totalProcessed, 'updated' => $totalUpdated];
-    }
-
-    /**
-     * Update menu items with URL mappings (CSV live processing)
-     */
-    private function updateMenuItems(array $urlMapping): array
-    {
-        $totalProcessed = 0;
-        $totalUpdated = 0;
-
-        $menuItems = $this->wpdb->get_results(
-            "SELECT ID, post_content, guid
-             FROM {$this->wpdb->posts}
-             WHERE post_type = 'nav_menu_item'
-             AND post_status = 'publish'",
-            ARRAY_A
-        );
-
-        foreach ($menuItems as $item) {
-            $totalProcessed++;
-            $originalGuid = $item['guid'];
-            $result = $this->replaceUrlsInContentWithDetails($originalGuid, $urlMapping);
-            $newGuid = $result['content'];
-
-            if ($newGuid !== $originalGuid) {
-                $this->wpdb->update(
-                    $this->wpdb->posts,
-                    ['guid' => $newGuid],
-                    ['ID' => $item['ID']],
-                    ['%s'],
-                    ['%d']
-                );
-                $totalUpdated++;
-            }
-
-            // Also check menu item meta
-            $menuItemMetas = $this->wpdb->get_results($this->wpdb->prepare(
-                "SELECT meta_id, meta_value
-                 FROM {$this->wpdb->postmeta}
-                 WHERE post_id = %d
-                 AND meta_key IN ('_menu_item_url', '_menu_item_object_id')",
-                $item['ID']
-            ), ARRAY_A);
-
-            foreach ($menuItemMetas as $meta) {
-                $originalValue = $meta['meta_value'];
-                $result = $this->replaceUrlsInContentWithDetails($originalValue, $urlMapping);
-                $newValue = $result['content'];
-
-                if ($newValue !== $originalValue) {
-                    $this->wpdb->update(
-                        $this->wpdb->postmeta,
-                        ['meta_value' => $newValue],
-                        ['meta_id' => $meta['meta_id']],
-                        ['%s'],
-                        ['%d']
-                    );
-                    $totalUpdated++;
-                }
-            }
-        }
-
-        return ['processed' => $totalProcessed, 'updated' => $totalUpdated];
-    }
-
-    /**
-     * Background processing for CSV redirections
-     *
-     * @param string $jobId Job identifier
-     */
-    public function processCsvRedirectionCleanup(string $jobId): void
-    {
-        $jobData = get_option(self::OPTION_PREFIX . 'job_' . $jobId, []);
-        if (empty($jobData) || $jobData['type'] !== 'csv_import') {
-            return;
-        }
-
-        try {
-            $jobData['status'] = 'processing';
-            $jobData['progress']['current_step'] = 'Starting CSV analysis...';
-            update_option(self::OPTION_PREFIX . 'job_' . $jobId, $jobData, false);
-
-            $isDryRun = $jobData['options']['dry_run'] ?? true;
-
-            if ($isDryRun) {
-                $this->performBatchedCsvDryRun($jobId, $jobData['url_map'], $jobData['options']);
-            } else {
-                $this->performCsvProcessing($jobId, $jobData['url_map'], $jobData['options']);
-            }
-
-        } catch (\Exception $e) {
-            $jobData['status'] = 'error';
-            $jobData['error'] = $e->getMessage();
-            $jobData['completed_at'] = current_time('mysql');
-            update_option(self::OPTION_PREFIX . 'job_' . $jobId, $jobData, false);
-        }
-    }
-
-    /**
-     * Perform batched CSV dry run analysis
-     *
-     * @param string $jobId Job identifier
-     * @param array $urlMap URL mappings
-     * @param array $options Processing options
-     */
-    private function performBatchedCsvDryRun(string $jobId, array $urlMap, array $options): void
-    {
-        $batchSize = 10; // Process 10 URLs at a time
-        $urlList = array_keys($urlMap);
-        $totalUrls = count($urlList);
-        $processed = 0;
-
-        // Initialize comprehensive analysis
-        $affectedContent = [
-            'posts' => 0,
-            'custom_fields' => 0,
-            'menus' => 0,
-            'widgets' => 0
-        ];
-
-        $detailedReport = [
-            'would_fix' => [],
-            'cannot_fix' => [],
-            'already_fixed' => []
-        ];
-
-        $urlAnalysis = [];
-
-        // Process URLs in batches
-        for ($offset = 0; $offset < $totalUrls; $offset += $batchSize) {
-            $batch = array_slice($urlList, $offset, $batchSize);
-            $processed += count($batch);
-
-            // Update progress
-            $this->updateCsvJobProgress($jobId, $processed, $totalUrls,
-                sprintf('Analyzing URLs %d-%d of %d...', $offset + 1, min($offset + $batchSize, $totalUrls), $totalUrls));
-
-            // Process this batch
-            foreach ($batch as $oldUrl) {
-                $newUrl = $urlMap[$oldUrl];
-                $urlResult = $this->analyzeSingleUrl($oldUrl, $newUrl, $options);
-
-                if ($urlResult['total_occurrences'] > 0) {
-                    $urlAnalysis[$oldUrl] = $urlResult;
-
-                    // Add to affected content counts
-                    foreach ($urlResult['found_in'] as $contentType) {
-                        $affectedContent[$contentType] += $urlResult['occurrences'][$contentType] ?? 0;
-                    }
-
-                    // Add to detailed report
-                    $detailedReport['would_fix'] = array_merge($detailedReport['would_fix'], $urlResult['details']);
-                }
-            }
-
-            // Small delay to prevent server overload
-            usleep(100000); // 0.1 second
-        }
-
-        // Generate final results
-        $this->finalizeCsvDryRun($jobId, $urlAnalysis, $affectedContent, $detailedReport, $urlMap);
-    }
-
-    /**
-     * Analyze a single URL for redirections
-     *
-     * @param string $oldUrl Source URL
-     * @param string $newUrl Destination URL
-     * @param array $options Processing options
-     * @return array Analysis results
-     */
-    private function analyzeSingleUrl(string $oldUrl, string $newUrl, array $options): array
-    {
-        $result = [
-            'new_url' => $newUrl,
-            'found_in' => [],
-            'total_occurrences' => 0,
-            'occurrences' => [],
-            'details' => []
-        ];
-
-        // Check posts content
-        if (in_array('posts', $options['content_types'] ?? [])) {
-            $postCount = $this->wpdb->get_var($this->wpdb->prepare(
-                "SELECT COUNT(DISTINCT ID) FROM {$this->wpdb->posts}
-                 WHERE (post_content LIKE %s OR post_excerpt LIKE %s)
-                 AND post_status IN ('publish', 'private', 'draft')",
-                '%' . $oldUrl . '%',
-                '%' . $oldUrl . '%'
-            ));
-
-            if ($postCount > 0) {
-                $result['found_in'][] = 'posts';
-                $result['occurrences']['posts'] = $postCount;
-                $result['total_occurrences'] += $postCount;
-
-                $result['details'][] = [
-                    'type' => 'post_content',
-                    'old_url' => $oldUrl,
-                    'new_url' => $newUrl,
-                    'occurrences' => $postCount
-                ];
-            }
-        }
-
-        // Check custom fields
-        if (in_array('custom_fields', $options['content_types'] ?? [])) {
-            $metaCount = $this->wpdb->get_var($this->wpdb->prepare(
-                "SELECT COUNT(DISTINCT meta_id) FROM {$this->wpdb->postmeta}
-                 WHERE meta_value LIKE %s AND meta_key NOT LIKE '\_%'",
-                '%' . $oldUrl . '%'
-            ));
-
-            if ($metaCount > 0) {
-                $result['found_in'][] = 'custom_fields';
-                $result['occurrences']['custom_fields'] = $metaCount;
-                $result['total_occurrences'] += $metaCount;
-
-                $result['details'][] = [
-                    'type' => 'custom_fields',
-                    'old_url' => $oldUrl,
-                    'new_url' => $newUrl,
-                    'occurrences' => $metaCount
-                ];
-            }
-        }
-
-        // Check menus
-        if (in_array('menus', $options['content_types'] ?? [])) {
-            $menuCount = $this->wpdb->get_var($this->wpdb->prepare(
-                "SELECT COUNT(*) FROM {$this->wpdb->posts}
-                 WHERE post_type = 'nav_menu_item' AND (post_content LIKE %s OR post_excerpt LIKE %s)",
-                '%' . $oldUrl . '%', '%' . $oldUrl . '%'
-            ));
-
-            $menuMetaCount = $this->wpdb->get_var($this->wpdb->prepare(
-                "SELECT COUNT(*) FROM {$this->wpdb->postmeta} pm
-                 JOIN {$this->wpdb->posts} p ON pm.post_id = p.ID
-                 WHERE p.post_type = 'nav_menu_item' AND pm.meta_value LIKE %s",
-                '%' . $oldUrl . '%'
-            ));
-
-            $totalMenuCount = $menuCount + $menuMetaCount;
-            if ($totalMenuCount > 0) {
-                $result['found_in'][] = 'menus';
-                $result['occurrences']['menus'] = $totalMenuCount;
-                $result['total_occurrences'] += $totalMenuCount;
-
-                $result['details'][] = [
-                    'type' => 'navigation_menus',
-                    'old_url' => $oldUrl,
-                    'new_url' => $newUrl,
-                    'occurrences' => $totalMenuCount
-                ];
-            }
-        }
-
-        // Check widgets
-        if (in_array('widgets', $options['content_types'] ?? [])) {
-            $widgetCount = $this->wpdb->get_var($this->wpdb->prepare(
-                "SELECT COUNT(*) FROM {$this->wpdb->options}
-                 WHERE (option_name LIKE 'widget_%' OR option_name LIKE 'theme_mods_%')
-                 AND option_value LIKE %s",
-                '%' . $oldUrl . '%'
-            ));
-
-            if ($widgetCount > 0) {
-                $result['found_in'][] = 'widgets';
-                $result['occurrences']['widgets'] = $widgetCount;
-                $result['total_occurrences'] += $widgetCount;
-
-                $result['details'][] = [
-                    'type' => 'widgets_customizer',
-                    'old_url' => $oldUrl,
-                    'new_url' => $newUrl,
-                    'occurrences' => $widgetCount
-                ];
-            }
-        }
-
-        return $result;
-    }
-
-    /**
-     * Update CSV job progress
-     */
-    private function updateCsvJobProgress(string $jobId, int $processed, int $total, string $message): void
-    {
-        $jobData = get_option(self::OPTION_PREFIX . 'job_' . $jobId, []);
-        $jobData['progress']['current'] = $processed;
-        $jobData['progress']['total'] = $total;
-        $jobData['progress']['message'] = $message;
-        $jobData['progress']['percentage'] = round(($processed / $total) * 100, 1);
-        update_option(self::OPTION_PREFIX . 'job_' . $jobId, $jobData, false);
-    }
-
-    /**
-     * Finalize CSV dry run with results
-     */
-    private function finalizeCsvDryRun(string $jobId, array $urlAnalysis, array $affectedContent, array $detailedReport, array $urlMap): void
-    {
-        $jobData = get_option(self::OPTION_PREFIX . 'job_' . $jobId);
-
-        $totalChanges = array_sum($affectedContent);
-        $affectedUrls = count($urlAnalysis);
-
-        $summary = [
-            'total_url_mappings' => count($urlMap),
-            'urls_with_matches' => $affectedUrls,
-            'urls_without_matches' => count($urlMap) - $affectedUrls,
-            'total_potential_changes' => $totalChanges,
-            'content_breakdown' => $affectedContent
-        ];
-
-        $jobData['status'] = 'completed';
-        $jobData['completed_at'] = current_time('mysql');
-        $jobData['progress']['current_step'] = 'Analysis completed';
-        $jobData['progress']['message'] = sprintf('Analyzed %d URLs, found %d with matches', count($urlMap), $affectedUrls);
-        $jobData['result'] = [
-            'type' => 'dry_run',
-            'summary' => $summary,
-            'affected_content' => $affectedContent,
-            'total_changes' => $totalChanges,
-            'url_analysis' => $urlAnalysis,
-            'detailed_report' => $detailedReport,
-            'recommendations' => $this->generateDryRunRecommendations($urlAnalysis, $affectedContent)
-        ];
-
-        update_option(self::OPTION_PREFIX . 'job_' . $jobId, $jobData, false);
     }
 }

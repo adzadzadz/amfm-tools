@@ -50,7 +50,7 @@ class RedirectionCleanupController extends Controller
         wp_enqueue_script(
             'amfm-redirection-cleanup',
             AMFM_TOOLS_URL . 'assets/js/redirection-cleanup.js',
-            ['jquery'],
+            ['jquery', 'underscore'],
             AMFM_TOOLS_VERSION,
             true
         );
@@ -235,71 +235,6 @@ class RedirectionCleanupController extends Controller
         }
     }
 
-    /**
-     * AJAX: Import CSV file
-     */
-    public function actionWpAjaxImportCsvRedirections()
-    {
-        check_ajax_referer('amfm_redirection_cleanup', 'nonce');
-
-        if (!current_user_can('manage_options')) {
-            wp_die(__('Insufficient permissions', 'amfm-tools'));
-        }
-
-        if (!isset($_FILES['csv_file']) || $_FILES['csv_file']['error'] !== UPLOAD_ERR_OK) {
-            wp_send_json_error(['message' => __('No file uploaded or upload error occurred', 'amfm-tools')]);
-            return;
-        }
-
-        $uploadedFile = $_FILES['csv_file'];
-
-        // Validate file type
-        $mimeType = mime_content_type($uploadedFile['tmp_name']);
-        if (!in_array($mimeType, ['text/csv', 'text/plain', 'application/csv'])) {
-            wp_send_json_error(['message' => __('Invalid file type. Please upload a CSV file.', 'amfm-tools')]);
-            return;
-        }
-
-        try {
-            $result = $this->cleanupService->importCsvRedirections($uploadedFile['tmp_name']);
-            wp_send_json_success($result);
-        } catch (\Exception $e) {
-            wp_send_json_error([
-                'message' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * AJAX: Process imported CSV redirections
-     */
-    public function actionWpAjaxProcessCsvRedirections()
-    {
-        check_ajax_referer('amfm_redirection_cleanup', 'nonce');
-
-        if (!current_user_can('manage_options')) {
-            wp_die(__('Insufficient permissions', 'amfm-tools'));
-        }
-
-        $options = [
-            'dry_run' => filter_var($_POST['dry_run'] ?? 'true', FILTER_VALIDATE_BOOLEAN),
-            'batch_size' => intval($_POST['batch_size'] ?? 50),
-            'content_types' => $_POST['content_types'] ?? ['posts', 'custom_fields', 'menus', 'widgets'],
-            'fix_redirections' => filter_var($_POST['fix_redirections'] ?? 'true', FILTER_VALIDATE_BOOLEAN)
-        ];
-
-        try {
-            $jobId = $this->cleanupService->processCsvRedirections($options);
-            wp_send_json_success([
-                'job_id' => $jobId,
-                'message' => __('CSV processing started', 'amfm-tools')
-            ]);
-        } catch (\Exception $e) {
-            wp_send_json_error([
-                'message' => $e->getMessage()
-            ]);
-        }
-    }
 
     /**
      * Get processing options for the UI

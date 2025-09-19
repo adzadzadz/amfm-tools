@@ -33,11 +33,6 @@
             $(document).on('click', '#rollback-changes', this.rollbackCurrentJob.bind(this));
             $(document).on('click', '#download-results', this.downloadResults.bind(this));
 
-            // CSV Import
-            $('#csv-upload-button').on('click', this.triggerFileUpload.bind(this));
-            $('#csv-file-input').on('change', this.handleFileSelect.bind(this));
-            $('#csv-import-form').on('submit', this.handleCsvImport.bind(this));
-            $(document).on('click', '#process-csv-redirections', this.processCsvRedirections.bind(this));
 
             // Modal
             $(document).on('click', '.amfm-modal-close, .amfm-modal-backdrop', this.closeModal.bind(this));
@@ -49,6 +44,12 @@
                 this.templates = {
                     progressLog: _.template($('#progress-log-template').html() || ''),
                     results: _.template($('#results-template').html() || '')
+                };
+            } else {
+                console.warn('Underscore.js not loaded - templates will not work');
+                this.templates = {
+                    progressLog: null,
+                    results: null
                 };
             }
         },
@@ -175,21 +176,11 @@
         updateProgressFromResponse: function(progress) {
             const progressData = progress.progress;
 
-            // Handle CSV progress format
-            if (progressData.current !== undefined && progressData.total !== undefined) {
-                const percentage = progressData.total > 0 ? Math.round((progressData.current / progressData.total) * 100) : 0;
-                const message = progressData.message || 'Processing...';
-                const stats = `${progressData.current} / ${progressData.total} URLs analyzed`;
+            // Handle regular progress format
+            const { total_items, processed_items, current_step, errors } = progressData;
+            const percentage = total_items > 0 ? Math.round((processed_items / total_items) * 100) : 0;
 
-                this.updateProgress(percentage, message, stats);
-                this.addLogEntry('info', `Batch completed: ${progressData.current}/${progressData.total} URLs`);
-            } else {
-                // Handle regular progress format
-                const { total_items, processed_items, current_step, errors } = progressData;
-                const percentage = total_items > 0 ? Math.round((processed_items / total_items) * 100) : 0;
-
-                this.updateProgress(percentage, current_step, `${processed_items} / ${total_items} items processed`);
-            }
+            this.updateProgress(percentage, current_step, `${processed_items} / ${total_items} items processed`);
 
             // Add any new errors to log
             if (progressData.errors && progressData.errors.length > 0) {
@@ -232,81 +223,108 @@
         },
 
         showResults: function(jobData) {
-            if (!this.templates.results) {
-                return;
-            }
-
-            // Handle different result structures (CSV vs regular jobs)
-            let templateData;
-
-            // Check for CSV job (can be identified by having 'result' instead of 'results' or by job type)
-            const isCsvJob = (jobData.result && (jobData.result.type === 'dry_run' || jobData.result.summary)) ||
-                           (jobData.type === 'csv_import') ||
-                           (!jobData.results || (Array.isArray(jobData.results) && jobData.results.length === 0)) ||
-                           (jobData.id && jobData.id.startsWith('csv_job_'));
-
-            if (isCsvJob && jobData.result) {
-                // CSV job results (dry run or live processing)
-                const isDryRun = jobData.result.type === 'dry_run';
-                const affectedContent = jobData.result.affected_content || {};
-                const summary = jobData.result.summary || {};
-
-                templateData = {
-                    posts_updated: isDryRun ? (affectedContent.posts || 0) : (summary.total_updated_items || jobData.result.updated || 0),
-                    custom_fields_updated: isDryRun ? (affectedContent.custom_fields || 0) : 0,
-                    menus_updated: isDryRun ? (affectedContent.menus || 0) : 0,
-                    widgets_updated: isDryRun ? (affectedContent.widgets || 0) : 0,
-                    total_url_replacements: isDryRun ? (jobData.result.total_changes || 0) : (jobData.result.updated || 0),
-                    job_id: jobData.id,
-                    status: jobData.status,
-                    dry_run: isDryRun,
-                    csv_results: jobData.result // Store full CSV results for detailed display
-                };
-
-            } else if (isCsvJob && !jobData.result) {
-                // CSV job without result data - use defaults and fetch details in populateResultsTable
-                // Check if this was a dry run based on the job options
-                const wasDryRun = jobData.options?.dry_run !== false;
-                templateData = {
-                    posts_updated: 0,
-                    custom_fields_updated: 0,
-                    menus_updated: 0,
-                    widgets_updated: 0,
-                    total_url_replacements: 0,
-                    job_id: jobData.id,
-                    status: jobData.status,
-                    dry_run: wasDryRun
-                };
-            } else {
-                // Regular job results
-                templateData = {
-                    ...jobData.results,
-                    job_id: jobData.id,
-                    status: jobData.status,
-                    dry_run: jobData.options?.dry_run || false
-                };
-            }
+            // Handle regular job results
+            const isDryRun = jobData.options?.dry_run === true || jobData.options?.dry_run === 'true' || jobData.options?.dry_run === '1';
+            let templateData = {
+                ...jobData.results,
+                job_id: jobData.id,
+                status: jobData.status,
+                dry_run: isDryRun
+            };
 
             // Ensure all required template variables exist with fallbacks
-            templateData = {
+            const defaults = {
                 posts_updated: 0,
                 custom_fields_updated: 0,
                 menus_updated: 0,
                 widgets_updated: 0,
                 total_url_replacements: 0,
                 job_id: jobData.id || 'unknown',
-                status: jobData.status || 'unknown',
-                dry_run: false,
-                ...templateData // Override with actual values
+                status: jobData.status || 'unknown'
             };
 
-            const resultsHtml = this.templates.results(templateData);
+            // Merge defaults with templateData, preserving the dry_run value
+            templateData = {
+                ...defaults,
+                ...templateData
+            };
+
+            let resultsHtml;
+
+            if (this.templates && this.templates.results) {
+                // Use template if available
+                resultsHtml = this.templates.results(templateData);
+            } else {
+                // Fallback simple HTML if template system fails
+                const modeText = templateData.dry_run ? 'Dry Run - No Changes Made' : 'Live Processing - Changes Applied';
+                const modeClass = templateData.dry_run ? 'dry-run-badge' : 'live-processing-badge';
+
+                resultsHtml = `
+                    <div class="results-summary">
+                        <div class="result-stats">
+                            <div class="result-stat">
+                                <div class="stat-number">${templateData.posts_updated}</div>
+                                <div class="stat-label">Posts Updated</div>
+                            </div>
+                            <div class="result-stat">
+                                <div class="stat-number">${templateData.custom_fields_updated}</div>
+                                <div class="stat-label">Custom Fields Updated</div>
+                            </div>
+                            <div class="result-stat">
+                                <div class="stat-number">${templateData.menus_updated}</div>
+                                <div class="stat-label">Menus Updated</div>
+                            </div>
+                            <div class="result-stat">
+                                <div class="stat-number">${templateData.total_url_replacements}</div>
+                                <div class="stat-label">URLs Replaced</div>
+                            </div>
+                        </div>
+                        <div class="${modeClass}">
+                            <span class="dashicons dashicons-${templateData.dry_run ? 'info' : 'yes-alt'}"></span>
+                            ${modeText}
+                        </div>
+
+                        <div class="results-details">
+                            <h4>Updated Pages & Content</h4>
+                            <div class="results-table-container">
+                                <table class="results-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Page/Content</th>
+                                            <th>Type</th>
+                                            <th>URL Changes</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="results-table-body">
+                                        <!-- Table content will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="results-actions">
+                            ${!templateData.dry_run ? `
+                                <button type="button" class="button button-secondary" id="rollback-changes" data-job-id="${templateData.job_id}">
+                                    <span class="dashicons dashicons-undo"></span>
+                                    Rollback Changes
+                                </button>
+                            ` : ''}
+
+                            <button type="button" class="button button-secondary" id="download-results">
+                                <span class="dashicons dashicons-download"></span>
+                                Download Report
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
 
             $('#results-content').html(resultsHtml);
-            
+
             // Populate the results table with detailed information
             this.populateResultsTable(jobData);
-            
+
             // Show results section
             $('#cleanup-results-section').show();
         },
@@ -316,34 +334,6 @@
             $tableBody.empty();
 
 
-            // Handle CSV results differently - check multiple possible locations
-            let csvResult = null;
-
-            if (jobData.result && jobData.result.type === 'dry_run') {
-                csvResult = jobData.result;
-            } else if (jobData.result && jobData.result.summary) {
-                csvResult = jobData.result;
-            } else if (jobData.type === 'csv_import') {
-                // For CSV jobs, we need to get the full job details
-                this.ajaxRequest('get_job_details', { job_id: jobData.id }, {
-                    success: (response) => {
-                        if (response.job && response.job.result) {
-                            this.renderCsvResults(response.job.result, $tableBody);
-                        } else {
-                            $tableBody.append('<tr><td colspan="4">No CSV results found in job details</td></tr>');
-                        }
-                    },
-                    error: () => {
-                        $tableBody.append('<tr><td colspan="4">Failed to load CSV results</td></tr>');
-                    }
-                });
-                return;
-            }
-
-            if (csvResult) {
-                this.renderCsvResults(csvResult, $tableBody);
-                return;
-            }
 
             // Get job details to access logs for regular jobs
             this.ajaxRequest('get_job_details', { job_id: jobData.id }, {
@@ -358,697 +348,6 @@
                     this.renderSummaryResults(jobData.results, $tableBody);
                 }
             });
-        },
-
-        renderCsvResults: function(csvResult, $tableBody) {
-
-            // Show CSV-specific detailed results
-            if (csvResult.detailed_report && csvResult.detailed_report.would_fix) {
-                csvResult.detailed_report.would_fix.forEach(item => {
-                    const row = `
-                        <tr>
-                            <td>
-                                <strong>${this.escapeHtml(item.type.replace('_', ' '))}</strong>
-                                ${item.sample_posts ? '<br><small>Sample: ' + item.sample_posts.map(p => p.title).slice(0, 2).join(', ') + '</small>' : ''}
-                                ${item.sample_fields ? '<br><small>Fields: ' + item.sample_fields.map(f => f.meta_key).slice(0, 2).join(', ') + '</small>' : ''}
-                            </td>
-                            <td>
-                                <span class="content-type-badge">${this.escapeHtml(item.type)}</span>
-                            </td>
-                            <td>
-                                <div class="url-change">
-                                    <div class="old-url">${this.escapeHtml(item.old_url)}</div>
-                                    <div class="arrow">→</div>
-                                    <div class="new-url">${this.escapeHtml(item.new_url)}</div>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="status-badge dry-run">
-                                    ${item.occurrences} would be updated
-                                </span>
-                            </td>
-                        </tr>
-                    `;
-                    $tableBody.append(row);
-                });
-            }
-
-            // Show recommendations if available
-            if (csvResult.recommendations && csvResult.recommendations.length > 0) {
-                const recommendationsRow = `
-                    <tr class="recommendations-row">
-                        <td colspan="4">
-                            <div class="csv-recommendations">
-                                <h5>Recommendations:</h5>
-                                <ul>
-                                    ${csvResult.recommendations.map(rec =>
-                                        `<li class="recommendation-${rec.level}">${this.escapeHtml(rec.message)}</li>`
-                                    ).join('')}
-                                </ul>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-                $tableBody.append(recommendationsRow);
-            }
-
-            // If no results to show
-            if (!csvResult.detailed_report || csvResult.detailed_report.would_fix.length === 0) {
-                $tableBody.append(`
-                    <tr>
-                        <td colspan="4" class="no-results">
-                            No matching content found for the imported URLs.
-                        </td>
-                    </tr>
-                `);
-            }
-        },
-
-        parseLogsForResults: function(logs, jobOptions) {
-            const results = [];
-            const isDryRun = jobOptions?.dry_run || false;
-            const actionWord = isDryRun ? 'Found' : 'Updated';
-            const status = isDryRun ? 'Analyzed' : 'Updated';
-            const siteUrl = window.location.origin;
-            
-            logs.forEach(log => {
-                if (log.level === 'info') {
-                    const message = log.message;
-                    
-                    // Parse Post entries: "Post ID 123: Updated 2 occurrences of URL from "old-url" to "new-url""
-                    const postMatch = message.match(/^Post ID (\d+): (Found|Updated) (\d+) occurrences? of URL from "([^"]+)" to "([^"]+)"$/);
-                    if (postMatch) {
-                        const postId = postMatch[1];
-                        const count = parseInt(postMatch[3]);
-                        const oldUrl = postMatch[4];
-                        const newUrl = postMatch[5];
-                        
-                        // Check if we already have an entry for this post and merge URLs
-                        const existingIndex = results.findIndex(r => r.post_id === postId && r.type === 'Post');
-                        if (existingIndex >= 0) {
-                            results[existingIndex].url_changes += count;
-                            results[existingIndex].old_urls.push(oldUrl);
-                            results[existingIndex].new_urls.push(newUrl);
-                        } else {
-                            results.push({
-                                title: `Post ID ${postId}`,
-                                type: 'Post',
-                                url_changes: count,
-                                status: status,
-                                post_id: postId,
-                                old_urls: [oldUrl],
-                                new_urls: [newUrl],
-                                source_link: `${siteUrl}/wp-admin/post.php?post=${postId}&action=edit`,
-                                edit_link: `${siteUrl}/wp-admin/post.php?post=${postId}&action=edit`
-                            });
-                        }
-                    }
-                    
-                    // Parse Meta entries: "Meta ID 456 (Post 123, Key: hero_image): Updated 2 occurrences of URL from "old-url" to "new-url""
-                    const metaMatch = message.match(/^Meta ID (\d+) \(Post (\d+), Key: ([^)]+)\): (Found|Updated) (\d+) occurrences? of URL from "([^"]+)" to "([^"]+)"$/);
-                    if (metaMatch) {
-                        const postId = metaMatch[2];
-                        const metaKey = metaMatch[3];
-                        const count = parseInt(metaMatch[5]);
-                        const oldUrl = metaMatch[6];
-                        const newUrl = metaMatch[7];
-                        
-                        // Check if we already have an entry for this meta key and merge URLs
-                        const existingIndex = results.findIndex(r => r.post_id === postId && r.meta_key === metaKey && r.type === 'Custom Field');
-                        if (existingIndex >= 0) {
-                            results[existingIndex].url_changes += count;
-                            results[existingIndex].old_urls.push(oldUrl);
-                            results[existingIndex].new_urls.push(newUrl);
-                        } else {
-                            results.push({
-                                title: `${metaKey} (Post ${postId})`,
-                                type: 'Custom Field',
-                                url_changes: count,
-                                status: status,
-                                post_id: postId,
-                                meta_key: metaKey,
-                                old_urls: [oldUrl],
-                                new_urls: [newUrl],
-                                source_link: `${siteUrl}/wp-admin/post.php?post=${postId}&action=edit`,
-                                edit_link: `${siteUrl}/wp-admin/post.php?post=${postId}&action=edit`
-                            });
-                        }
-                    }
-                    
-                    // Parse Menu entries: "Menu Item "About": Updated URL from /old-about to /about"
-                    const menuMatch = message.match(/^Menu Item "([^"]+)": (Would update|Updated) URL from (.+) to (.+)$/);
-                    if (menuMatch) {
-                        const oldUrl = menuMatch[3];
-                        const newUrl = menuMatch[4];
-                        results.push({
-                            title: menuMatch[1],
-                            type: 'Menu',
-                            url_changes: 1,
-                            old_urls: [oldUrl],
-                            new_urls: [newUrl],
-                            status: status,
-                            source_link: `${siteUrl}/wp-admin/nav-menus.php`,
-                            old_url: oldUrl,
-                            new_url: newUrl
-                        });
-                    }
-                    
-                    // Parse Option entries: "Option "widget_text": Updated 2 occurrences of URL from "old-url" to "new-url""
-                    const optionMatch = message.match(/^Option "([^"]+)": (Found|Updated) (\d+) occurrences? of URL from "([^"]+)" to "([^"]+)"$/);
-                    if (optionMatch) {
-                        const optionName = optionMatch[1];
-                        const count = parseInt(optionMatch[3]);
-                        const oldUrl = optionMatch[4];
-                        const newUrl = optionMatch[5];
-                        
-                        // Check if we already have an entry for this option and merge URLs
-                        const existingIndex = results.findIndex(r => r.option_name === optionName && r.type === 'Widget/Option');
-                        if (existingIndex >= 0) {
-                            results[existingIndex].url_changes += count;
-                            results[existingIndex].old_urls.push(oldUrl);
-                            results[existingIndex].new_urls.push(newUrl);
-                        } else {
-                            results.push({
-                                title: optionName,
-                                type: 'Widget/Option',
-                                url_changes: count,
-                                status: status,
-                                option_name: optionName,
-                                old_urls: [oldUrl],
-                                new_urls: [newUrl],
-                                source_link: `${siteUrl}/wp-admin/options-general.php`
-                            });
-                        }
-                    }
-                }
-            });
-            
-            return results;
-        },
-
-        renderResultsTable: function(results, $tableBody) {
-            if (results.length === 0) {
-                $tableBody.append(`
-                    <tr>
-                        <td colspan="4" class="no-results">
-                            <em>No detailed results available. Check the processing logs for more information.</em>
-                        </td>
-                    </tr>
-                `);
-                return;
-            }
-            
-            results.forEach(item => {
-                const urlChangesText = item.url_changes > 0 ? 
-                    `${item.url_changes} URL${item.url_changes > 1 ? 's' : ''}` : 
-                    'No changes';
-                    
-                const statusClass = item.status === 'Updated' ? 'status-updated' : 
-                                   item.status === 'Analyzed' ? 'status-analyzed' : 'status-error';
-                
-                const row = `
-                    <tr>
-                        <td>
-                            <strong>${this.escapeHtml(item.title)}</strong>
-                            ${item.source_link ? `<br><a href="${item.source_link}" target="_blank" class="source-link">Edit Source</a>` : ''}
-                        </td>
-                        <td>${this.escapeHtml(item.type)}</td>
-                        <td>
-                            <span class="url-changes-count">${urlChangesText}</span>
-                            ${item.old_urls && item.new_urls ? `
-                                <div class="url-changes-details" style="display: none;">
-                                    ${item.old_urls.map((oldUrl, index) => `
-                                        <div class="url-change">
-                                            <a href="${this.escapeHtml(oldUrl)}" target="_blank" class="old-url">${this.escapeHtml(oldUrl)}</a>
-                                            <span class="arrow">→</span>
-                                            <a href="${this.escapeHtml(item.new_urls[index] || '')}" target="_blank" class="new-url">${this.escapeHtml(item.new_urls[index] || '')}</a>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            ` : ''}
-                        </td>
-                        <td><span class="status-badge ${statusClass}">${this.escapeHtml(item.status)}</span></td>
-                    </tr>
-                `;
-                
-                $tableBody.append(row);
-            });
-            
-            // Add click handler to show/hide URL changes details
-            $tableBody.find('.url-changes-count').on('click', function(e) {
-                e.preventDefault();
-                const $details = $(this).siblings('.url-changes-details');
-                $details.slideToggle(200);
-                
-                // Update text to show expand/collapse state
-                const $this = $(this);
-                const isVisible = $details.is(':visible');
-                if (isVisible) {
-                    $this.addClass('expanded');
-                } else {
-                    $this.removeClass('expanded');
-                }
-            });
-        },
-
-        renderSummaryResults: function(summary, $tableBody) {
-            // Fallback when detailed logs aren't available
-            const summaryItems = [];
-            
-            if (summary.posts_updated > 0) {
-                summaryItems.push({
-                    title: 'Posts & Pages',
-                    type: 'Content',
-                    url_changes: summary.posts_updated,
-                    status: 'Updated'
-                });
-            }
-            
-            if (summary.custom_fields_updated > 0) {
-                summaryItems.push({
-                    title: 'Custom Fields',
-                    type: 'Meta Data',
-                    url_changes: summary.custom_fields_updated,
-                    status: 'Updated'
-                });
-            }
-            
-            if (summary.menus_updated > 0) {
-                summaryItems.push({
-                    title: 'Navigation Menus',
-                    type: 'Menu',
-                    url_changes: summary.menus_updated,
-                    status: 'Updated'
-                });
-            }
-            
-            if (summary.widgets_updated > 0) {
-                summaryItems.push({
-                    title: 'Widgets & Options',
-                    type: 'Widget',
-                    url_changes: summary.widgets_updated,
-                    status: 'Updated'
-                });
-            }
-            
-            if (summaryItems.length === 0) {
-                $tableBody.append(`
-                    <tr>
-                        <td colspan="4" class="no-results">
-                            <em>No changes were made during this cleanup process.</em>
-                        </td>
-                    </tr>
-                `);
-                return;
-            }
-            
-            this.renderResultsTable(summaryItems, $tableBody);
-        },
-
-        closeResults: function() {
-            $('#cleanup-results-section').hide();
-        },
-
-        cancelCleanup: function(e) {
-            e.preventDefault();
-            
-            if (confirm('Are you sure you want to cancel the cleanup process?')) {
-                this.stopProgressMonitoring();
-                this.hideProgressSection();
-                this.currentJobId = null;
-                this.showNotice('Cleanup process cancelled', 'info');
-            }
-        },
-
-
-        viewJobDetails: function(e) {
-            e.preventDefault();
-            
-            const jobId = $(e.target).data('job-id');
-            
-            this.ajaxRequest('get_job_details', { job_id: jobId }, {
-                success: (response) => {
-                    this.showJobDetailsModal(response);
-                },
-                error: (error) => {
-                    this.showNotice('Failed to load job details: ' + error.message, 'error');
-                }
-            });
-        },
-
-        rollbackJob: function(e) {
-            e.preventDefault();
-            
-            if (!confirm(this.strings.confirm_rollback)) {
-                return;
-            }
-            
-            const jobId = $(e.target).data('job-id');
-            const $button = $(e.target);
-            const originalText = $button.text();
-            
-            $button.prop('disabled', true).text('Rolling back...');
-
-            this.ajaxRequest('rollback_cleanup', { job_id: jobId }, {
-                success: (response) => {
-                    this.showNotice('Changes rolled back successfully!', 'success');
-                    // Refresh the page to update UI
-                    setTimeout(() => window.location.reload(), 1500);
-                },
-                error: (error) => {
-                    this.showNotice('Rollback failed: ' + error.message, 'error');
-                },
-                complete: () => {
-                    $button.prop('disabled', false).text(originalText);
-                }
-            });
-        },
-
-        rollbackCurrentJob: function(e) {
-            e.preventDefault();
-            
-            if (!confirm(this.strings.confirm_rollback || 'This will revert all changes. Are you sure?')) {
-                return;
-            }
-            
-            const jobId = $(e.target).data('job-id');
-            if (!jobId) {
-                this.showNotice('No job ID found for rollback', 'error');
-                return;
-            }
-            
-            const $button = $(e.target);
-            const originalText = $button.text();
-            
-            $button.prop('disabled', true).text('Rolling back...');
-
-            this.ajaxRequest('rollback_cleanup', { job_id: jobId }, {
-                success: (response) => {
-                    this.showNotice('Changes rolled back successfully!', 'success');
-                    // Close results and refresh the page to update UI
-                    this.closeResults();
-                    setTimeout(() => window.location.reload(), 1500);
-                },
-                error: (error) => {
-                    this.showNotice('Rollback failed: ' + error.message, 'error');
-                },
-                complete: () => {
-                    $button.prop('disabled', false).text(originalText);
-                }
-            });
-        },
-
-        downloadResults: function(e) {
-            e.preventDefault();
-            
-            const jobId = this.currentJobId;
-            if (!jobId) {
-                this.showNotice('No job data available for download', 'error');
-                return;
-            }
-
-            // Get job details for the report
-            this.ajaxRequest('get_job_details', { job_id: jobId }, {
-                success: (response) => {
-                    this.generateAndDownloadReport(response);
-                },
-                error: (error) => {
-                    this.showNotice('Failed to generate report: ' + error.message, 'error');
-                }
-            });
-        },
-
-        generateAndDownloadReport: function(jobDetails) {
-            const job = jobDetails.job;
-
-            // Check if this is a CSV import job
-            if (job.type === 'csv_import' && job.result) {
-                return this.generateCsvImportReport(job);
-            }
-
-            const logs = jobDetails.logs || [];
-
-            // Parse the logs to get detailed results
-            const results = this.parseLogsForResults(logs, job.options || {});
-
-            // Generate CSV content
-            let csvContent = '';
-            
-            // CSV Headers
-            const headers = [
-                'Item Name',
-                'Type', 
-                'Status',
-                'Post ID',
-                'Meta Key',
-                'Old URL',
-                'New URL',
-                'Source Edit Link',
-                'Timestamp'
-            ];
-            csvContent += headers.map(h => `"${h}"`).join(',') + '\n';
-            
-            // CSV Data rows - create one row per URL change
-            results.forEach(item => {
-                if (item.old_urls && item.new_urls && item.old_urls.length > 0) {
-                    // Multiple URL changes - create one row per URL pair
-                    item.old_urls.forEach((oldUrl, index) => {
-                        const row = [
-                            item.title || '',
-                            item.type || '',
-                            item.status || '',
-                            item.post_id || '',
-                            item.meta_key || '',
-                            oldUrl || '',
-                            item.new_urls[index] || '',
-                            item.source_link || '',
-                            new Date().toISOString()
-                        ];
-                        csvContent += row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(',') + '\n';
-                    });
-                } else {
-                    // Single or no URL changes
-                    const row = [
-                        item.title || '',
-                        item.type || '',
-                        item.status || '',
-                        item.post_id || '',
-                        item.meta_key || '',
-                        item.old_url || '',
-                        item.new_url || '',
-                        item.source_link || '',
-                        new Date().toISOString()
-                    ];
-                    csvContent += row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(',') + '\n';
-                }
-            });
-            
-            // Add summary section
-            csvContent += '\n\n"SUMMARY INFORMATION"\n';
-            csvContent += `"Job ID","${job.id}"\n`;
-            csvContent += `"Status","${job.status}"\n`;
-            csvContent += `"Started","${job.started_at}"\n`;
-            if (job.completed_at) {
-                csvContent += `"Completed","${job.completed_at}"\n`;
-            }
-            csvContent += `"Mode","${job.options?.dry_run ? 'Dry Run (Analysis Only)' : 'Live Update'}"\n`;
-            
-            if (job.results) {
-                csvContent += `"Posts Updated","${job.results.posts_updated || 0}"\n`;
-                csvContent += `"Custom Fields Updated","${job.results.custom_fields_updated || 0}"\n`;
-                csvContent += `"Menus Updated","${job.results.menus_updated || 0}"\n`;
-                csvContent += `"Widgets Updated","${job.results.widgets_updated || 0}"\n`;
-                csvContent += `"Total URL Replacements","${job.results.total_url_replacements || 0}"\n`;
-            }
-            
-            // Create and trigger download
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `redirection-cleanup-report-${job.id}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-            
-            this.showNotice('CSV report downloaded successfully!', 'success');
-        },
-
-        generateCsvImportReport: function(job) {
-            let csvContent = '';
-
-            // Main data - URLs that need fixing
-            csvContent += '"Old URL","New URL","Content Type","Occurrences"\n';
-
-            if (job.result && job.result.detailed_report && job.result.detailed_report.would_fix) {
-                // Sort by occurrences (highest first)
-                const sortedItems = [...job.result.detailed_report.would_fix].sort((a, b) =>
-                    (b.occurrences || 0) - (a.occurrences || 0)
-                );
-
-                sortedItems.forEach(item => {
-                    const row = [
-                        item.old_url || '',
-                        item.new_url || '',
-                        item.type?.replace(/_/g, ' ') || '',
-                        item.occurrences || '0'
-                    ];
-                    csvContent += row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(',') + '\n';
-                });
-            }
-
-            // Add empty line before summary
-            csvContent += '\n';
-
-            // Summary at the bottom
-            csvContent += '"SUMMARY"\n';
-
-            if (job.result && job.result.summary) {
-                csvContent += `"Total URLs Analyzed","${job.result.summary.total_url_mappings || 0}"\n`;
-                csvContent += `"URLs Found in Content","${job.result.summary.urls_with_matches || 0}"\n`;
-                csvContent += `"URLs Not Found","${job.result.summary.urls_without_matches || 0}"\n`;
-                csvContent += `"Total Changes Needed","${job.result.summary.total_potential_changes || 0}"\n`;
-            }
-
-            if (job.result && job.result.affected_content) {
-                csvContent += '\n"CONTENT BREAKDOWN"\n';
-                csvContent += `"Posts with URLs","${job.result.affected_content.posts || 0}"\n`;
-                csvContent += `"Custom Fields with URLs","${job.result.affected_content.custom_fields || 0}"\n`;
-                csvContent += `"Menu Items with URLs","${job.result.affected_content.menus || 0}"\n`;
-                csvContent += `"Widgets with URLs","${job.result.affected_content.widgets || 0}"\n`;
-            }
-
-            csvContent += '\n"PROCESSING INFO"\n';
-            csvContent += `"Analysis Date","${job.completed_at || job.started_at}"\n`;
-            csvContent += `"Job ID","${job.id}"\n`;
-
-            // Create and trigger download
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `csv-import-analysis-${job.id}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-
-            this.showNotice('CSV import analysis report downloaded successfully!', 'success');
-        },
-
-        showAnalysisModal: function(analysisData) {
-            const content = this.formatAnalysisContent(analysisData);
-            this.showModal('Detailed Analysis', content);
-        },
-
-        showJobDetailsModal: function(jobData) {
-            const content = this.formatJobDetailsContent(jobData);
-            this.showModal('Job Details', content);
-        },
-
-        showModal: function(title, content) {
-            const $modal = $('#job-details-modal');
-            $modal.find('h3').text(title);
-            $modal.find('#job-details-content').html(content);
-            $modal.show();
-        },
-
-        closeModal: function(e) {
-            if (e.target === e.currentTarget) {
-                $('.amfm-modal').hide();
-            }
-        },
-
-        formatAnalysisContent: function(data) {
-            // Format analysis data for modal display
-            let html = '<div class="analysis-details">';
-            
-            if (data.url_mappings) {
-                html += `<h4>URL Mappings (${data.url_mappings})</h4>`;
-                html += '<p>The tool will replace these URLs throughout your content:</p>';
-                
-                if (data.url_mapping && Object.keys(data.url_mapping).length > 0) {
-                    html += '<div class="url-mapping-preview">';
-                    Object.entries(data.url_mapping).slice(0, 10).forEach(([source, destination]) => {
-                        html += `<div class="mapping-item">`;
-                        html += `<code class="source">${this.escapeHtml(source)}</code>`;
-                        html += `<span class="arrow">→</span>`;
-                        html += `<code class="destination">${this.escapeHtml(destination)}</code>`;
-                        html += `</div>`;
-                    });
-                    
-                    if (Object.keys(data.url_mapping).length > 10) {
-                        html += `<p><em>... and ${Object.keys(data.url_mapping).length - 10} more</em></p>`;
-                    }
-                    
-                    html += '</div>';
-                }
-            }
-            
-            if (data.content_analysis) {
-                html += '<h4>Content Analysis</h4>';
-                html += '<ul>';
-                Object.entries(data.content_analysis).forEach(([type, count]) => {
-                    if (type !== 'total_matches') {
-                        html += `<li><strong>${type.replace('_', ' ').toUpperCase()}:</strong> ${count} items contain redirected URLs</li>`;
-                    }
-                });
-                html += '</ul>';
-            }
-            
-            if (data.processing_time_estimate) {
-                html += `<p><strong>Estimated Processing Time:</strong> ${data.processing_time_estimate}</p>`;
-            }
-            
-            html += '</div>';
-            
-            return html;
-        },
-
-        formatJobDetailsContent: function(data) {
-            const job = data.job;
-            const logs = data.logs || [];
-            
-            let html = '<div class="job-details">';
-            
-            // Job info
-            html += '<div class="job-info">';
-            html += `<p><strong>Status:</strong> <span class="status-${job.status}">${job.status}</span></p>`;
-            html += `<p><strong>Started:</strong> ${job.started_at}</p>`;
-            if (job.completed_at) {
-                html += `<p><strong>Completed:</strong> ${job.completed_at}</p>`;
-            }
-            html += '</div>';
-            
-            // Results
-            if (job.results) {
-                html += '<h4>Results</h4>';
-                html += '<ul>';
-                Object.entries(job.results).forEach(([key, value]) => {
-                    if (typeof value === 'number') {
-                        html += `<li><strong>${key.replace(/_/g, ' ').toUpperCase()}:</strong> ${value}</li>`;
-                    }
-                });
-                html += '</ul>';
-            }
-            
-            // Logs
-            if (logs.length > 0) {
-                html += '<h4>Processing Log</h4>';
-                html += '<div class="job-logs">';
-                logs.slice(-20).forEach(log => {
-                    html += `<div class="log-entry log-${log.level}">`;
-                    html += `<span class="log-time">${log.timestamp}</span>`;
-                    html += `<span class="log-message">${this.escapeHtml(log.message)}</span>`;
-                    html += `</div>`;
-                });
-                html += '</div>';
-            }
-            
-            html += '</div>';
-            
-            return html;
         },
 
         ajaxRequest: function(action, data = {}, callbacks = {}) {
@@ -1107,63 +406,53 @@
             return div.innerHTML;
         },
 
-        // CSV Import Methods
-        triggerFileUpload: function(e) {
+        cancelCleanup: function(e) {
             e.preventDefault();
-            $('#csv-file-input').trigger('click');
-        },
 
-        handleFileSelect: function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                // Validate file size (10MB max)
-                if (file.size > 10 * 1024 * 1024) {
-                    this.showNotice('File size exceeds 10MB limit', 'error');
-                    e.target.value = '';
-                    return;
-                }
-
-                // Show file info
-                $('#csv-file-name').text(file.name);
-                $('#csv-file-info').show();
-                $('#csv-import-button').prop('disabled', false);
+            if (confirm('Are you sure you want to cancel the cleanup process?')) {
+                this.stopProgressMonitoring();
+                this.hideProgressSection();
+                this.currentJobId = null;
+                this.showNotice('Cleanup process cancelled', 'info');
             }
         },
 
-        handleCsvImport: function(e) {
+        viewJobDetails: function(e) {
             e.preventDefault();
 
-            const fileInput = $('#csv-file-input')[0];
-            if (!fileInput.files.length) {
-                this.showNotice('Please select a CSV file', 'error');
+            const jobId = $(e.target).data('job-id');
+
+            this.ajaxRequest('get_job_details', { job_id: jobId }, {
+                success: (response) => {
+                    this.showJobDetailsModal(response);
+                },
+                error: (error) => {
+                    this.showNotice('Failed to load job details: ' + error.message, 'error');
+                }
+            });
+        },
+
+        rollbackJob: function(e) {
+            e.preventDefault();
+
+            if (!confirm(this.strings.confirm_rollback || 'This will revert all changes. Are you sure?')) {
                 return;
             }
 
-            const formData = new FormData();
-            formData.append('csv_file', fileInput.files[0]);
-            formData.append('action', 'import_csv_redirections');
-            formData.append('nonce', amfmRedirectionCleanup.nonce);
-
-            const $button = $('#csv-import-button');
+            const jobId = $(e.target).data('job-id');
+            const $button = $(e.target);
             const originalText = $button.text();
-            $button.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Importing...');
 
-            $.ajax({
-                url: amfmRedirectionCleanup.ajaxUrl,
-                type: 'POST',
-                data: formData,
-                processData: false,
-                contentType: false,
+            $button.prop('disabled', true).text('Rolling back...');
+
+            this.ajaxRequest('rollback_cleanup', { job_id: jobId }, {
                 success: (response) => {
-                    if (response.success) {
-                        this.displayCsvImportResults(response.data);
-                        this.showNotice('CSV imported successfully!', 'success');
-                    } else {
-                        this.showNotice(response.data.message || 'Import failed', 'error');
-                    }
+                    this.showNotice('Changes rolled back successfully!', 'success');
+                    // Refresh the page to update UI
+                    setTimeout(() => window.location.reload(), 1500);
                 },
-                error: () => {
-                    this.showNotice('Failed to import CSV file', 'error');
+                error: (error) => {
+                    this.showNotice('Rollback failed: ' + error.message, 'error');
                 },
                 complete: () => {
                     $button.prop('disabled', false).text(originalText);
@@ -1171,82 +460,280 @@
             });
         },
 
-        displayCsvImportResults: function(data) {
-            const resultsHtml = `
-                <div class="csv-import-summary">
-                    <h4>Import Summary</h4>
-                    <ul>
-                        <li><strong>Total Rows:</strong> ${data.total_rows}</li>
-                        <li><strong>Valid Redirections:</strong> ${data.valid_redirections}</li>
-                        <li><strong>Skipped (Query Strings):</strong> ${data.skipped_count || 0}</li>
-                        <li><strong>Unique Sources:</strong> ${data.unique_sources}</li>
-                        <li><strong>Unique Destinations:</strong> ${data.unique_destinations}</li>
-                    </ul>
-
-                    ${data.skipped_count > 0 && data.skipped_samples ? `
-                        <div class="skipped-urls" style="margin-top: 10px;">
-                            <h5>Sample Skipped URLs (Query String Variations):</h5>
-                            <ul style="font-size: 12px; color: #666;">
-                                ${data.skipped_samples.map(skip => `<li>${this.escapeHtml(skip)}</li>`).join('')}
-                            </ul>
-                            <p style="font-size: 11px; color: #999;">
-                                These URLs only differ by query parameters (pagination, filters, etc.) and are not true redirections.
-                            </p>
-                        </div>
-                    ` : ''}
-
-                    ${data.errors.length > 0 ? `
-                        <div class="import-errors">
-                            <h5>Errors:</h5>
-                            <ul style="color: #d63638; font-size: 12px;">
-                                ${data.errors.map(error => `<li>${this.escapeHtml(error)}</li>`).join('')}
-                            </ul>
-                        </div>
-                    ` : ''}
-
-                    ${data.valid_redirections > 0 ? `
-                        <div style="margin-top: 15px;">
-                            <button type="button" class="button button-primary" id="process-csv-redirections">
-                                Process ${data.valid_redirections} Redirections
-                            </button>
-                        </div>
-                    ` : ''}
-                </div>
-            `;
-
-            $('#csv-import-results').html(resultsHtml).show();
-        },
-
-        processCsvRedirections: function(e) {
+        rollbackCurrentJob: function(e) {
             e.preventDefault();
 
-            const options = this.collectFormOptions();
-            options.fix_redirections = true;
+            if (!confirm(this.strings.confirm_rollback || 'This will revert all changes. Are you sure?')) {
+                return;
+            }
+
+            const jobId = $(e.target).data('job-id');
+            if (!jobId) {
+                this.showNotice('No job ID found for rollback', 'error');
+                return;
+            }
 
             const $button = $(e.target);
             const originalText = $button.text();
-            $button.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Processing...');
 
-            this.ajaxRequest('process_csv_redirections', {
-                options: options,
-                dry_run: options.dry_run,
-                batch_size: options.batch_size || 50,
-                content_types: options.content_types || ['posts', 'custom_fields', 'menus', 'widgets']
-            }, {
+            $button.prop('disabled', true).text('Rolling back...');
+
+            this.ajaxRequest('rollback_cleanup', { job_id: jobId }, {
                 success: (response) => {
-                    this.currentJobId = response.job_id;
-                    this.showProgressSection();
-                    this.startProgressMonitoring();
-                    const modeText = options.dry_run ? 'analysis' : 'processing';
-                    this.showNotice(`CSV ${modeText} started! Processing in batches...`, 'success');
+                    this.showNotice('Changes rolled back successfully!', 'success');
+                    // Close results and refresh the page to update UI
+                    this.closeResults();
+                    setTimeout(() => window.location.reload(), 1500);
                 },
                 error: (error) => {
-                    this.showNotice('Failed to process CSV: ' + error.message, 'error');
+                    this.showNotice('Rollback failed: ' + error.message, 'error');
                 },
                 complete: () => {
                     $button.prop('disabled', false).text(originalText);
                 }
             });
+        },
+
+        parseLogsForResults: function(logs, jobOptions) {
+            const results = [];
+            const isDryRun = jobOptions?.dry_run || false;
+            const actionWord = isDryRun ? 'Found' : 'Updated';
+            const status = isDryRun ? 'Analyzed' : 'Updated';
+            const siteUrl = window.location.origin;
+
+            logs.forEach(log => {
+                if (log.level === 'info') {
+                    const message = log.message;
+
+                    // Parse Post entries: "Post ID 123: Updated 2 occurrences of URL from "old-url" to "new-url""
+                    const postMatch = message.match(/^Post ID (\d+): (Found|Updated) (\d+) occurrences? of URL from "([^"]+)" to "([^"]+)"$/);
+                    if (postMatch) {
+                        const postId = postMatch[1];
+                        const count = parseInt(postMatch[3]);
+                        const oldUrl = postMatch[4];
+                        const newUrl = postMatch[5];
+
+                        // Check if we already have an entry for this post and merge URLs
+                        const existingIndex = results.findIndex(r => r.post_id === postId && r.type === 'Post');
+                        if (existingIndex >= 0) {
+                            results[existingIndex].url_changes += count;
+                            results[existingIndex].old_urls.push(oldUrl);
+                            results[existingIndex].new_urls.push(newUrl);
+                        } else {
+                            results.push({
+                                title: `Post ID ${postId}`,
+                                type: 'Post',
+                                url_changes: count,
+                                status: status,
+                                post_id: postId,
+                                old_urls: [oldUrl],
+                                new_urls: [newUrl],
+                                source_link: `${siteUrl}/wp-admin/post.php?post=${postId}&action=edit`,
+                                edit_link: `${siteUrl}/wp-admin/post.php?post=${postId}&action=edit`
+                            });
+                        }
+                    }
+
+                    // Parse Meta entries: "Meta ID 456 (Post 123, Key: hero_image): Updated 2 occurrences of URL from "old-url" to "new-url""
+                    const metaMatch = message.match(/^Meta ID (\d+) \(Post (\d+), Key: ([^)]+)\): (Found|Updated) (\d+) occurrences? of URL from "([^"]+)" to "([^"]+)"$/);
+                    if (metaMatch) {
+                        const postId = metaMatch[2];
+                        const metaKey = metaMatch[3];
+                        const count = parseInt(metaMatch[5]);
+                        const oldUrl = metaMatch[6];
+                        const newUrl = metaMatch[7];
+
+                        // Check if we already have an entry for this meta key and merge URLs
+                        const existingIndex = results.findIndex(r => r.post_id === postId && r.meta_key === metaKey && r.type === 'Custom Field');
+                        if (existingIndex >= 0) {
+                            results[existingIndex].url_changes += count;
+                            results[existingIndex].old_urls.push(oldUrl);
+                            results[existingIndex].new_urls.push(newUrl);
+                        } else {
+                            results.push({
+                                title: `${metaKey} (Post ${postId})`,
+                                type: 'Custom Field',
+                                url_changes: count,
+                                status: status,
+                                post_id: postId,
+                                meta_key: metaKey,
+                                old_urls: [oldUrl],
+                                new_urls: [newUrl],
+                                source_link: `${siteUrl}/wp-admin/post.php?post=${postId}&action=edit`,
+                                edit_link: `${siteUrl}/wp-admin/post.php?post=${postId}&action=edit`
+                            });
+                        }
+                    }
+
+                    // Parse Menu entries: "Menu Item "About": Updated URL from /old-about to /about"
+                    const menuMatch = message.match(/^Menu Item "([^"]+)": (Would update|Updated) URL from (.+) to (.+)$/);
+                    if (menuMatch) {
+                        const oldUrl = menuMatch[3];
+                        const newUrl = menuMatch[4];
+                        results.push({
+                            title: menuMatch[1],
+                            type: 'Menu',
+                            url_changes: 1,
+                            old_urls: [oldUrl],
+                            new_urls: [newUrl],
+                            status: status,
+                            source_link: `${siteUrl}/wp-admin/nav-menus.php`,
+                            old_url: oldUrl,
+                            new_url: newUrl
+                        });
+                    }
+
+                    // Parse Option entries: "Option "widget_text": Updated 2 occurrences of URL from "old-url" to "new-url""
+                    const optionMatch = message.match(/^Option "([^"]+)": (Found|Updated) (\d+) occurrences? of URL from "([^"]+)" to "([^"]+)"$/);
+                    if (optionMatch) {
+                        const optionName = optionMatch[1];
+                        const count = parseInt(optionMatch[3]);
+                        const oldUrl = optionMatch[4];
+                        const newUrl = optionMatch[5];
+
+                        // Check if we already have an entry for this option and merge URLs
+                        const existingIndex = results.findIndex(r => r.option_name === optionName && r.type === 'Widget/Option');
+                        if (existingIndex >= 0) {
+                            results[existingIndex].url_changes += count;
+                            results[existingIndex].old_urls.push(oldUrl);
+                            results[existingIndex].new_urls.push(newUrl);
+                        } else {
+                            results.push({
+                                title: optionName,
+                                type: 'Widget/Option',
+                                url_changes: count,
+                                status: status,
+                                option_name: optionName,
+                                old_urls: [oldUrl],
+                                new_urls: [newUrl],
+                                source_link: `${siteUrl}/wp-admin/options-general.php`
+                            });
+                        }
+                    }
+                }
+            });
+
+            return results;
+        },
+
+        renderResultsTable: function(results, $tableBody) {
+            if (results.length === 0) {
+                $tableBody.append(`
+                    <tr>
+                        <td colspan="4" class="no-results">
+                            <em>No detailed results available. Check the processing logs for more information.</em>
+                        </td>
+                    </tr>
+                `);
+                return;
+            }
+
+            results.forEach(item => {
+                const urlChangesText = item.url_changes > 0 ?
+                    `${item.url_changes} URL${item.url_changes > 1 ? 's' : ''}` :
+                    'No changes';
+
+                const statusClass = item.status === 'Updated' ? 'status-updated' :
+                                   item.status === 'Analyzed' ? 'status-analyzed' : 'status-error';
+
+                const row = `
+                    <tr>
+                        <td>
+                            <strong>${this.escapeHtml(item.title)}</strong>
+                            ${item.source_link ? `<br><a href="${item.source_link}" target="_blank" class="source-link">Edit Source</a>` : ''}
+                        </td>
+                        <td>${this.escapeHtml(item.type)}</td>
+                        <td>
+                            <span class="url-changes-count">${urlChangesText}</span>
+                            ${item.old_urls && item.new_urls ? `
+                                <div class="url-changes-details" style="display: none;">
+                                    ${item.old_urls.map((oldUrl, index) => `
+                                        <div class="url-change">
+                                            <a href="${this.escapeHtml(oldUrl)}" target="_blank" class="old-url">${this.escapeHtml(oldUrl)}</a>
+                                            <span class="arrow">→</span>
+                                            <a href="${this.escapeHtml(item.new_urls[index] || '')}" target="_blank" class="new-url">${this.escapeHtml(item.new_urls[index] || '')}</a>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                        </td>
+                        <td><span class="status-badge ${statusClass}">${this.escapeHtml(item.status)}</span></td>
+                    </tr>
+                `;
+
+                $tableBody.append(row);
+            });
+
+            // Add click handler to show/hide URL changes details
+            $tableBody.find('.url-changes-count').on('click', function(e) {
+                e.preventDefault();
+                const $details = $(this).siblings('.url-changes-details');
+                $details.slideToggle(200);
+
+                // Update text to show expand/collapse state
+                const $this = $(this);
+                const isVisible = $details.is(':visible');
+                if (isVisible) {
+                    $this.addClass('expanded');
+                } else {
+                    $this.removeClass('expanded');
+                }
+            });
+        },
+
+        renderSummaryResults: function(summary, $tableBody) {
+            // Fallback when detailed logs aren't available
+            const summaryItems = [];
+
+            if (summary.posts_updated > 0) {
+                summaryItems.push({
+                    title: 'Posts & Pages',
+                    type: 'Content',
+                    url_changes: summary.posts_updated,
+                    status: 'Updated'
+                });
+            }
+
+            if (summary.custom_fields_updated > 0) {
+                summaryItems.push({
+                    title: 'Custom Fields',
+                    type: 'Meta Data',
+                    url_changes: summary.custom_fields_updated,
+                    status: 'Updated'
+                });
+            }
+
+            if (summary.menus_updated > 0) {
+                summaryItems.push({
+                    title: 'Navigation Menus',
+                    type: 'Menu',
+                    url_changes: summary.menus_updated,
+                    status: 'Updated'
+                });
+            }
+
+            if (summary.widgets_updated > 0) {
+                summaryItems.push({
+                    title: 'Widgets & Options',
+                    type: 'Widget',
+                    url_changes: summary.widgets_updated,
+                    status: 'Updated'
+                });
+            }
+
+            if (summaryItems.length === 0) {
+                $tableBody.append(`
+                    <tr>
+                        <td colspan="4" class="no-results">
+                            <em>No changes were made during this cleanup process.</em>
+                        </td>
+                    </tr>
+                `);
+                return;
+            }
+
+            // Render summary items using the same format as detailed results
+            this.renderResultsTable(summaryItems, $tableBody);
         },
 
         checkJobCompletion: function() {
@@ -1264,6 +751,103 @@
                     // Continue with normal monitoring if immediate check fails
                 }
             });
+        },
+
+        closeResults: function(e) {
+            e.preventDefault();
+            $('#cleanup-results-section').hide();
+            $('#cleanup-progress-section').hide();
+            this.currentJobId = null;
+        },
+
+        closeModal: function(e) {
+            if (e.target === e.currentTarget) {
+                $('.amfm-modal').hide();
+            }
+        },
+
+        downloadResults: function(e) {
+            e.preventDefault();
+
+            if (!this.currentJobId) {
+                this.showNotice('No job ID available for download', 'error');
+                return;
+            }
+
+            const $button = $(e.target).closest('button');
+            const originalText = $button.html();
+
+            $button.prop('disabled', true).html(
+                '<span class="dashicons dashicons-update spin"></span> Preparing Report...'
+            );
+
+            this.ajaxRequest('get_job_details', { job_id: this.currentJobId }, {
+                success: (response) => {
+                    this.generateAndDownloadReport(response);
+                    this.showNotice('Report generated successfully!', 'success');
+                },
+                error: (error) => {
+                    this.showNotice('Failed to generate report: ' + error.message, 'error');
+                },
+                complete: () => {
+                    $button.prop('disabled', false).html(originalText);
+                }
+            });
+        },
+
+        generateAndDownloadReport: function(jobDetails) {
+            const job = jobDetails.job || {};
+            const logs = jobDetails.logs || [];
+
+            // Generate CSV content
+            let csvContent = "data:text/csv;charset=utf-8,";
+
+            // Add header
+            csvContent += "Job Report - Redirection Cleanup\n";
+            csvContent += "Generated: " + new Date().toLocaleString() + "\n\n";
+
+            // Job Summary
+            csvContent += "Job Summary\n";
+            csvContent += "Job ID," + (job.id || 'Unknown') + "\n";
+            csvContent += "Status," + (job.status || 'Unknown') + "\n";
+            csvContent += "Started," + (job.started_at || 'Unknown') + "\n";
+            csvContent += "Completed," + (job.completed_at || 'Unknown') + "\n";
+            csvContent += "Total Items," + (job.total_items || 0) + "\n";
+            csvContent += "Processed Items," + (job.processed_items || 0) + "\n";
+            csvContent += "Mode," + (job.options?.dry_run ? 'Dry Run' : 'Live Processing') + "\n\n";
+
+            // Processing Results
+            csvContent += "Processing Results\n";
+            csvContent += "Type,Item,URL Changes,Status,Old URLs,New URLs\n";
+
+            // Parse logs for detailed results
+            const results = this.parseLogsForResults(logs, job.options || {});
+
+            results.forEach(item => {
+                const oldUrls = (item.old_urls || []).join('; ');
+                const newUrls = (item.new_urls || []).join('; ');
+
+                csvContent += `"${this.escapeCsv(item.type)}",`;
+                csvContent += `"${this.escapeCsv(item.title)}",`;
+                csvContent += `"${item.url_changes}",`;
+                csvContent += `"${this.escapeCsv(item.status)}",`;
+                csvContent += `"${this.escapeCsv(oldUrls)}",`;
+                csvContent += `"${this.escapeCsv(newUrls)}"\n`;
+            });
+
+            // Create and trigger download
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `redirection-cleanup-report-${job.id || 'unknown'}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        },
+
+        escapeCsv: function(str) {
+            if (typeof str !== 'string') return str;
+            return str.replace(/"/g, '""');
         }
     };
 

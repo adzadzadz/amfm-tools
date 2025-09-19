@@ -1877,52 +1877,70 @@ class RedirectionCleanupService
      */
     private function performCsvProcessing(string $jobId, array $urlMap, array $options): void
     {
-        $jobData = get_option(self::OPTION_PREFIX . 'job_' . $jobId);
+        // Use batched approach similar to dry run for better progress reporting
+        $this->performBatchedCsvLiveProcessing($jobId, $urlMap, $options);
+    }
+
+    /**
+     * Perform batched CSV live processing with proper progress updates
+     */
+    private function performBatchedCsvLiveProcessing(string $jobId, array $urlMap, array $options): void
+    {
+        $batchSize = 10; // Process 10 URLs at a time
+        $urlList = array_keys($urlMap);
+        $totalUrls = count($urlList);
         $processed = 0;
         $updated = 0;
         $errors = [];
-        $totalContentTypes = count($options['content_types'] ?? []);
-        $currentType = 0;
 
-        // Update progress to show live processing mode
-        $jobData['progress']['message'] = 'Starting live URL updates...';
+        $jobData = get_option(self::OPTION_PREFIX . 'job_' . $jobId);
+
+        // Initialize progress for URL-based processing
         $jobData['progress']['current'] = 0;
-        $jobData['progress']['total'] = $totalContentTypes;
+        $jobData['progress']['total'] = $totalUrls;
+        $jobData['progress']['message'] = 'Starting live URL updates...';
         update_option(self::OPTION_PREFIX . 'job_' . $jobId, $jobData, false);
 
-        // Process based on selected content types
-        foreach ($options['content_types'] ?? [] as $contentType) {
-            $currentType++;
-            $jobData['progress']['message'] = "Processing {$contentType}...";
-            $jobData['progress']['current'] = $currentType;
-            update_option(self::OPTION_PREFIX . 'job_' . $jobId, $jobData, false);
+        // Process URLs in batches
+        for ($offset = 0; $offset < $totalUrls; $offset += $batchSize) {
+            $batchUrls = array_slice($urlList, $offset, $batchSize);
+            $batchUrlMap = array_intersect_key($urlMap, array_flip($batchUrls));
 
-            switch ($contentType) {
-                case 'posts':
-                    $result = $this->updatePostsContent($urlMap, $options['batch_size'] ?? 50);
-                    $processed += $result['processed'];
-                    $updated += $result['updated'];
-                    break;
+            // Process each content type for this batch
+            foreach ($options['content_types'] ?? [] as $contentType) {
+                $this->updateCsvJobProgress($jobId, $offset, $totalUrls, "Processing {$contentType} for batch " . (intval($offset / $batchSize) + 1));
 
-                case 'custom_fields':
-                    $result = $this->updateCustomFields($urlMap, $options['batch_size'] ?? 50);
-                    $processed += $result['processed'];
-                    $updated += $result['updated'];
-                    break;
+                switch ($contentType) {
+                    case 'posts':
+                        $result = $this->updatePostsContentBatch($batchUrlMap, $options['batch_size'] ?? 50);
+                        $processed += $result['processed'];
+                        $updated += $result['updated'];
+                        break;
 
-                case 'menus':
-                    $result = $this->updateMenuItems($urlMap);
-                    $processed += $result['processed'];
-                    $updated += $result['updated'];
-                    break;
+                    case 'custom_fields':
+                        $result = $this->updateCustomFieldsBatch($batchUrlMap, $options['batch_size'] ?? 50);
+                        $processed += $result['processed'];
+                        $updated += $result['updated'];
+                        break;
+
+                    case 'menus':
+                        $result = $this->updateMenuItemsBatch($batchUrlMap);
+                        $processed += $result['processed'];
+                        $updated += $result['updated'];
+                        break;
+                }
             }
+
+            $processedSoFar = min($offset + $batchSize, $totalUrls);
+            $this->updateCsvJobProgress($jobId, $processedSoFar, $totalUrls, "Batch completed: {$processedSoFar}/{$totalUrls} URLs");
         }
 
         // Update job status
+        $jobData = get_option(self::OPTION_PREFIX . 'job_' . $jobId);
         $jobData['status'] = 'completed';
         $jobData['completed_at'] = current_time('mysql');
         $jobData['progress']['message'] = "Live processing completed! Updated {$updated} items.";
-        $jobData['progress']['current'] = $totalContentTypes;
+        $jobData['progress']['current'] = $totalUrls;
         $jobData['result'] = [
             'type' => 'live_processing',
             'processed' => $processed,
@@ -1936,6 +1954,163 @@ class RedirectionCleanupService
         ];
 
         update_option(self::OPTION_PREFIX . 'job_' . $jobId, $jobData, false);
+    }
+
+    /**
+     * Update posts content for a specific batch of URLs
+     */
+    private function updatePostsContentBatch(array $urlMapping, int $batchSize = 50): array
+    {
+        $totalProcessed = 0;
+        $totalUpdated = 0;
+        $offset = 0;
+
+        do {
+            $posts = $this->wpdb->get_results($this->wpdb->prepare(
+                "SELECT ID, post_content, post_excerpt
+                 FROM {$this->wpdb->posts}
+                 WHERE post_status IN ('publish', 'private', 'draft', 'future')
+                 LIMIT %d OFFSET %d",
+                $batchSize,
+                $offset
+            ), ARRAY_A);
+
+            foreach ($posts as $post) {
+                $totalProcessed++;
+                $originalContent = $post['post_content'];
+                $originalExcerpt = $post['post_excerpt'];
+
+                $contentResult = $this->replaceUrlsInContentWithDetails($originalContent, $urlMapping);
+                $excerptResult = $this->replaceUrlsInContentWithDetails($originalExcerpt, $urlMapping);
+
+                $newContent = $contentResult['content'];
+                $newExcerpt = $excerptResult['content'];
+
+                if ($newContent !== $originalContent || $newExcerpt !== $originalExcerpt) {
+                    $this->wpdb->update(
+                        $this->wpdb->posts,
+                        [
+                            'post_content' => $newContent,
+                            'post_excerpt' => $newExcerpt
+                        ],
+                        ['ID' => $post['ID']],
+                        ['%s', '%s'],
+                        ['%d']
+                    );
+                    $totalUpdated++;
+                }
+            }
+
+            $offset += $batchSize;
+        } while (count($posts) === $batchSize);
+
+        return ['processed' => $totalProcessed, 'updated' => $totalUpdated];
+    }
+
+    /**
+     * Update custom fields for a specific batch of URLs
+     */
+    private function updateCustomFieldsBatch(array $urlMapping, int $batchSize = 50): array
+    {
+        $totalProcessed = 0;
+        $totalUpdated = 0;
+        $offset = 0;
+
+        do {
+            $metas = $this->wpdb->get_results($this->wpdb->prepare(
+                "SELECT meta_id, post_id, meta_key, meta_value
+                 FROM {$this->wpdb->postmeta}
+                 WHERE meta_value != ''
+                 LIMIT %d OFFSET %d",
+                $batchSize,
+                $offset
+            ), ARRAY_A);
+
+            foreach ($metas as $meta) {
+                $totalProcessed++;
+                $originalValue = $meta['meta_value'];
+                $result = $this->replaceUrlsInContentWithDetails($originalValue, $urlMapping);
+                $newValue = $result['content'];
+
+                if ($newValue !== $originalValue) {
+                    $this->wpdb->update(
+                        $this->wpdb->postmeta,
+                        ['meta_value' => $newValue],
+                        ['meta_id' => $meta['meta_id']],
+                        ['%s'],
+                        ['%d']
+                    );
+                    $totalUpdated++;
+                }
+            }
+
+            $offset += $batchSize;
+        } while (count($metas) === $batchSize);
+
+        return ['processed' => $totalProcessed, 'updated' => $totalUpdated];
+    }
+
+    /**
+     * Update menu items for a specific batch of URLs
+     */
+    private function updateMenuItemsBatch(array $urlMapping): array
+    {
+        $totalProcessed = 0;
+        $totalUpdated = 0;
+
+        $menuItems = $this->wpdb->get_results(
+            "SELECT ID, post_content, guid
+             FROM {$this->wpdb->posts}
+             WHERE post_type = 'nav_menu_item'
+             AND post_status = 'publish'",
+            ARRAY_A
+        );
+
+        foreach ($menuItems as $item) {
+            $totalProcessed++;
+            $originalGuid = $item['guid'];
+            $result = $this->replaceUrlsInContentWithDetails($originalGuid, $urlMapping);
+            $newGuid = $result['content'];
+
+            if ($newGuid !== $originalGuid) {
+                $this->wpdb->update(
+                    $this->wpdb->posts,
+                    ['guid' => $newGuid],
+                    ['ID' => $item['ID']],
+                    ['%s'],
+                    ['%d']
+                );
+                $totalUpdated++;
+            }
+
+            // Also check menu item meta
+            $menuItemMetas = $this->wpdb->get_results($this->wpdb->prepare(
+                "SELECT meta_id, meta_value
+                 FROM {$this->wpdb->postmeta}
+                 WHERE post_id = %d
+                 AND meta_key IN ('_menu_item_url', '_menu_item_object_id')",
+                $item['ID']
+            ), ARRAY_A);
+
+            foreach ($menuItemMetas as $meta) {
+                $originalValue = $meta['meta_value'];
+                $result = $this->replaceUrlsInContentWithDetails($originalValue, $urlMapping);
+                $newValue = $result['content'];
+
+                if ($newValue !== $originalValue) {
+                    $this->wpdb->update(
+                        $this->wpdb->postmeta,
+                        ['meta_value' => $newValue],
+                        ['meta_id' => $meta['meta_id']],
+                        ['%s'],
+                        ['%d']
+                    );
+                    $totalUpdated++;
+                }
+            }
+        }
+
+        return ['processed' => $totalProcessed, 'updated' => $totalUpdated];
     }
 
     /**
@@ -2113,14 +2288,6 @@ class RedirectionCleanupService
             update_option(self::OPTION_PREFIX . 'job_' . $jobId, $jobData, false);
 
             $isDryRun = $jobData['options']['dry_run'] ?? true;
-
-            // Debug logging
-            error_log('CSV Processing Debug: ' . json_encode([
-                'job_id' => $jobId,
-                'dry_run_option' => $jobData['options']['dry_run'] ?? 'not_set',
-                'is_dry_run' => $isDryRun,
-                'all_options' => $jobData['options']
-            ]));
 
             if ($isDryRun) {
                 $this->performBatchedCsvDryRun($jobId, $jobData['url_map'], $jobData['options']);

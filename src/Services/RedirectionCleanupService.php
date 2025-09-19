@@ -1275,9 +1275,28 @@ class RedirectionCleanupService
 
         fclose($handle);
 
-        // Store imported data for processing
-        $importId = 'csv_import_' . time();
+        // Store imported data for processing (dual storage for reliability)
+        $timestamp = time();
+        $importId = 'csv_import_' . $timestamp;
+
+        // Primary storage: Transient (fast, but can be lost with caching)
         set_transient($importId, $redirections, DAY_IN_SECONDS);
+
+        // Fallback storage: Persistent option (always available)
+        $persistent_key = 'amfm_' . $importId;
+        update_option($persistent_key, $redirections, false);
+
+        // Clean up old persistent imports (keep only last 3)
+        global $wpdb;
+        $old_persistent = $wpdb->get_col(
+            "SELECT option_name FROM {$wpdb->options}
+             WHERE option_name LIKE 'amfm_csv_import_%'
+             ORDER BY option_name DESC LIMIT 100 OFFSET 3"
+        );
+
+        foreach ($old_persistent as $old_key) {
+            delete_option($old_key);
+        }
 
         return [
             'import_id' => $importId,
@@ -1399,21 +1418,47 @@ class RedirectionCleanupService
     {
         // Get the most recent import
         global $wpdb;
+
+        // First, try to find transients
         $imports = $wpdb->get_col(
             "SELECT option_name FROM {$wpdb->options}
              WHERE option_name LIKE '_transient_csv_import_%'
              ORDER BY option_name DESC LIMIT 1"
         );
 
-        if (empty($imports)) {
-            throw new \Exception(__('No CSV import found. Please import a CSV file first.', 'amfm-tools'));
+        $redirections = null;
+        $importId = null;
+
+        if (!empty($imports)) {
+            $importId = str_replace('_transient_', '', $imports[0]);
+            $redirections = get_transient($importId);
         }
 
-        $importId = str_replace('_transient_', '', $imports[0]);
-        $redirections = get_transient($importId);
+        // If no transient found, try to find persistent option as fallback
+        if (!$redirections) {
+            $persistent_imports = $wpdb->get_col(
+                "SELECT option_name FROM {$wpdb->options}
+                 WHERE option_name LIKE 'amfm_csv_import_%'
+                 ORDER BY option_name DESC LIMIT 1"
+            );
+
+            if (!empty($persistent_imports)) {
+                $importId = str_replace('amfm_', '', $persistent_imports[0]);
+                $redirections = get_option($persistent_imports[0]);
+            }
+        }
 
         if (!$redirections) {
-            throw new \Exception(__('CSV import data expired or not found', 'amfm-tools'));
+            // Debug information for troubleshooting
+            $debug_info = [
+                'transient_count' => count($imports),
+                'persistent_count' => isset($persistent_imports) ? count($persistent_imports) : 0,
+                'last_transient' => !empty($imports) ? $imports[0] : 'none',
+                'last_persistent' => !empty($persistent_imports) ? $persistent_imports[0] : 'none'
+            ];
+
+            error_log('CSV Import Debug: ' . json_encode($debug_info));
+            throw new \Exception(__('No CSV import found. Please import a CSV file first. Debug info logged.', 'amfm-tools'));
         }
 
         // Create URL mapping from CSV data

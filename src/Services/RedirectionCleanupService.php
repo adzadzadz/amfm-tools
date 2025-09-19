@@ -2113,6 +2113,15 @@ class RedirectionCleanupService
             update_option(self::OPTION_PREFIX . 'job_' . $jobId, $jobData, false);
 
             $isDryRun = $jobData['options']['dry_run'] ?? true;
+
+            // Debug logging
+            error_log('CSV Processing Debug: ' . json_encode([
+                'job_id' => $jobId,
+                'dry_run_option' => $jobData['options']['dry_run'] ?? 'not_set',
+                'is_dry_run' => $isDryRun,
+                'all_options' => $jobData['options']
+            ]));
+
             if ($isDryRun) {
                 $this->performBatchedCsvDryRun($jobId, $jobData['url_map'], $jobData['options']);
             } else {

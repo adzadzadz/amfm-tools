@@ -356,26 +356,92 @@ class RedirectionCleanupService
                 $pattern = $source['pattern'];
                 $comparison = $source['comparison'] ?? 'exact';
                 
-                // For exact matches, add to mapping
+                // For exact matches, add to mapping with comprehensive variations
                 if ($comparison === 'exact') {
-                    // Handle both absolute and relative URLs
-                    $absoluteUrl = $this->normalizeUrl($pattern);
-                    $relativeUrl = $this->makeRelativeUrl($pattern);
-                    
-                    if ($absoluteUrl) {
-                        $finalDestination = $this->resolveFinalDestination($destination, $redirections);
-                        $finalDestination = $this->ensureTrailingSlash($finalDestination);
-                        $urlMap[$absoluteUrl] = $finalDestination;
+                    $finalDestination = $this->resolveFinalDestination($destination, $redirections);
+                    $finalDestination = $this->ensureTrailingSlash($finalDestination);
 
-                        if ($relativeUrl && $relativeUrl !== $absoluteUrl) {
-                            $urlMap[$relativeUrl] = $finalDestination;
-                        }
+                    // Generate comprehensive URL variations for this pattern
+                    $variations = $this->generateUrlVariations($pattern);
+
+                    foreach ($variations as $variation) {
+                        $urlMap[$variation] = $finalDestination;
                     }
                 }
             }
         }
 
         return $urlMap;
+    }
+
+    /**
+     * Generate comprehensive URL variations for a pattern
+     * Creates all possible URL formats that might exist in content
+     *
+     * @param string $pattern The source pattern from RankMath (e.g., "anxiety/", "therapy/cbt")
+     * @return array Array of URL variations to search for
+     */
+    private function generateUrlVariations(string $pattern): array
+    {
+        $variations = [];
+        $siteUrl = rtrim(site_url(), '/');
+        $homeUrl = rtrim(home_url(), '/');
+
+        // Handle patterns that are already absolute URLs differently
+        if (preg_match('#^https?://#', $pattern)) {
+            // For absolute URLs, just add the original and trailing slash version
+            $variations[] = $pattern;                           // Use as-is
+            $variations[] = rtrim($pattern, '/') . '/';         // Ensure trailing slash version
+
+            // Also add HTTPS/HTTP variations
+            $httpsVersion = str_replace('http://', 'https://', $pattern);
+            $httpVersion = str_replace('https://', 'http://', $pattern);
+            if ($httpsVersion !== $pattern) {
+                $variations[] = $httpsVersion;
+                $variations[] = rtrim($httpsVersion, '/') . '/';
+            }
+            if ($httpVersion !== $pattern) {
+                $variations[] = $httpVersion;
+                $variations[] = rtrim($httpVersion, '/') . '/';
+            }
+        } else {
+            // For relative patterns, generate comprehensive variations
+            $cleanPattern = trim($pattern, '/');
+
+            if (empty($cleanPattern)) {
+                return $variations;
+            }
+
+            // 1. Relative URL variations
+            $variations[] = '/' . $cleanPattern;                    // /anxiety-treatment
+            $variations[] = '/' . $cleanPattern . '/';              // /anxiety-treatment/
+
+            // 2. Absolute URL variations (site_url)
+            $variations[] = $siteUrl . '/' . $cleanPattern;         // http://localhost:10003/anxiety-treatment
+            $variations[] = $siteUrl . '/' . $cleanPattern . '/';   // http://localhost:10003/anxiety-treatment/
+
+            // 3. If home_url is different from site_url
+            if ($homeUrl !== $siteUrl) {
+                $variations[] = $homeUrl . '/' . $cleanPattern;     // Different home URL
+                $variations[] = $homeUrl . '/' . $cleanPattern . '/';
+            }
+
+            // 4. HTTPS variations (in case content has https while site_url is http)
+            $httpsUrl = str_replace('http://', 'https://', $siteUrl);
+            if ($httpsUrl !== $siteUrl) {
+                $variations[] = $httpsUrl . '/' . $cleanPattern;    // https://localhost:10003/anxiety-treatment
+                $variations[] = $httpsUrl . '/' . $cleanPattern . '/';
+            }
+
+            // 5. Domain-relative patterns (for content that might reference other domains)
+            $variations[] = $cleanPattern;                          // anxiety-treatment (for path segment matching)
+            $variations[] = $cleanPattern . '/';                   // anxiety-treatment/
+        }
+
+        // Remove duplicates and empty values
+        $variations = array_unique(array_filter($variations));
+
+        return $variations;
     }
 
     /**
@@ -795,13 +861,22 @@ class RedirectionCleanupService
             ];
         }
 
-        $updatedContent = $content;
+        // Clean up any double slashes FIRST (except in http:// or https://)
+        $updatedContent = preg_replace('#(?<!http:)(?<!https:)//+#', '/', $content);
         $changes = [];
         $siteUrl = rtrim(site_url(), '/');
         $homeUrl = rtrim(home_url(), '/');
 
         foreach ($urlMapping as $oldUrl => $newUrl) {
             $totalCount = 0;
+
+            // Skip dangerous single words that could corrupt existing URLs
+            // Block: single words without hyphens or slashes (psychosis, depression, etc.)
+            // Allow: URL paths with structure (anxiety-treatment, therapy/cbt, /path, http://...)
+            if (preg_match('#^[a-zA-Z]+$#', $oldUrl) && strlen($oldUrl) < 20) {
+                // Skip single words (high risk of corrupting existing URLs)
+                continue;
+            }
 
             // Check if this is a relative URL (starts with /)
             $isRelativeUrl = strpos($oldUrl, '/') === 0;
@@ -871,9 +946,6 @@ class RedirectionCleanupService
                 ];
             }
         }
-
-        // Clean up any double slashes that might have been created (except in http:// or https://)
-        $updatedContent = preg_replace('#(?<!http:)(?<!https:)//+#', '/', $updatedContent);
 
         return [
             'content' => $updatedContent,

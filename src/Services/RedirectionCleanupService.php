@@ -883,10 +883,11 @@ class RedirectionCleanupService
             $totalCount = 0;
 
             // Skip dangerous single words that could corrupt existing URLs
-            // Block: single words without hyphens or slashes (psychosis, depression, etc.)
-            // Allow: URL paths with structure (anxiety-treatment, therapy/cbt, /path, http://...)
-            if (preg_match('#^[a-zA-Z]+$#', $oldUrl) && strlen($oldUrl) < 20) {
-                // Skip single words (high risk of corrupting existing URLs)
+            // Only block: very short single words without any URL structure
+            // Block: anxiety, depression, therapy (high risk)
+            // Allow: anxiety-treatment, /therapy, therapy/cbt, http://..., longer terms
+            if (preg_match('#^[a-zA-Z]+$#', $oldUrl) && strlen($oldUrl) < 12) {
+                // Skip very short single words (high risk of corrupting existing URLs)
                 continue;
             }
 

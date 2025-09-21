@@ -69,32 +69,80 @@ class RedirectionCleanupService
      */
     public function analyzeRedirections(): array
     {
-        set_time_limit(60); // 1 minute max
+        set_time_limit(120); // 2 minutes max
 
-        $redirections = $this->getAllActiveRedirections();
+        try {
+            error_log('AMFM DEBUG: Starting redirection analysis');
 
-        // Skip complex analysis for now, just return basic counts
-        $analysis = [
-            'total_redirections' => count($redirections),
-            'url_mappings' => count($redirections), // Simplified
-            'redirect_chains_resolved' => 0,
-            'content_analysis' => [
+            // Step 1: Get redirections
+            $redirections = $this->getAllActiveRedirections();
+            error_log('AMFM DEBUG: Retrieved ' . count($redirections) . ' redirections');
+
+            // Step 2: Build URL mapping (this might be where it hangs)
+            error_log('AMFM DEBUG: Starting URL mapping generation');
+            $urlMap = $this->buildUrlMapping($redirections);
+            error_log('AMFM DEBUG: Generated ' . count($urlMap) . ' URL mappings');
+
+            // Step 3: Content scanning (simplified for now)
+            error_log('AMFM DEBUG: Starting content scan');
+            $contentScan = [
                 'posts' => 0,
                 'custom_fields' => 0,
                 'menus' => 0,
                 'widgets' => 0,
                 'total_matches' => 0
-            ],
-            'estimated_updates' => 0,
-            'processing_time_estimate' => '< 1 minute',
-            'url_mapping' => [], // Empty for now
-            'analysis_timestamp' => current_time('mysql')
-        ];
+            ];
 
-        // Cache the simplified analysis
-        update_option(self::OPTION_PREFIX . 'full_analysis', $analysis, false);
+            // Only scan if we have a reasonable number of URLs
+            if (count($urlMap) > 0 && count($urlMap) < 1000) {
+                $contentScan = $this->scanContentForUrls($urlMap);
+                error_log('AMFM DEBUG: Content scan completed');
+            } else {
+                error_log('AMFM DEBUG: Skipping content scan - too many URLs: ' . count($urlMap));
+            }
 
-        return $analysis;
+            $analysis = [
+                'total_redirections' => count($redirections),
+                'url_mappings' => count($urlMap),
+                'redirect_chains_resolved' => $this->countResolvedChains($urlMap),
+                'content_analysis' => $contentScan,
+                'estimated_updates' => $this->estimateRequiredUpdates($contentScan),
+                'processing_time_estimate' => $this->estimateProcessingTime($contentScan),
+                'url_mapping' => $urlMap,
+                'analysis_timestamp' => current_time('mysql')
+            ];
+
+            // Cache the full analysis
+            update_option(self::OPTION_PREFIX . 'full_analysis', $analysis, false);
+            error_log('AMFM DEBUG: Analysis completed successfully');
+
+            return $analysis;
+
+        } catch (Exception $e) {
+            error_log('AMFM DEBUG ERROR: ' . $e->getMessage());
+
+            // Return minimal working analysis on error
+            $fallbackAnalysis = [
+                'total_redirections' => 0,
+                'url_mappings' => 0,
+                'redirect_chains_resolved' => 0,
+                'content_analysis' => [
+                    'posts' => 0,
+                    'custom_fields' => 0,
+                    'menus' => 0,
+                    'widgets' => 0,
+                    'total_matches' => 0
+                ],
+                'estimated_updates' => 0,
+                'processing_time_estimate' => 'Error occurred',
+                'url_mapping' => [],
+                'analysis_timestamp' => current_time('mysql'),
+                'error' => $e->getMessage()
+            ];
+
+            update_option(self::OPTION_PREFIX . 'full_analysis', $fallbackAnalysis, false);
+            return $fallbackAnalysis;
+        }
     }
 
     /**

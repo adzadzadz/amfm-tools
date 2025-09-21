@@ -69,7 +69,7 @@ class RedirectionCleanupService
      */
     public function analyzeRedirections(): array
     {
-        set_time_limit(120); // 2 minutes max
+        set_time_limit(30); // 30 seconds max to prevent server overload
 
         try {
             error_log('AMFM DEBUG: Starting redirection analysis');
@@ -94,11 +94,15 @@ class RedirectionCleanupService
             ];
 
             // Only scan if we have a reasonable number of URLs
-            if (count($urlMap) > 0 && count($urlMap) < 1000) {
-                $contentScan = $this->scanContentForUrls($urlMap);
+            if (count($urlMap) > 0) {
+                // Limit to first 500 URLs to prevent server overload
+                $limitedUrlMap = array_slice($urlMap, 0, 500, true);
+                error_log('AMFM DEBUG: Scanning ' . count($limitedUrlMap) . ' URLs (limited from ' . count($urlMap) . ')');
+
+                $contentScan = $this->scanContentForUrls($limitedUrlMap);
                 error_log('AMFM DEBUG: Content scan completed');
             } else {
-                error_log('AMFM DEBUG: Skipping content scan - too many URLs: ' . count($urlMap));
+                error_log('AMFM DEBUG: No URLs to scan');
             }
 
             $analysis = [
@@ -1117,7 +1121,7 @@ class RedirectionCleanupService
         error_log('DEBUG: Scanning ' . count($absoluteUrls) . ' absolute URLs');
 
         // Process in batches to avoid SQL query size limits
-        $batchSize = 50; // Limit to 50 URLs per query
+        $batchSize = 10; // Much smaller batches to prevent timeouts
         $totalCount = 0;
         $batches = array_chunk($absoluteUrls, $batchSize);
 

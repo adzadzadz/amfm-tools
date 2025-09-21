@@ -72,18 +72,43 @@ class RedirectionCleanupService
         set_time_limit(30); // 30 seconds max to prevent server overload
 
         try {
+            // Store progress for frontend to check
+            update_option('amfm_analysis_progress', [
+                'step' => 'Starting analysis...',
+                'percent' => 0,
+                'timestamp' => time()
+            ]);
+
             error_log('AMFM DEBUG: Starting redirection analysis');
 
             // Step 1: Get redirections
+            update_option('amfm_analysis_progress', [
+                'step' => 'Loading redirections...',
+                'percent' => 10,
+                'timestamp' => time()
+            ]);
+
             $redirections = $this->getAllActiveRedirections();
             error_log('AMFM DEBUG: Retrieved ' . count($redirections) . ' redirections');
 
-            // Step 2: Build URL mapping (this might be where it hangs)
+            // Step 2: Build URL mapping
+            update_option('amfm_analysis_progress', [
+                'step' => 'Building URL mappings...',
+                'percent' => 30,
+                'timestamp' => time()
+            ]);
+
             error_log('AMFM DEBUG: Starting URL mapping generation');
             $urlMap = $this->buildUrlMapping($redirections);
             error_log('AMFM DEBUG: Generated ' . count($urlMap) . ' URL mappings');
 
-            // Step 3: Content scanning (simplified for now)
+            // Step 3: Content scanning
+            update_option('amfm_analysis_progress', [
+                'step' => 'Scanning content for URLs...',
+                'percent' => 60,
+                'timestamp' => time()
+            ]);
+
             error_log('AMFM DEBUG: Starting content scan');
             $contentScan = [
                 'posts' => 0,
@@ -116,9 +141,27 @@ class RedirectionCleanupService
                 'analysis_timestamp' => current_time('mysql')
             ];
 
+            // Final step
+            update_option('amfm_analysis_progress', [
+                'step' => 'Finalizing analysis...',
+                'percent' => 90,
+                'timestamp' => time()
+            ]);
+
             // Cache the full analysis
             update_option(self::OPTION_PREFIX . 'full_analysis', $analysis, false);
+
+            // Complete
+            update_option('amfm_analysis_progress', [
+                'step' => 'Analysis complete!',
+                'percent' => 100,
+                'timestamp' => time()
+            ]);
+
             error_log('AMFM DEBUG: Analysis completed successfully');
+
+            // Clean up progress after 5 seconds
+            wp_schedule_single_event(time() + 5, 'amfm_cleanup_analysis_progress');
 
             return $analysis;
 

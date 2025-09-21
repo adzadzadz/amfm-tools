@@ -257,6 +257,22 @@ class RedirectionCleanupController extends Controller
     }
 
     /**
+     * AJAX: Get analysis progress
+     */
+    public function actionWpAjaxGetAnalysisProgress()
+    {
+        check_ajax_referer('amfm_redirection_cleanup', 'nonce');
+
+        $progress = get_option('amfm_analysis_progress', null);
+
+        if ($progress) {
+            wp_send_json_success($progress);
+        } else {
+            wp_send_json_error(['message' => 'No progress data']);
+        }
+    }
+
+    /**
      * AJAX: Fix malformed URLs
      */
     public function actionWpAjaxFixMalformedUrls()

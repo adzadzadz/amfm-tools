@@ -69,11 +69,17 @@ class RedirectionCleanupService
      */
     public function analyzeRedirections(): array
     {
-        set_time_limit(300); // 5 minutes max
-        
+        set_time_limit(120); // 2 minutes max to prevent hanging
+        error_log('DEBUG: Starting redirection analysis');
+
         $redirections = $this->getAllActiveRedirections();
+        error_log('DEBUG: Found ' . count($redirections) . ' active redirections');
+
         $urlMap = $this->buildUrlMapping($redirections);
+        error_log('DEBUG: Generated ' . count($urlMap) . ' URL mappings');
+
         $contentScan = $this->scanContentForUrls($urlMap);
+        error_log('DEBUG: Content scan completed');
         
         $analysis = [
             'total_redirections' => count($redirections),
@@ -1050,7 +1056,6 @@ class RedirectionCleanupService
         }
 
         error_log('DEBUG: scanPostsForUrls called with ' . count($urls) . ' URLs');
-        error_log('DEBUG: First 5 URLs: ' . implode(', ', array_slice($urls, 0, 5)));
 
         // Filter to only absolute URLs (safer and more reliable)
         $absoluteUrls = array_filter($urls, function($url) {
@@ -1064,37 +1069,47 @@ class RedirectionCleanupService
 
         error_log('DEBUG: Scanning ' . count($absoluteUrls) . ' absolute URLs');
 
-        $whereClause = '';
-        $placeholders = [];
+        // Process in batches to avoid SQL query size limits
+        $batchSize = 50; // Limit to 50 URLs per query
+        $totalCount = 0;
+        $batches = array_chunk($absoluteUrls, $batchSize);
 
-        foreach ($absoluteUrls as $url) {
-            $whereClause .= $whereClause ? ' OR ' : '';
-            $whereClause .= '(post_content LIKE %s OR post_excerpt LIKE %s)';
-            $placeholders[] = '%' . $url . '%';
-            $placeholders[] = '%' . $url . '%';
+        error_log('DEBUG: Processing ' . count($batches) . ' batches of URLs');
+
+        foreach ($batches as $batchIndex => $batch) {
+            $whereClause = '';
+            $placeholders = [];
+
+            foreach ($batch as $url) {
+                $whereClause .= $whereClause ? ' OR ' : '';
+                $whereClause .= '(post_content LIKE %s OR post_excerpt LIKE %s)';
+                $placeholders[] = '%' . $url . '%';
+                $placeholders[] = '%' . $url . '%';
+            }
+
+            if (empty($whereClause)) {
+                continue;
+            }
+
+            $sql = $this->wpdb->prepare(
+                "SELECT COUNT(DISTINCT ID) FROM {$this->wpdb->posts} WHERE {$whereClause}",
+                $placeholders
+            );
+
+            $batchResult = (int) $this->wpdb->get_var($sql);
+
+            if ($this->wpdb->last_error) {
+                error_log('DEBUG: SQL ERROR in batch ' . $batchIndex . ': ' . $this->wpdb->last_error);
+                continue;
+            }
+
+            $totalCount += $batchResult;
+            error_log('DEBUG: Batch ' . $batchIndex . ' result: ' . $batchResult);
         }
 
-        if (empty($whereClause)) {
-            error_log('DEBUG: Empty WHERE clause generated');
-            return 0;
-        }
+        error_log('DEBUG: scanPostsForUrls total result: ' . $totalCount);
 
-        $sql = $this->wpdb->prepare(
-            "SELECT COUNT(DISTINCT ID) FROM {$this->wpdb->posts} WHERE {$whereClause}",
-            $placeholders
-        );
-
-        error_log('DEBUG: SQL query length: ' . strlen($sql) . ' chars');
-
-        $result = (int) $this->wpdb->get_var($sql);
-
-        if ($this->wpdb->last_error) {
-            error_log('DEBUG: SQL ERROR: ' . $this->wpdb->last_error);
-        }
-
-        error_log('DEBUG: scanPostsForUrls result: ' . $result);
-
-        return $result;
+        return $totalCount;
     }
 
     private function scanCustomFieldsForUrls(array $urls): int

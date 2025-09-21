@@ -389,17 +389,16 @@ class RedirectionCleanupService
     {
         $variations = [];
         $siteUrl = rtrim(site_url(), '/');
-        $homeUrl = rtrim(home_url(), '/');
 
-        // Handle patterns that are already absolute URLs differently
+        // Handle patterns that are already absolute URLs
         if (preg_match('#^https?://#', $pattern)) {
-            // For absolute URLs, just add the original and trailing slash version
-            $variations[] = $pattern;                           // Use as-is
-            $variations[] = rtrim($pattern, '/') . '/';         // Ensure trailing slash version
+            // For absolute URLs, just add HTTP/HTTPS variations with/without trailing slash
+            $variations[] = $pattern;
+            $variations[] = rtrim($pattern, '/') . '/';
 
-            // Also add HTTPS/HTTP variations
             $httpsVersion = str_replace('http://', 'https://', $pattern);
             $httpVersion = str_replace('https://', 'http://', $pattern);
+
             if ($httpsVersion !== $pattern) {
                 $variations[] = $httpsVersion;
                 $variations[] = rtrim($httpsVersion, '/') . '/';
@@ -409,45 +408,30 @@ class RedirectionCleanupService
                 $variations[] = rtrim($httpVersion, '/') . '/';
             }
         } else {
-            // For relative patterns, generate comprehensive variations
+            // For relative patterns, ONLY generate full absolute URLs
             $cleanPattern = trim($pattern, '/');
 
             if (empty($cleanPattern)) {
                 return $variations;
             }
 
-            // 1. Relative URL variations
-            $variations[] = '/' . $cleanPattern;                    // /anxiety-treatment
-            $variations[] = '/' . $cleanPattern . '/';              // /anxiety-treatment/
-
-            // 2. Absolute URL variations (current site_url)
+            // Current site absolute URLs only
             $variations[] = $siteUrl . '/' . $cleanPattern;         // http://localhost:10003/anxiety-treatment
             $variations[] = $siteUrl . '/' . $cleanPattern . '/';   // http://localhost:10003/anxiety-treatment/
 
-            // 3. If home_url is different from site_url
-            if ($homeUrl !== $siteUrl) {
-                $variations[] = $homeUrl . '/' . $cleanPattern;     // Different home URL
-                $variations[] = $homeUrl . '/' . $cleanPattern . '/';
-            }
-
-            // 4. HTTPS variations (in case content has https while site_url is http)
+            // HTTPS version
             $httpsUrl = str_replace('http://', 'https://', $siteUrl);
             if ($httpsUrl !== $siteUrl) {
                 $variations[] = $httpsUrl . '/' . $cleanPattern;    // https://localhost:10003/anxiety-treatment
                 $variations[] = $httpsUrl . '/' . $cleanPattern . '/';
             }
 
-            // 5. OLD DOMAIN VARIATIONS - Critical for finding legacy URLs
-            $oldDomains = ['amfmtreatment.com', 'https://amfmtreatment.com', 'http://amfmtreatment.com'];
+            // OLD DOMAIN VARIATIONS for legacy content
+            $oldDomains = ['https://amfmtreatment.com', 'http://amfmtreatment.com'];
             foreach ($oldDomains as $oldDomain) {
-                $cleanDomain = rtrim($oldDomain, '/');
-                $variations[] = $cleanDomain . '/' . $cleanPattern;     // amfmtreatment.com/anxiety-treatment
-                $variations[] = $cleanDomain . '/' . $cleanPattern . '/'; // amfmtreatment.com/anxiety-treatment/
+                $variations[] = $oldDomain . '/' . $cleanPattern;     // https://amfmtreatment.com/anxiety-treatment
+                $variations[] = $oldDomain . '/' . $cleanPattern . '/'; // https://amfmtreatment.com/anxiety-treatment/
             }
-
-            // 6. Domain-relative patterns (for content that might reference other domains)
-            $variations[] = $cleanPattern;                          // anxiety-treatment (for path segment matching)
-            $variations[] = $cleanPattern . '/';                   // anxiety-treatment/
         }
 
         // Remove duplicates and empty values
@@ -552,6 +536,9 @@ class RedirectionCleanupService
     private function scanContentForUrls(array $urlMap): array
     {
         $urlsToFind = array_keys($urlMap);
+        error_log('DEBUG: scanContentForUrls called with ' . count($urlMap) . ' URL mappings');
+        error_log('DEBUG: urlsToFind count: ' . count($urlsToFind));
+
         $contentScan = [
             'posts' => 0,
             'custom_fields' => 0,
@@ -1058,13 +1045,29 @@ class RedirectionCleanupService
     private function scanPostsForUrls(array $urls): int
     {
         if (empty($urls)) {
+            error_log('DEBUG: scanPostsForUrls called with empty URLs array');
             return 0;
         }
 
+        error_log('DEBUG: scanPostsForUrls called with ' . count($urls) . ' URLs');
+        error_log('DEBUG: First 5 URLs: ' . implode(', ', array_slice($urls, 0, 5)));
+
+        // Filter to only absolute URLs (safer and more reliable)
+        $absoluteUrls = array_filter($urls, function($url) {
+            return preg_match('#^https?://#', $url);
+        });
+
+        if (empty($absoluteUrls)) {
+            error_log('DEBUG: No absolute URLs found to scan');
+            return 0;
+        }
+
+        error_log('DEBUG: Scanning ' . count($absoluteUrls) . ' absolute URLs');
+
         $whereClause = '';
         $placeholders = [];
-        
-        foreach ($urls as $url) {
+
+        foreach ($absoluteUrls as $url) {
             $whereClause .= $whereClause ? ' OR ' : '';
             $whereClause .= '(post_content LIKE %s OR post_excerpt LIKE %s)';
             $placeholders[] = '%' . $url . '%';
@@ -1072,13 +1075,26 @@ class RedirectionCleanupService
         }
 
         if (empty($whereClause)) {
+            error_log('DEBUG: Empty WHERE clause generated');
             return 0;
         }
 
-        return (int) $this->wpdb->get_var($this->wpdb->prepare(
+        $sql = $this->wpdb->prepare(
             "SELECT COUNT(DISTINCT ID) FROM {$this->wpdb->posts} WHERE {$whereClause}",
             $placeholders
-        ));
+        );
+
+        error_log('DEBUG: SQL query length: ' . strlen($sql) . ' chars');
+
+        $result = (int) $this->wpdb->get_var($sql);
+
+        if ($this->wpdb->last_error) {
+            error_log('DEBUG: SQL ERROR: ' . $this->wpdb->last_error);
+        }
+
+        error_log('DEBUG: scanPostsForUrls result: ' . $result);
+
+        return $result;
     }
 
     private function scanCustomFieldsForUrls(array $urls): int
@@ -1087,10 +1103,22 @@ class RedirectionCleanupService
             return 0;
         }
 
+        // Filter to only absolute URLs (safer and more reliable)
+        $absoluteUrls = array_filter($urls, function($url) {
+            return preg_match('#^https?://#', $url);
+        });
+
+        if (empty($absoluteUrls)) {
+            error_log('DEBUG: No absolute URLs found for custom fields scan');
+            return 0;
+        }
+
+        error_log('DEBUG: Scanning custom fields for ' . count($absoluteUrls) . ' absolute URLs');
+
         $whereClause = '';
         $placeholders = [];
-        
-        foreach ($urls as $url) {
+
+        foreach ($absoluteUrls as $url) {
             $whereClause .= $whereClause ? ' OR ' : '';
             $whereClause .= 'meta_value LIKE %s';
             $placeholders[] = '%' . $url . '%';
@@ -1100,10 +1128,14 @@ class RedirectionCleanupService
             return 0;
         }
 
-        return (int) $this->wpdb->get_var($this->wpdb->prepare(
+        $result = (int) $this->wpdb->get_var($this->wpdb->prepare(
             "SELECT COUNT(DISTINCT meta_id) FROM {$this->wpdb->postmeta} WHERE {$whereClause}",
             $placeholders
         ));
+
+        error_log('DEBUG: Custom fields scan result: ' . $result);
+
+        return $result;
     }
 
     private function scanMenusForUrls(array $urls): int

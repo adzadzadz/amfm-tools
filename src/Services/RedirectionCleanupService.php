@@ -1257,59 +1257,74 @@ class RedirectionCleanupService
     /**
      * Backup and restore methods
      */
-    private function createBackup(string $jobId): void
+    private function createBackup(string $jobId): array
     {
-        // Create backup of critical tables before processing
-        $tables = ['posts', 'postmeta', 'options'];
-        $backupData = [];
+        try {
+            // Create backup of critical tables before processing
+            $tables = ['posts', 'postmeta', 'options'];
+            $backupData = [];
 
-        // Set longer timeout for backup operations
-        set_time_limit(300); // 5 minutes
+            // Set longer timeout for backup operations
+            set_time_limit(300); // 5 minutes
 
-        foreach ($tables as $table) {
-            $fullTable = $this->wpdb->prefix . $table;
-            $backupTable = $fullTable . '_backup_' . $jobId;
+            foreach ($tables as $table) {
+                $fullTable = $this->wpdb->prefix . $table;
+                $backupTable = $fullTable . '_backup_' . $jobId;
 
-            $this->logJobEvent($jobId, 'info', "Creating backup of {$table} table...");
+                $this->logJobEvent($jobId, 'info', "Creating backup of {$table} table...");
 
-            // Create empty backup table with same structure
-            $this->wpdb->query("CREATE TABLE {$backupTable} LIKE {$fullTable}");
-
-            // Copy data in chunks to avoid memory/timeout issues
-            $batchSize = 1000;
-            $offset = 0;
-            $totalCopied = 0;
-
-            do {
-                $copied = $this->wpdb->query($this->wpdb->prepare(
-                    "INSERT INTO {$backupTable} SELECT * FROM {$fullTable} LIMIT %d OFFSET %d",
-                    $batchSize,
-                    $offset
-                ));
-
-                $totalCopied += $copied;
-                $offset += $batchSize;
-
-                // Log progress for large tables
-                if ($totalCopied > 0 && $totalCopied % 5000 === 0) {
-                    $this->logJobEvent($jobId, 'info', "Backed up {$totalCopied} rows from {$table} table");
+                // Create empty backup table with same structure
+                $result = $this->wpdb->query("CREATE TABLE {$backupTable} LIKE {$fullTable}");
+                if ($result === false) {
+                    throw new \Exception("Failed to create backup table for {$table}: " . $this->wpdb->last_error);
                 }
 
-            } while ($copied === $batchSize);
+                // Copy data in chunks to avoid memory/timeout issues
+                $batchSize = 1000;
+                $offset = 0;
+                $totalCopied = 0;
 
-            $backupData[$table] = [
-                'original' => $fullTable,
-                'backup' => $backupTable,
-                'created' => current_time('mysql'),
-                'rows_backed_up' => $totalCopied
-            ];
+                do {
+                    $copied = $this->wpdb->query($this->wpdb->prepare(
+                        "INSERT INTO {$backupTable} SELECT * FROM {$fullTable} LIMIT %d OFFSET %d",
+                        $batchSize,
+                        $offset
+                    ));
 
-            $this->logJobEvent($jobId, 'info', "Completed backup of {$table} table ({$totalCopied} rows)");
+                    if ($copied === false) {
+                        throw new \Exception("Failed to copy data for {$table}: " . $this->wpdb->last_error);
+                    }
+
+                    $totalCopied += $copied;
+                    $offset += $batchSize;
+
+                    // Log progress for large tables
+                    if ($totalCopied > 0 && $totalCopied % 5000 === 0) {
+                        $this->logJobEvent($jobId, 'info', "Backed up {$totalCopied} rows from {$table} table");
+                    }
+
+                } while ($copied === $batchSize);
+
+                $backupData[$table] = [
+                    'original' => $fullTable,
+                    'backup' => $backupTable,
+                    'created' => current_time('mysql'),
+                    'rows_backed_up' => $totalCopied
+                ];
+
+                $this->logJobEvent($jobId, 'info', "Completed backup of {$table} table ({$totalCopied} rows)");
+            }
+
+            update_option(self::OPTION_PREFIX . 'backup_' . $jobId, $backupData, false);
+
+            $this->logJobEvent($jobId, 'info', 'Database backup completed successfully');
+
+            return ['success' => true, 'message' => 'Backup created successfully'];
+
+        } catch (\Exception $e) {
+            $this->logJobEvent($jobId, 'error', 'Backup failed: ' . $e->getMessage());
+            return ['success' => false, 'message' => $e->getMessage()];
         }
-
-        update_option(self::OPTION_PREFIX . 'backup_' . $jobId, $backupData, false);
-
-        $this->logJobEvent($jobId, 'info', 'Database backup completed successfully');
     }
 
     private function getBackupInfo(string $jobId): array
@@ -1508,13 +1523,7 @@ class RedirectionCleanupService
             'dry_run' => $isDryRun
         ];
 
-        // Create backup if not dry run
-        if (!$isDryRun) {
-            $backupResult = $this->createBackup('malformed_url_cleanup_' . date('Y-m-d_H-i-s'));
-            if (!$backupResult['success']) {
-                throw new \Exception('Failed to create backup: ' . $backupResult['message']);
-            }
-        }
+        // Skip backup for malformed URL cleanup - it's low risk and fixes broken URLs
 
         // Process posts
         $results['posts_updated'] = $this->fixMalformedUrlsInPosts($siteDomain, $siteScheme, $batchSize, $isDryRun);

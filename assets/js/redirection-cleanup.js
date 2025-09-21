@@ -33,6 +33,9 @@
             $(document).on('click', '#rollback-changes', this.rollbackCurrentJob.bind(this));
             $(document).on('click', '#download-results', this.downloadResults.bind(this));
 
+            // Malformed URL cleanup
+            $('#scan-malformed-urls').on('click', this.scanMalformedUrls.bind(this));
+            $('#fix-malformed-urls').on('click', this.fixMalformedUrls.bind(this));
 
             // Modal
             $(document).on('click', '.amfm-modal-close, .amfm-modal-backdrop', this.closeModal.bind(this));
@@ -290,8 +293,7 @@
                                 <table class="results-table">
                                     <thead>
                                         <tr>
-                                            <th>Page/Content</th>
-                                            <th>Type</th>
+                                            <th>Content Sources</th>
                                             <th>URL Changes</th>
                                             <th>Status</th>
                                         </tr>
@@ -620,7 +622,7 @@
             if (results.length === 0) {
                 $tableBody.append(`
                     <tr>
-                        <td colspan="4" class="no-results">
+                        <td colspan="3" class="no-results">
                             <em>No detailed results available. Check the processing logs for more information.</em>
                         </td>
                     </tr>
@@ -628,57 +630,98 @@
                 return;
             }
 
-            results.forEach(item => {
-                const urlChangesText = item.url_changes > 0 ?
-                    `${item.url_changes} URL${item.url_changes > 1 ? 's' : ''}` :
+            // Group results by post_id to show all content sources for each post
+            const groupedResults = this.groupResultsByPost(results);
+
+            groupedResults.forEach(group => {
+                const totalChanges = group.sources.reduce((sum, source) => sum + source.url_changes, 0);
+                const urlChangesText = totalChanges > 0 ?
+                    `${totalChanges} URL${totalChanges > 1 ? 's' : ''}` :
                     'No changes';
 
-                const statusClass = item.status === 'Updated' ? 'status-updated' :
-                                   item.status === 'Analyzed' ? 'status-analyzed' : 'status-error';
+                // All sources should have the same status, use the first one
+                const status = group.sources[0].status;
+                const statusClass = status === 'Updated' ? 'status-updated' :
+                                   status === 'Analyzed' ? 'status-analyzed' : 'status-error';
 
                 const row = `
                     <tr>
                         <td>
-                            <strong>${this.escapeHtml(item.title)}</strong>
-                            ${item.source_link ? `<br><a href="${item.source_link}" target="_blank" class="source-link">Edit Source</a>` : ''}
+                            <div class="content-sources-header">
+                                <span class="content-sources-count clickable">${group.sources.length} Content Source${group.sources.length > 1 ? 's' : ''}</span>
+                                <div class="content-sources-preview">
+                                    <strong>${this.escapeHtml(group.title)}</strong>
+                                    ${group.edit_link ? `<br><a href="${group.edit_link}" target="_blank" class="source-link">Edit Post</a>` : ''}
+                                </div>
+                            </div>
+                            <div class="content-sources-details" style="display: none;">
+                                ${group.sources.map(source => `
+                                    <div class="content-source-item">
+                                        <div class="source-type">${this.escapeHtml(source.type)}</div>
+                                        <div class="source-details">
+                                            ${source.meta_key ? `<strong>Field:</strong> ${this.escapeHtml(source.meta_key)}<br>` : ''}
+                                            <strong>Changes:</strong> ${source.url_changes} URL${source.url_changes > 1 ? 's' : ''}
+                                            ${source.source_link ? `<br><a href="${source.source_link}" target="_blank" class="source-link">Edit ${source.type}</a>` : ''}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
                         </td>
-                        <td>${this.escapeHtml(item.type)}</td>
                         <td>
-                            <span class="url-changes-count">${urlChangesText}</span>
-                            ${item.old_urls && item.new_urls ? `
-                                <div class="url-changes-details" style="display: none;">
-                                    ${item.old_urls.map((oldUrl, index) => `
+                            <span class="url-changes-count clickable">${urlChangesText}</span>
+                            <div class="url-changes-details" style="display: none;">
+                                ${group.sources.flatMap(source =>
+                                    (source.old_urls || []).map((oldUrl, index) => `
                                         <div class="url-change">
                                             <a href="${this.escapeHtml(oldUrl)}" target="_blank" class="old-url">${this.escapeHtml(oldUrl)}</a>
                                             <span class="arrow">→</span>
-                                            <a href="${this.escapeHtml(item.new_urls[index] || '')}" target="_blank" class="new-url">${this.escapeHtml(item.new_urls[index] || '')}</a>
+                                            <a href="${this.escapeHtml(source.new_urls[index] || '')}" target="_blank" class="new-url">${this.escapeHtml(source.new_urls[index] || '')}</a>
                                         </div>
-                                    `).join('')}
-                                </div>
-                            ` : ''}
+                                    `)
+                                ).join('')}
+                            </div>
                         </td>
-                        <td><span class="status-badge ${statusClass}">${this.escapeHtml(item.status)}</span></td>
+                        <td><span class="status-badge ${statusClass}">${this.escapeHtml(status)}</span></td>
                     </tr>
                 `;
 
                 $tableBody.append(row);
             });
 
-            // Add click handler to show/hide URL changes details
-            $tableBody.find('.url-changes-count').on('click', function(e) {
+            // Add click handlers for expandable sections
+            $tableBody.find('.content-sources-count').off('click').on('click', function(e) {
+                e.preventDefault();
+                const $details = $(this).closest('.content-sources-header').siblings('.content-sources-details');
+                $details.slideToggle(200);
+                $(this).toggleClass('expanded');
+            });
+
+            $tableBody.find('.url-changes-count').off('click').on('click', function(e) {
                 e.preventDefault();
                 const $details = $(this).siblings('.url-changes-details');
                 $details.slideToggle(200);
-
-                // Update text to show expand/collapse state
-                const $this = $(this);
-                const isVisible = $details.is(':visible');
-                if (isVisible) {
-                    $this.addClass('expanded');
-                } else {
-                    $this.removeClass('expanded');
-                }
+                $(this).toggleClass('expanded');
             });
+        },
+
+        groupResultsByPost: function(results) {
+            const groups = {};
+
+            results.forEach(item => {
+                const groupKey = item.post_id || item.title || 'unknown';
+
+                if (!groups[groupKey]) {
+                    groups[groupKey] = {
+                        title: item.title || `Content ID ${groupKey}`,
+                        edit_link: item.edit_link || item.source_link,
+                        sources: []
+                    };
+                }
+
+                groups[groupKey].sources.push(item);
+            });
+
+            return Object.values(groups);
         },
 
         renderSummaryResults: function(summary, $tableBody) {
@@ -848,6 +891,125 @@
         escapeCsv: function(str) {
             if (typeof str !== 'string') return str;
             return str.replace(/"/g, '""');
+        },
+
+        // Malformed URL cleanup methods
+        scanMalformedUrls: function(e) {
+            e.preventDefault();
+
+            const $button = $(e.target);
+            const $resultDiv = $('#malformed-urls-scan-result');
+            const $count = $('#malformed-count');
+            const $details = $('#malformed-details');
+            const $breakdown = $('#malformed-breakdown');
+            const $fixButton = $('#fix-malformed-urls');
+            const $options = $('.malformed-url-options');
+
+            $button.prop('disabled', true).find('.dashicons').addClass('spin');
+
+            this.ajaxRequest('scan_malformed_urls', {}, {
+                success: (response) => {
+                    if (response.success && response.total_found > 0) {
+                        $count.text(response.total_found);
+                        $resultDiv.show();
+
+                        // Show breakdown by table
+                        $breakdown.empty();
+                        Object.entries(response.affected_tables).forEach(([table, count]) => {
+                            const tableLabel = table === 'posts' ? 'Posts/Pages' :
+                                             table === 'postmeta' ? 'Custom Fields' :
+                                             table === 'options' ? 'Settings/Options' : table;
+                            $breakdown.append(`<li>${tableLabel}: ${count} items</li>`);
+                        });
+                        $details.show();
+
+                        $fixButton.show();
+                        $options.show();
+                        this.showNotice(`Found ${response.total_found} items with malformed URLs`, 'warning');
+                    } else {
+                        $resultDiv.show();
+                        $count.text('0');
+                        $details.hide();
+                        $fixButton.hide();
+                        $options.hide();
+                        this.showNotice('No malformed URLs found', 'success');
+                    }
+                },
+                error: (error) => {
+                    this.showNotice('Failed to scan: ' + error.message, 'error');
+                },
+                complete: () => {
+                    $button.prop('disabled', false).find('.dashicons').removeClass('spin');
+                }
+            });
+        },
+
+        fixMalformedUrls: function(e) {
+            e.preventDefault();
+
+            const isDryRun = $('#malformed-dry-run').is(':checked');
+            const confirmMessage = isDryRun ?
+                'This will scan for malformed URLs and show what would be fixed. Continue?' :
+                'This will fix malformed URLs in your database. Create a backup first! Continue?';
+
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+
+            const $button = $(e.target);
+            const $progress = $('#malformed-progress');
+            const $results = $('#malformed-results');
+            const $dryRunNotice = $('#malformed-dry-run-notice');
+
+            $button.prop('disabled', true);
+            $progress.show();
+            $results.hide();
+
+            this.ajaxRequest('fix_malformed_urls', {
+                options: {
+                    dry_run: isDryRun,
+                    batch_size: 50
+                }
+            }, {
+                success: (response) => {
+                    $progress.hide();
+                    $results.show();
+
+                    // Update results display
+                    $('#malformed-posts-fixed').text(response.posts_updated || 0);
+                    $('#malformed-meta-fixed').text(response.postmeta_updated || 0);
+                    $('#malformed-options-fixed').text(response.options_updated || 0);
+
+                    if (response.dry_run) {
+                        $dryRunNotice.show();
+                    } else {
+                        $dryRunNotice.hide();
+                    }
+
+                    const message = response.dry_run ?
+                        `Analysis complete: ${response.total_fixes} items would be fixed` :
+                        `Successfully fixed ${response.total_fixes} malformed URLs`;
+
+                    this.showNotice(message, 'success');
+
+                    // Hide fix button and options after successful run
+                    if (!response.dry_run && response.total_fixes > 0) {
+                        $('#fix-malformed-urls').hide();
+                        $('.malformed-url-options').hide();
+                        // Trigger a new scan to refresh counts
+                        setTimeout(() => {
+                            $('#scan-malformed-urls').click();
+                        }, 2000);
+                    }
+                },
+                error: (error) => {
+                    $progress.hide();
+                    this.showNotice('Failed to fix URLs: ' + error.message, 'error');
+                },
+                complete: () => {
+                    $button.prop('disabled', false);
+                }
+            });
         }
     };
 

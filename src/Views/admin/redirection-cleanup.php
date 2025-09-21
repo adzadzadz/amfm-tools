@@ -225,6 +225,86 @@ $recent_jobs = $data['recent_jobs'] ?? [];
                     </div>
                 <?php endif; ?>
 
+                <!-- Malformed URL Cleanup -->
+                <div class="amfm-card">
+                    <div class="amfm-card-header">
+                        <h3><?php esc_html_e('Fix Malformed URLs', 'amfm-tools'); ?></h3>
+                    </div>
+                    <div class="amfm-card-body">
+                        <p class="description">
+                            <?php esc_html_e('Clean up corrupted URLs with duplicate domains that may exist in your content.', 'amfm-tools'); ?>
+                        </p>
+
+                        <div id="malformed-urls-scan-result" style="display: none;">
+                            <div class="malformed-scan-stats">
+                                <p><strong id="malformed-count">0</strong> <?php esc_html_e('items found with malformed URLs', 'amfm-tools'); ?></p>
+                                <div id="malformed-details" style="display: none;">
+                                    <ul id="malformed-breakdown"></ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="malformed-url-actions">
+                            <button type="button" class="button button-secondary" id="scan-malformed-urls">
+                                <span class="dashicons dashicons-search"></span>
+                                <?php esc_html_e('Scan for Issues', 'amfm-tools'); ?>
+                            </button>
+
+                            <button type="button" class="button button-primary" id="fix-malformed-urls" style="display: none;">
+                                <span class="dashicons dashicons-admin-tools"></span>
+                                <?php esc_html_e('Fix URLs', 'amfm-tools'); ?>
+                            </button>
+                        </div>
+
+                        <div class="malformed-url-options" style="display: none; margin-top: 15px;">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="malformed-dry-run" checked>
+                                <span class="checkbox-text">
+                                    <strong><?php esc_html_e('Dry Run Mode', 'amfm-tools'); ?></strong>
+                                    <small><?php esc_html_e('Preview changes without making actual updates', 'amfm-tools'); ?></small>
+                                </span>
+                            </label>
+                        </div>
+
+                        <div id="malformed-progress" style="display: none; margin-top: 15px;">
+                            <div class="progress-container">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 0%"></div>
+                                </div>
+                                <div class="progress-info">
+                                    <span class="current-step"><?php esc_html_e('Processing...', 'amfm-tools'); ?></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="malformed-results" style="display: none; margin-top: 15px;">
+                            <div class="results-summary">
+                                <h4><?php esc_html_e('Cleanup Results', 'amfm-tools'); ?></h4>
+                                <div class="result-stats">
+                                    <div class="result-stat">
+                                        <div class="stat-number" id="malformed-posts-fixed">0</div>
+                                        <div class="stat-label"><?php esc_html_e('Posts Fixed', 'amfm-tools'); ?></div>
+                                    </div>
+                                    <div class="result-stat">
+                                        <div class="stat-number" id="malformed-meta-fixed">0</div>
+                                        <div class="stat-label"><?php esc_html_e('Meta Fields Fixed', 'amfm-tools'); ?></div>
+                                    </div>
+                                    <div class="result-stat">
+                                        <div class="stat-number" id="malformed-options-fixed">0</div>
+                                        <div class="stat-label"><?php esc_html_e('Options Fixed', 'amfm-tools'); ?></div>
+                                    </div>
+                                </div>
+                                <div id="malformed-dry-run-notice" style="display: none;">
+                                    <div class="dry-run-badge">
+                                        <span class="dashicons dashicons-info"></span>
+                                        <?php esc_html_e('Dry Run - No Changes Made', 'amfm-tools'); ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Recent Jobs -->
                 <?php if (!empty($recent_jobs)): ?>
                 <div class="amfm-card">
@@ -332,8 +412,7 @@ $recent_jobs = $data['recent_jobs'] ?? [];
                 <table class="results-table">
                     <thead>
                         <tr>
-                            <th><?php esc_html_e('Page/Content', 'amfm-tools'); ?></th>
-                            <th><?php esc_html_e('Type', 'amfm-tools'); ?></th>
+                            <th><?php esc_html_e('Content Sources', 'amfm-tools'); ?></th>
                             <th><?php esc_html_e('URL Changes', 'amfm-tools'); ?></th>
                             <th><?php esc_html_e('Status', 'amfm-tools'); ?></th>
                         </tr>

@@ -235,6 +235,55 @@ class RedirectionCleanupController extends Controller
         }
     }
 
+    /**
+     * AJAX: Scan for malformed URLs
+     */
+    public function actionWpAjaxScanMalformedUrls()
+    {
+        check_ajax_referer('amfm_redirection_cleanup', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_die(__('Insufficient permissions', 'amfm-tools'));
+        }
+
+        try {
+            $result = $this->cleanupService->scanMalformedUrls();
+            wp_send_json_success($result);
+        } catch (\Exception $e) {
+            wp_send_json_error([
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * AJAX: Fix malformed URLs
+     */
+    public function actionWpAjaxFixMalformedUrls()
+    {
+        check_ajax_referer('amfm_redirection_cleanup', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_die(__('Insufficient permissions', 'amfm-tools'));
+        }
+
+        $options = wp_unslash($_POST['options'] ?? []);
+
+        // Ensure dry_run is properly converted to boolean
+        if (isset($options['dry_run'])) {
+            $options['dry_run'] = filter_var($options['dry_run'], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        try {
+            $result = $this->cleanupService->fixMalformedUrls($options);
+            wp_send_json_success($result);
+        } catch (\Exception $e) {
+            wp_send_json_error([
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
 
     /**
      * Get processing options for the UI

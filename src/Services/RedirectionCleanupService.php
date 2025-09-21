@@ -135,6 +135,9 @@ class RedirectionCleanupService
             return !empty(trim($destination));
         });
 
+        // Calculate total content items to be processed for accurate progress tracking
+        $totalContentItems = $this->calculateTotalContentItems($options['content_types']);
+
         $jobData = [
             'id' => $jobId,
             'status' => 'initialized',
@@ -142,7 +145,7 @@ class RedirectionCleanupService
             'url_mapping' => $urlMapping, // Keep full mapping for processing
             'started_at' => current_time('mysql'),
             'progress' => [
-                'total_items' => count($validUrlMapping), // Count only valid URLs
+                'total_items' => $totalContentItems, // Count of content items to process
                 'processed_items' => 0,
                 'updated_items' => 0,
                 'current_step' => 'initializing',
@@ -185,8 +188,9 @@ class RedirectionCleanupService
                 return !empty(trim($destination));
             });
 
-            // Set the total count for progress tracking (only valid URLs)
-            $jobData['progress']['total_items'] = count($validUrlMapping);
+            // Calculate total content items to be processed for accurate progress tracking
+            $totalContentItems = $this->calculateTotalContentItems($options['content_types']);
+            $jobData['progress']['total_items'] = $totalContentItems;
             $this->updateJobProgress($jobId, $jobData);
 
             // Ensure boolean options are properly converted (fix for string 'false' bug)
@@ -416,7 +420,7 @@ class RedirectionCleanupService
             $variations[] = '/' . $cleanPattern;                    // /anxiety-treatment
             $variations[] = '/' . $cleanPattern . '/';              // /anxiety-treatment/
 
-            // 2. Absolute URL variations (site_url)
+            // 2. Absolute URL variations (current site_url)
             $variations[] = $siteUrl . '/' . $cleanPattern;         // http://localhost:10003/anxiety-treatment
             $variations[] = $siteUrl . '/' . $cleanPattern . '/';   // http://localhost:10003/anxiety-treatment/
 
@@ -433,7 +437,15 @@ class RedirectionCleanupService
                 $variations[] = $httpsUrl . '/' . $cleanPattern . '/';
             }
 
-            // 5. Domain-relative patterns (for content that might reference other domains)
+            // 5. OLD DOMAIN VARIATIONS - Critical for finding legacy URLs
+            $oldDomains = ['amfmtreatment.com', 'https://amfmtreatment.com', 'http://amfmtreatment.com'];
+            foreach ($oldDomains as $oldDomain) {
+                $cleanDomain = rtrim($oldDomain, '/');
+                $variations[] = $cleanDomain . '/' . $cleanPattern;     // amfmtreatment.com/anxiety-treatment
+                $variations[] = $cleanDomain . '/' . $cleanPattern . '/'; // amfmtreatment.com/anxiety-treatment/
+            }
+
+            // 6. Domain-relative patterns (for content that might reference other domains)
             $variations[] = $cleanPattern;                          // anxiety-treatment (for path segment matching)
             $variations[] = $cleanPattern . '/';                   // anxiety-treatment/
         }
@@ -1149,6 +1161,53 @@ class RedirectionCleanupService
     }
 
     /**
+     * Calculate total content items to be processed based on selected content types
+     */
+    private function calculateTotalContentItems(array $contentTypes): int
+    {
+        $totalItems = 0;
+
+        if (in_array('posts', $contentTypes)) {
+            $totalItems += (int) $this->wpdb->get_var(
+                "SELECT COUNT(*) FROM {$this->wpdb->posts}
+                 WHERE post_status IN ('publish', 'private', 'draft', 'future')"
+            );
+        }
+
+        if (in_array('custom_fields', $contentTypes)) {
+            $totalItems += (int) $this->wpdb->get_var($this->wpdb->prepare(
+                "SELECT COUNT(*) FROM {$this->wpdb->postmeta}
+                 WHERE meta_value LIKE %s OR meta_value LIKE %s",
+                '%' . $this->siteUrl . '%',
+                '%' . $this->homeUrl . '%'
+            ));
+        }
+
+        if (in_array('menus', $contentTypes)) {
+            $totalItems += (int) $this->wpdb->get_var(
+                "SELECT COUNT(*) FROM {$this->wpdb->posts} p
+                 JOIN {$this->wpdb->postmeta} pm ON p.ID = pm.post_id
+                 WHERE p.post_type = 'nav_menu_item'
+                 AND pm.meta_key = '_menu_item_url'
+                 AND pm.meta_value != ''"
+            );
+        }
+
+        if (in_array('widgets', $contentTypes)) {
+            $totalItems += (int) $this->wpdb->get_var($this->wpdb->prepare(
+                "SELECT COUNT(*) FROM {$this->wpdb->options}
+                 WHERE option_value LIKE %s OR option_value LIKE %s
+                 AND option_name NOT LIKE %s",
+                '%' . $this->siteUrl . '%',
+                '%' . $this->homeUrl . '%',
+                self::OPTION_PREFIX . '%'
+            ));
+        }
+
+        return $totalItems;
+    }
+
+    /**
      * Job tracking and progress methods
      */
     private function updateJobProgress(string $jobId, array $jobData): void
@@ -1318,5 +1377,308 @@ class RedirectionCleanupService
         } else {
             return sprintf('%.1f hours', $estimatedSeconds / 3600);
         }
+    }
+
+    /**
+     * Scan for malformed URLs in content
+     */
+    public function scanMalformedUrls(): array
+    {
+        $siteUrl = rtrim(site_url(), '/');
+        $homeUrl = rtrim(home_url(), '/');
+
+        // Extract domain from current site URL (including port if present)
+        $siteDomain = parse_url($siteUrl, PHP_URL_HOST);
+        $sitePort = parse_url($siteUrl, PHP_URL_PORT);
+        $siteScheme = parse_url($siteUrl, PHP_URL_SCHEME);
+
+        // Include port in domain if present
+        if ($sitePort) {
+            $siteDomain = $siteDomain . ':' . $sitePort;
+        }
+
+        if (!$siteDomain) {
+            return [
+                'success' => false,
+                'message' => 'Could not determine site domain'
+            ];
+        }
+
+        // Build patterns for current domain
+        $patterns = [
+            // Double domain patterns
+            "/{$siteScheme}://{$siteDomain}/.*{$siteScheme}://{$siteDomain}/",
+            // Mixed scheme patterns
+            "/{$siteScheme}://{$siteDomain}/.*https?://{$siteDomain}/",
+            // Triple+ domain patterns
+            "/{$siteScheme}://{$siteDomain}/.*{$siteScheme}://{$siteDomain}/.*{$siteScheme}://{$siteDomain}/"
+        ];
+
+        $totalFound = 0;
+        $affectedTables = [];
+
+        // Scan posts table - look for actual malformed URL patterns
+        $postCount = $this->wpdb->get_var($this->wpdb->prepare(
+            "SELECT COUNT(*) FROM {$this->wpdb->posts}
+             WHERE (post_content LIKE %s OR post_content LIKE %s OR post_content LIKE %s
+                    OR post_excerpt LIKE %s OR post_excerpt LIKE %s OR post_excerpt LIKE %s)
+             AND post_status IN ('publish', 'private', 'draft', 'future')",
+            '%' . $this->wpdb->esc_like($siteDomain . '/' . $siteScheme . '://' . $siteDomain) . '%',  // domain/http://domain
+            '%' . $this->wpdb->esc_like($siteDomain . '/https://' . $siteDomain) . '%',  // domain/https://domain
+            '%' . $this->wpdb->esc_like($siteDomain . '/' . $siteDomain) . '%',  // domain/domain
+            '%' . $this->wpdb->esc_like($siteDomain . '/' . $siteScheme . '://' . $siteDomain) . '%',  // in excerpt
+            '%' . $this->wpdb->esc_like($siteDomain . '/https://' . $siteDomain) . '%',  // in excerpt
+            '%' . $this->wpdb->esc_like($siteDomain . '/' . $siteDomain) . '%'  // in excerpt
+        ));
+
+        if ($postCount > 0) {
+            $affectedTables['posts'] = $postCount;
+            $totalFound += $postCount;
+        }
+
+        // Scan postmeta table - look for actual malformed URL patterns
+        $metaCount = $this->wpdb->get_var($this->wpdb->prepare(
+            "SELECT COUNT(*) FROM {$this->wpdb->postmeta}
+             WHERE (meta_value LIKE %s OR meta_value LIKE %s OR meta_value LIKE %s)",
+            '%' . $this->wpdb->esc_like($siteDomain . '/' . $siteScheme . '://' . $siteDomain) . '%',  // domain/http://domain
+            '%' . $this->wpdb->esc_like($siteDomain . '/https://' . $siteDomain) . '%',  // domain/https://domain
+            '%' . $this->wpdb->esc_like($siteDomain . '/' . $siteDomain) . '%'  // domain/domain
+        ));
+
+        if ($metaCount > 0) {
+            $affectedTables['postmeta'] = $metaCount;
+            $totalFound += $metaCount;
+        }
+
+        // Scan options table - look for actual malformed URL patterns
+        $optionCount = $this->wpdb->get_var($this->wpdb->prepare(
+            "SELECT COUNT(*) FROM {$this->wpdb->options}
+             WHERE (option_value LIKE %s OR option_value LIKE %s OR option_value LIKE %s)
+             AND option_name NOT LIKE %s",
+            '%' . $this->wpdb->esc_like($siteDomain . '/' . $siteScheme . '://' . $siteDomain) . '%',  // domain/http://domain
+            '%' . $this->wpdb->esc_like($siteDomain . '/https://' . $siteDomain) . '%',  // domain/https://domain
+            '%' . $this->wpdb->esc_like($siteDomain . '/' . $siteDomain) . '%',  // domain/domain
+            self::OPTION_PREFIX . '%'
+        ));
+
+        if ($optionCount > 0) {
+            $affectedTables['options'] = $optionCount;
+            $totalFound += $optionCount;
+        }
+
+        return [
+            'success' => true,
+            'total_found' => $totalFound,
+            'affected_tables' => $affectedTables,
+            'site_domain' => $siteDomain,
+            'site_scheme' => $siteScheme,
+            'message' => $totalFound > 0
+                ? sprintf('Found %d items with malformed URLs across %d table(s)', $totalFound, count($affectedTables))
+                : 'No malformed URLs found'
+        ];
+    }
+
+    /**
+     * Fix malformed URLs in content
+     */
+    public function fixMalformedUrls(array $options = []): array
+    {
+        $isDryRun = $options['dry_run'] ?? true;
+        $batchSize = $options['batch_size'] ?? 50;
+
+        $siteUrl = rtrim(site_url(), '/');
+        $siteDomain = parse_url($siteUrl, PHP_URL_HOST);
+        $sitePort = parse_url($siteUrl, PHP_URL_PORT);
+        $siteScheme = parse_url($siteUrl, PHP_URL_SCHEME);
+
+        // Include port in domain if present
+        if ($sitePort) {
+            $siteDomain = $siteDomain . ':' . $sitePort;
+        }
+
+        if (!$siteDomain) {
+            throw new \Exception('Could not determine site domain');
+        }
+
+        $results = [
+            'posts_updated' => 0,
+            'postmeta_updated' => 0,
+            'options_updated' => 0,
+            'total_fixes' => 0,
+            'dry_run' => $isDryRun
+        ];
+
+        // Create backup if not dry run
+        if (!$isDryRun) {
+            $backupResult = $this->createBackup('malformed_url_cleanup_' . date('Y-m-d_H-i-s'));
+            if (!$backupResult['success']) {
+                throw new \Exception('Failed to create backup: ' . $backupResult['message']);
+            }
+        }
+
+        // Process posts
+        $results['posts_updated'] = $this->fixMalformedUrlsInPosts($siteDomain, $siteScheme, $batchSize, $isDryRun);
+
+        // Process postmeta
+        $results['postmeta_updated'] = $this->fixMalformedUrlsInPostMeta($siteDomain, $siteScheme, $batchSize, $isDryRun);
+
+        // Process options
+        $results['options_updated'] = $this->fixMalformedUrlsInOptions($siteDomain, $siteScheme, $batchSize, $isDryRun);
+
+        $results['total_fixes'] = $results['posts_updated'] + $results['postmeta_updated'] + $results['options_updated'];
+
+        return $results;
+    }
+
+    /**
+     * Fix malformed URLs in posts table
+     */
+    private function fixMalformedUrlsInPosts(string $siteDomain, string $siteScheme, int $batchSize, bool $isDryRun): int
+    {
+        $offset = 0;
+        $totalUpdated = 0;
+
+        do {
+            $posts = $this->wpdb->get_results($this->wpdb->prepare(
+                "SELECT ID, post_content, post_excerpt FROM {$this->wpdb->posts}
+                 WHERE (post_content LIKE %s OR post_content LIKE %s OR post_excerpt LIKE %s OR post_excerpt LIKE %s)
+                 AND post_status IN ('publish', 'private', 'draft', 'future')
+                 LIMIT %d OFFSET %d",
+                '%' . $this->wpdb->esc_like($siteScheme . '://' . $siteDomain) . '%' . $this->wpdb->esc_like($siteScheme . '://' . $siteDomain) . '%',
+                '%' . $this->wpdb->esc_like($siteScheme . '://' . $siteDomain) . '%' . $this->wpdb->esc_like('http') . '%://' . $this->wpdb->esc_like($siteDomain) . '%',
+                '%' . $this->wpdb->esc_like($siteScheme . '://' . $siteDomain) . '%' . $this->wpdb->esc_like($siteScheme . '://' . $siteDomain) . '%',
+                '%' . $this->wpdb->esc_like($siteScheme . '://' . $siteDomain) . '%' . $this->wpdb->esc_like('http') . '%://' . $this->wpdb->esc_like($siteDomain) . '%',
+                $batchSize,
+                $offset
+            ), ARRAY_A);
+
+            foreach ($posts as $post) {
+                $originalContent = $post['post_content'];
+                $originalExcerpt = $post['post_excerpt'];
+
+                $fixedContent = $this->cleanMalformedUrlsInText($originalContent, $siteDomain, $siteScheme);
+                $fixedExcerpt = $this->cleanMalformedUrlsInText($originalExcerpt, $siteDomain, $siteScheme);
+
+                if ($fixedContent !== $originalContent || $fixedExcerpt !== $originalExcerpt) {
+                    if (!$isDryRun) {
+                        $this->wpdb->update(
+                            $this->wpdb->posts,
+                            [
+                                'post_content' => $fixedContent,
+                                'post_excerpt' => $fixedExcerpt
+                            ],
+                            ['ID' => $post['ID']],
+                            ['%s', '%s'],
+                            ['%d']
+                        );
+                    }
+                    $totalUpdated++;
+                }
+            }
+
+            $offset += $batchSize;
+        } while (count($posts) === $batchSize);
+
+        return $totalUpdated;
+    }
+
+    /**
+     * Fix malformed URLs in postmeta table
+     */
+    private function fixMalformedUrlsInPostMeta(string $siteDomain, string $siteScheme, int $batchSize, bool $isDryRun): int
+    {
+        $offset = 0;
+        $totalUpdated = 0;
+
+        do {
+            $meta = $this->wpdb->get_results($this->wpdb->prepare(
+                "SELECT meta_id, meta_value FROM {$this->wpdb->postmeta}
+                 WHERE (meta_value LIKE %s OR meta_value LIKE %s)
+                 LIMIT %d OFFSET %d",
+                '%' . $this->wpdb->esc_like($siteScheme . '://' . $siteDomain) . '%' . $this->wpdb->esc_like($siteScheme . '://' . $siteDomain) . '%',
+                '%' . $this->wpdb->esc_like($siteScheme . '://' . $siteDomain) . '%' . $this->wpdb->esc_like('http') . '%://' . $this->wpdb->esc_like($siteDomain) . '%',
+                $batchSize,
+                $offset
+            ), ARRAY_A);
+
+            foreach ($meta as $metaItem) {
+                $originalValue = $metaItem['meta_value'];
+                $fixedValue = $this->cleanMalformedUrlsInText($originalValue, $siteDomain, $siteScheme);
+
+                if ($fixedValue !== $originalValue) {
+                    if (!$isDryRun) {
+                        $this->wpdb->update(
+                            $this->wpdb->postmeta,
+                            ['meta_value' => $fixedValue],
+                            ['meta_id' => $metaItem['meta_id']],
+                            ['%s'],
+                            ['%d']
+                        );
+                    }
+                    $totalUpdated++;
+                }
+            }
+
+            $offset += $batchSize;
+        } while (count($meta) === $batchSize);
+
+        return $totalUpdated;
+    }
+
+    /**
+     * Fix malformed URLs in options table
+     */
+    private function fixMalformedUrlsInOptions(string $siteDomain, string $siteScheme, int $batchSize, bool $isDryRun): int
+    {
+        $options = $this->wpdb->get_results($this->wpdb->prepare(
+            "SELECT option_id, option_name, option_value FROM {$this->wpdb->options}
+             WHERE (option_value LIKE %s OR option_value LIKE %s)
+             AND option_name NOT LIKE %s",
+            '%' . $this->wpdb->esc_like($siteScheme . '://' . $siteDomain) . '%' . $this->wpdb->esc_like($siteScheme . '://' . $siteDomain) . '%',
+            '%' . $this->wpdb->esc_like($siteScheme . '://' . $siteDomain) . '%' . $this->wpdb->esc_like('http') . '%://' . $this->wpdb->esc_like($siteDomain) . '%',
+            self::OPTION_PREFIX . '%'
+        ), ARRAY_A);
+
+        $totalUpdated = 0;
+
+        foreach ($options as $option) {
+            $originalValue = $option['option_value'];
+            $fixedValue = $this->cleanMalformedUrlsInText($originalValue, $siteDomain, $siteScheme);
+
+            if ($fixedValue !== $originalValue) {
+                if (!$isDryRun) {
+                    update_option($option['option_name'], maybe_unserialize($fixedValue));
+                }
+                $totalUpdated++;
+            }
+        }
+
+        return $totalUpdated;
+    }
+
+    /**
+     * Clean malformed URLs in text content
+     */
+    private function cleanMalformedUrlsInText(string $content, string $siteDomain, string $siteScheme): string
+    {
+        if (empty($content)) {
+            return $content;
+        }
+
+        // Pattern 1: Remove duplicate domains (most common case)
+        // Example: http://localhost:10003/http://localhost:10003/path -> http://localhost:10003/path
+        $pattern1 = '#(' . preg_quote($siteScheme . '://' . $siteDomain, '#') . '/)+(' . preg_quote($siteScheme . '://' . $siteDomain, '#') . '/)#';
+        $content = preg_replace($pattern1, '$2', $content);
+
+        // Pattern 2: Remove mixed scheme duplicates
+        // Example: http://localhost:10003/https://localhost:10003/path -> https://localhost:10003/path
+        $pattern2 = '#' . preg_quote($siteScheme . '://' . $siteDomain, '#') . '/+(https?://' . preg_quote($siteDomain, '#') . '/)#';
+        $content = preg_replace($pattern2, '$1', $content);
+
+        // Pattern 3: Clean up any remaining multiple consecutive domain references
+        $pattern3 = '#(https?://' . preg_quote($siteDomain, '#') . '/)+#';
+        $content = preg_replace($pattern3, '$1', $content);
+
+        return $content;
     }
 }

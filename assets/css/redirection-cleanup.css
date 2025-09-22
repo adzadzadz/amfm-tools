@@ -111,3 +111,104 @@
 .amfm-redirection-cleanup #results-content li {
     margin-bottom: 5px;
 }
+
+/* File Upload Styling */
+.amfm-redirection-cleanup .amfm-file-upload-wrapper {
+    position: relative;
+    display: block;
+    margin-bottom: 10px;
+}
+
+.amfm-redirection-cleanup .amfm-file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    overflow: hidden;
+    z-index: -1;
+}
+
+.amfm-redirection-cleanup .amfm-file-upload-display {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border: 2px dashed #ccd0d4;
+    border-radius: 8px;
+    background-color: #fafafa;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    color: #50575e;
+    min-height: 60px;
+}
+
+.amfm-redirection-cleanup .amfm-file-upload-display:hover {
+    border-color: #0073aa;
+    background-color: #f0f8ff;
+    color: #0073aa;
+}
+
+.amfm-redirection-cleanup .amfm-file-upload-display.dragover {
+    border-color: #00a32a;
+    background-color: #f0fff0;
+}
+
+.amfm-redirection-cleanup .amfm-file-upload-icon {
+    font-size: 24px;
+    margin-right: 12px;
+    opacity: 0.7;
+}
+
+.amfm-redirection-cleanup .amfm-file-upload-text {
+    flex: 1;
+}
+
+.amfm-redirection-cleanup .amfm-file-placeholder {
+    font-size: 14px;
+    color: #50575e;
+    font-weight: 500;
+}
+
+.amfm-redirection-cleanup .amfm-file-selection-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background-color: #e8f5e8;
+    border: 1px solid #00a32a;
+    border-radius: 4px;
+    margin-top: 8px;
+}
+
+.amfm-redirection-cleanup .amfm-file-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.amfm-redirection-cleanup .amfm-file-name {
+    font-size: 14px;
+    color: #135e96;
+    margin-bottom: 2px;
+    font-weight: 600;
+}
+
+.amfm-redirection-cleanup .amfm-file-size {
+    font-size: 12px;
+    color: #666;
+}
+
+.amfm-redirection-cleanup .amfm-remove-file {
+    background: none;
+    border: none;
+    color: #d63384;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px;
+    border-radius: 2px;
+    margin-left: 8px;
+}
+
+.amfm-redirection-cleanup .amfm-remove-file:hover {
+    background-color: #f8d7da;
+}

@@ -284,7 +284,10 @@ class RedirectionCleanupService
         $options = wp_parse_args($options, [
             'dry_run' => true,
             'content_types' => ['posts', 'postmeta', 'all_tables'],
-            'batch_size' => 50
+            'batch_size' => 50,
+            'batch_processing' => false,
+            'batch_start' => 0,
+            'batch_limit' => 10
         ]);
 
         $results = [
@@ -294,6 +297,29 @@ class RedirectionCleanupService
             'other_tables_updated' => 0,
             'urls_replaced' => 0
         ];
+
+        // If batch processing, slice the mappings array
+        if ($options['batch_processing']) {
+            $totalMappings = count($mappings);
+            $batchStart = $options['batch_start'];
+            $batchLimit = $options['batch_limit'];
+
+            // Add total count info for progress tracking
+            $results['total_mappings'] = $totalMappings;
+            $results['batch_start'] = $batchStart;
+            $results['batch_limit'] = $batchLimit;
+            $results['batch_end'] = min($batchStart + $batchLimit - 1, $totalMappings - 1);
+            $results['is_complete'] = ($batchStart + $batchLimit) >= $totalMappings;
+
+            // Get the batch slice
+            $mappings = array_slice($mappings, $batchStart, $batchLimit, true);
+
+            if (empty($mappings)) {
+                $results['success'] = true;
+                $results['message'] = 'Batch processing complete - no more mappings to process';
+                return $results;
+            }
+        }
 
         // Process all tables if requested (comprehensive mode)
         if (in_array('all_tables', $options['content_types'])) {

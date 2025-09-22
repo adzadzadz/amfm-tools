@@ -38,11 +38,26 @@ $notice = $data['notice'] ?? '';
                             <?php wp_nonce_field('amfm_upload_csv', 'amfm_csv_nonce'); ?>
 
                             <div class="form-group">
-                                <label for="amfm-csv-file">
+                                <label for="amfm-csv-file" style="display: block; margin-bottom: 8px; font-weight: 600;">
                                     <?php esc_html_e('Select Crawl Report CSV', 'amfm-tools'); ?>
                                 </label>
-                                <input type="file" name="csv_file" id="amfm-csv-file" accept=".csv" class="form-control amfm-file-input" required>
-                                <small class="form-text text-muted">
+                                <div class="amfm-file-upload-wrapper">
+                                    <input type="file" name="csv_file" id="amfm-csv-file" accept=".csv" class="amfm-file-input" required>
+                                    <label for="amfm-csv-file" class="amfm-file-upload-display">
+                                        <div class="amfm-file-upload-icon">📎</div>
+                                        <div class="amfm-file-upload-text">
+                                            <span class="amfm-file-placeholder"><?php esc_html_e('Choose CSV file or drag & drop here', 'amfm-tools'); ?></span>
+                                        </div>
+                                    </label>
+                                    <div class="amfm-file-selection-status" style="display: none;">
+                                        <div class="amfm-file-info">
+                                            <strong class="amfm-file-name"></strong>
+                                            <span class="amfm-file-size"></span>
+                                        </div>
+                                        <button type="button" class="amfm-remove-file" title="<?php esc_attr_e('Remove file', 'amfm-tools'); ?>">✕</button>
+                                    </div>
+                                </div>
+                                <small class="form-text text-muted" style="margin-top: 8px; display: block; color: #666;">
                                     <?php esc_html_e('Upload a CSV file with "Redirected URL" and "Final URL" columns', 'amfm-tools'); ?>
                                 </small>
                             </div>
@@ -171,6 +186,11 @@ $notice = $data['notice'] ?? '';
                                         <span class="dashicons dashicons-admin-tools"></span>
                                         <?php esc_html_e('Process Replacements', 'amfm-tools'); ?>
                                     </button>
+
+                                    <button type="button" class="button button-secondary" id="process-replacements-batch" style="margin-left: 10px;">
+                                        <span class="dashicons dashicons-update"></span>
+                                        <?php esc_html_e('Batch Process (10 at a time)', 'amfm-tools'); ?>
+                                    </button>
                                 </form>
                             </div>
 
@@ -186,6 +206,31 @@ $notice = $data['notice'] ?? '';
                                     <span id="meta-progress">Meta: 0</span> |
                                     <span id="urls-progress">URLs: 0</span>
                                 </div>
+                            </div>
+
+                            <!-- Batch Progress Section -->
+                            <div id="batch-progress-section" style="display: none; margin-top: 20px;">
+                                <h4><?php esc_html_e('Batch Processing Progress', 'amfm-tools'); ?></h4>
+                                <div id="batch-progress-bar" style="background: #f1f1f1; height: 20px; border-radius: 10px; margin: 10px 0;">
+                                    <div id="batch-progress-fill" style="background: #0073aa; height: 100%; border-radius: 10px; width: 0%; transition: width 0.3s;"></div>
+                                </div>
+                                <div id="batch-progress-info" style="margin-bottom: 15px; font-size: 14px;"></div>
+
+                                <table class="wp-list-table widefat fixed striped" id="batch-progress-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 60px;"><?php esc_html_e('Batch', 'amfm-tools'); ?></th>
+                                            <th><?php esc_html_e('URLs Processed', 'amfm-tools'); ?></th>
+                                            <th style="width: 80px;"><?php esc_html_e('Posts', 'amfm-tools'); ?></th>
+                                            <th style="width: 80px;"><?php esc_html_e('Meta', 'amfm-tools'); ?></th>
+                                            <th style="width: 80px;"><?php esc_html_e('Options', 'amfm-tools'); ?></th>
+                                            <th style="width: 100px;"><?php esc_html_e('URLs Replaced', 'amfm-tools'); ?></th>
+                                            <th style="width: 80px;"><?php esc_html_e('Status', 'amfm-tools'); ?></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="batch-progress-tbody">
+                                    </tbody>
+                                </table>
                             </div>
 
                             <!-- Results Section -->

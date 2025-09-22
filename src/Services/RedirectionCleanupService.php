@@ -1,0 +1,664 @@
+<?php
+
+namespace App\Services;
+
+/**
+ * Redirection Cleanup Service
+ *
+ * Handles CSV processing and URL replacement functionality
+ */
+class RedirectionCleanupService
+{
+    private const OPTION_PREFIX = 'amfm_redirection_cleanup_';
+
+    private $wpdb;
+    private string $uploadDir;
+
+    public function __construct()
+    {
+        global $wpdb;
+        $this->wpdb = $wpdb;
+
+        // Set up upload directory
+        $uploadDirInfo = wp_upload_dir();
+        $this->uploadDir = $uploadDirInfo['basedir'] . '/amfm-tools/redirection-cleanup';
+
+        // Ensure directory exists
+        if (!file_exists($this->uploadDir)) {
+            wp_mkdir_p($this->uploadDir);
+        }
+    }
+
+    /**
+     * Process uploaded CSV file
+     */
+    public function processUploadedCsv(array $file): array
+    {
+        // Validate file upload
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            return [
+                'success' => false,
+                'message' => $this->getUploadErrorMessage($file['error'])
+            ];
+        }
+
+        // Validate file type
+        $fileName = $file['name'];
+        if (!str_ends_with(strtolower($fileName), '.csv')) {
+            return [
+                'success' => false,
+                'message' => 'Invalid file type. Please upload a CSV file.'
+            ];
+        }
+
+        // Move uploaded file
+        $filename = 'crawl-report-' . date('Y-m-d-His') . '.csv';
+        $destination = $this->uploadDir . '/' . $filename;
+
+        if (!move_uploaded_file($file['tmp_name'], $destination)) {
+            return [
+                'success' => false,
+                'message' => 'Failed to save uploaded file.'
+            ];
+        }
+
+        // Parse CSV and extract URL mappings
+        $result = $this->parseCrawlReportCsv($destination);
+
+        if (!$result['success']) {
+            @unlink($destination);
+            return $result;
+        }
+
+        // Store parsed data
+        update_option(self::OPTION_PREFIX . 'current_csv', $filename);
+        update_option(self::OPTION_PREFIX . 'url_mappings', $result['mappings']);
+        update_option(self::OPTION_PREFIX . 'csv_stats', $result['stats']);
+        update_option(self::OPTION_PREFIX . 'last_import', current_time('mysql'));
+
+        return [
+            'success' => true,
+            'message' => sprintf(
+                'CSV processed successfully. Found %d unique URL redirections with %d total occurrences.',
+                $result['stats']['unique_urls'],
+                $result['stats']['total_occurrences']
+            )
+        ];
+    }
+
+    /**
+     * Parse crawl report CSV file
+     */
+    private function parseCrawlReportCsv(string $filePath): array
+    {
+        if (!file_exists($filePath)) {
+            return [
+                'success' => false,
+                'message' => 'CSV file not found.'
+            ];
+        }
+
+        $handle = fopen($filePath, 'r');
+        if (!$handle) {
+            return [
+                'success' => false,
+                'message' => 'Unable to read CSV file.'
+            ];
+        }
+
+        $headers = fgetcsv($handle);
+        if (!$headers) {
+            fclose($handle);
+            return [
+                'success' => false,
+                'message' => 'Invalid CSV format - no headers found.'
+            ];
+        }
+
+        // Find required columns
+        $redirectedUrlIndex = $this->findColumnIndex($headers, ['redirected url', 'redirected_url']);
+        $finalUrlIndex = $this->findColumnIndex($headers, ['final url', 'final_url']);
+
+        if ($redirectedUrlIndex === false || $finalUrlIndex === false) {
+            fclose($handle);
+            return [
+                'success' => false,
+                'message' => 'Required columns not found. CSV must contain "Redirected URL" and "Final URL" columns.'
+            ];
+        }
+
+        $mappings = [];
+        $totalRows = 0;
+        $totalOccurrences = 0;
+
+        while (($row = fgetcsv($handle)) !== false) {
+            $totalRows++;
+
+            if (count($row) <= max($redirectedUrlIndex, $finalUrlIndex)) {
+                continue;
+            }
+
+            $redirectedUrl = trim($row[$redirectedUrlIndex]);
+            $finalUrl = trim($row[$finalUrlIndex]);
+
+            if (empty($redirectedUrl) || empty($finalUrl)) {
+                continue;
+            }
+
+            // Validate URLs
+            if (!filter_var($redirectedUrl, FILTER_VALIDATE_URL) || !filter_var($finalUrl, FILTER_VALIDATE_URL)) {
+                continue;
+            }
+
+            if (!isset($mappings[$redirectedUrl])) {
+                $mappings[$redirectedUrl] = [
+                    'final_url' => $finalUrl,
+                    'occurrences' => 0
+                ];
+            }
+
+            $mappings[$redirectedUrl]['occurrences']++;
+            $totalOccurrences++;
+        }
+
+        fclose($handle);
+
+        $stats = [
+            'total_rows' => $totalRows,
+            'unique_urls' => count($mappings),
+            'total_occurrences' => $totalOccurrences,
+            'top_redirections' => $this->getTopRedirections($mappings, 10)
+        ];
+
+        return [
+            'success' => true,
+            'mappings' => $mappings,
+            'stats' => $stats
+        ];
+    }
+
+    /**
+     * Find column index by possible names
+     */
+    private function findColumnIndex(array $headers, array $possibleNames): false|int
+    {
+        foreach ($headers as $index => $header) {
+            $normalizedHeader = strtolower(trim($header));
+            foreach ($possibleNames as $name) {
+                if (str_contains($normalizedHeader, $name)) {
+                    return $index;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Get top redirections for display
+     */
+    private function getTopRedirections(array $mappings, int $limit): array
+    {
+        $sorted = $mappings;
+        uasort($sorted, fn($a, $b) => $b['occurrences'] <=> $a['occurrences']);
+
+        $top = [];
+        $count = 0;
+
+        foreach ($sorted as $url => $data) {
+            if ($count >= $limit) break;
+
+            $top[] = [
+                'url' => $url,
+                'final_url' => $data['final_url'],
+                'occurrences' => $data['occurrences']
+            ];
+            $count++;
+        }
+
+        return $top;
+    }
+
+    /**
+     * Analyze content for URLs that need replacement
+     */
+    public function analyzeContent(): array
+    {
+        $mappings = get_option(self::OPTION_PREFIX . 'url_mappings', []);
+
+        if (empty($mappings)) {
+            return [
+                'success' => false,
+                'message' => 'No CSV data loaded. Please upload a CSV file first.'
+            ];
+        }
+
+        $stats = ['posts' => 0, 'postmeta' => 0, 'total' => 0];
+
+        foreach ($mappings as $originalUrl => $mapping) {
+            // Count posts containing this URL
+            $postCount = $this->wpdb->get_var($this->wpdb->prepare(
+                "SELECT COUNT(*) FROM {$this->wpdb->posts}
+                WHERE post_status = 'publish'
+                AND (post_content LIKE %s OR post_excerpt LIKE %s)",
+                '%' . $this->wpdb->esc_like($originalUrl) . '%',
+                '%' . $this->wpdb->esc_like($originalUrl) . '%'
+            ));
+
+            // Count meta fields containing this URL
+            $metaCount = $this->wpdb->get_var($this->wpdb->prepare(
+                "SELECT COUNT(*) FROM {$this->wpdb->postmeta}
+                WHERE meta_value LIKE %s",
+                '%' . $this->wpdb->esc_like($originalUrl) . '%'
+            ));
+
+            $stats['posts'] += (int) $postCount;
+            $stats['postmeta'] += (int) $metaCount;
+        }
+
+        $stats['total'] = $stats['posts'] + $stats['postmeta'];
+
+        // Store analysis results
+        update_option(self::OPTION_PREFIX . 'analysis', $stats);
+        update_option(self::OPTION_PREFIX . 'last_analysis', current_time('mysql'));
+
+        return [
+            'success' => true,
+            'stats' => $stats
+        ];
+    }
+
+    /**
+     * Process URL replacements
+     */
+    public function processReplacements(array $options = []): array
+    {
+        $mappings = get_option(self::OPTION_PREFIX . 'url_mappings', []);
+
+        if (empty($mappings)) {
+            return [
+                'success' => false,
+                'message' => 'No CSV data loaded. Please upload a CSV file first.'
+            ];
+        }
+
+        $options = wp_parse_args($options, [
+            'dry_run' => true,
+            'content_types' => ['posts', 'postmeta'],
+            'batch_size' => 50
+        ]);
+
+        $results = [
+            'posts_updated' => 0,
+            'meta_updated' => 0,
+            'urls_replaced' => 0
+        ];
+
+        // Process posts if requested
+        if (in_array('posts', $options['content_types'])) {
+            $postResults = $this->processPosts($mappings, $options);
+            $results['posts_updated'] = $postResults['updated'];
+            $results['urls_replaced'] += $postResults['replacements'];
+        }
+
+        // Process meta if requested
+        if (in_array('postmeta', $options['content_types'])) {
+            $metaResults = $this->processPostMeta($mappings, $options);
+            $results['meta_updated'] = $metaResults['updated'];
+            $results['urls_replaced'] += $metaResults['replacements'];
+        }
+
+        // Store job record
+        if (!$options['dry_run']) {
+            $this->storeJobRecord($options, $results);
+        }
+
+        return [
+            'success' => true,
+            'dry_run' => $options['dry_run'],
+            'results' => $results
+        ];
+    }
+
+    /**
+     * Process posts content
+     */
+    private function processPosts(array $mappings, array $options): array
+    {
+        $updated = 0;
+        $replacements = 0;
+        $batchSize = $options['batch_size'];
+        $offset = 0;
+
+        do {
+            $posts = $this->wpdb->get_results($this->wpdb->prepare(
+                "SELECT ID, post_content, post_excerpt FROM {$this->wpdb->posts}
+                WHERE post_status = 'publish'
+                ORDER BY ID LIMIT %d OFFSET %d",
+                $batchSize,
+                $offset
+            ));
+
+            foreach ($posts as $post) {
+                $content = $post->post_content;
+                $excerpt = $post->post_excerpt;
+                $contentChanged = false;
+                $excerptChanged = false;
+
+                foreach ($mappings as $originalUrl => $mapping) {
+                    $finalUrl = $mapping['final_url'];
+
+                    if (strpos($content, $originalUrl) !== false) {
+                        // Count occurrences to avoid infinite replacement loops
+                        $originalCount = substr_count($content, $originalUrl);
+                        $finalCount = substr_count($content, $finalUrl);
+
+                        // Only replace if we haven't already replaced more than the original mappings suggested
+                        if ($originalCount > 0) {
+                            $content = str_replace($originalUrl, $finalUrl, $content);
+                            $contentChanged = true;
+                            $replacements += $originalCount;
+                        }
+                    }
+
+                    if (strpos($excerpt, $originalUrl) !== false) {
+                        $originalCount = substr_count($excerpt, $originalUrl);
+                        if ($originalCount > 0) {
+                            $excerpt = str_replace($originalUrl, $finalUrl, $excerpt);
+                            $excerptChanged = true;
+                            $replacements += $originalCount;
+                        }
+                    }
+                }
+
+                if (($contentChanged || $excerptChanged) && !$options['dry_run']) {
+                    $this->wpdb->update(
+                        $this->wpdb->posts,
+                        [
+                            'post_content' => $content,
+                            'post_excerpt' => $excerpt
+                        ],
+                        ['ID' => $post->ID]
+                    );
+                    $updated++;
+                } elseif ($contentChanged || $excerptChanged) {
+                    $updated++; // Count for dry run
+                }
+            }
+
+            $offset += $batchSize;
+
+        } while (count($posts) === $batchSize);
+
+        return ['updated' => $updated, 'replacements' => $replacements];
+    }
+
+    /**
+     * Process post meta
+     */
+    private function processPostMeta(array $mappings, array $options): array
+    {
+        $updated = 0;
+        $replacements = 0;
+        $batchSize = $options['batch_size'];
+        $offset = 0;
+
+        do {
+            $metas = $this->wpdb->get_results($this->wpdb->prepare(
+                "SELECT meta_id, meta_value FROM {$this->wpdb->postmeta}
+                ORDER BY meta_id LIMIT %d OFFSET %d",
+                $batchSize,
+                $offset
+            ));
+
+            foreach ($metas as $meta) {
+                $value = $meta->meta_value;
+                $valueChanged = false;
+
+                foreach ($mappings as $originalUrl => $mapping) {
+                    $finalUrl = $mapping['final_url'];
+
+                    if (strpos($value, $originalUrl) !== false) {
+                        $originalCount = substr_count($value, $originalUrl);
+                        if ($originalCount > 0) {
+                            $value = str_replace($originalUrl, $finalUrl, $value);
+                            $valueChanged = true;
+                            $replacements += $originalCount;
+                        }
+                    }
+                }
+
+                if ($valueChanged && !$options['dry_run']) {
+                    $this->wpdb->update(
+                        $this->wpdb->postmeta,
+                        ['meta_value' => $value],
+                        ['meta_id' => $meta->meta_id]
+                    );
+                    $updated++;
+                } elseif ($valueChanged) {
+                    $updated++; // Count for dry run
+                }
+            }
+
+            $offset += $batchSize;
+
+        } while (count($metas) === $batchSize);
+
+        return ['updated' => $updated, 'replacements' => $replacements];
+    }
+
+    /**
+     * Store job record for history
+     */
+    private function storeJobRecord(array $options, array $results): void
+    {
+        $jobId = wp_generate_uuid4();
+        $jobData = [
+            'timestamp' => current_time('mysql'),
+            'options' => $options,
+            'results' => $results
+        ];
+
+        update_option(self::OPTION_PREFIX . 'job_' . $jobId, $jobData);
+    }
+
+    /**
+     * Get current data for display
+     */
+    public function getCurrentData(): array
+    {
+        return [
+            'csv_file' => get_option(self::OPTION_PREFIX . 'current_csv'),
+            'stats' => get_option(self::OPTION_PREFIX . 'csv_stats', []),
+            'analysis' => get_option(self::OPTION_PREFIX . 'analysis', []),
+            'last_import' => get_option(self::OPTION_PREFIX . 'last_import'),
+            'last_analysis' => get_option(self::OPTION_PREFIX . 'last_analysis'),
+            'mappings_count' => count(get_option(self::OPTION_PREFIX . 'url_mappings', []))
+        ];
+    }
+
+    /**
+     * Get recent jobs for history display
+     */
+    public function getRecentJobs(): array
+    {
+        $jobs = $this->wpdb->get_results($this->wpdb->prepare(
+            "SELECT option_name, option_value FROM {$this->wpdb->options}
+            WHERE option_name LIKE %s
+            ORDER BY option_id DESC LIMIT 10",
+            self::OPTION_PREFIX . 'job_%'
+        ));
+
+        $recentJobs = [];
+        foreach ($jobs as $job) {
+            $jobId = str_replace(self::OPTION_PREFIX . 'job_', '', $job->option_name);
+            $jobData = maybe_unserialize($job->option_value);
+
+            // Check if this is a new format job (with timestamp) or old format (without)
+            if (isset($jobData['timestamp'])) {
+                // New format
+                $recentJobs[] = [
+                    'id' => $jobId,
+                    'timestamp' => $jobData['timestamp'],
+                    'options' => $jobData['options'] ?? [],
+                    'results' => $jobData['results'] ?? []
+                ];
+            } elseif (isset($jobData['status'])) {
+                // Old format - skip these for now since they have different structure
+                // Could be enhanced later to convert old format to new if needed
+                continue;
+            }
+        }
+
+        return $recentJobs;
+    }
+
+    /**
+     * Fix malformed URLs created by faulty replacements
+     */
+    public function fixMalformedUrls(): array
+    {
+        // Pattern for URL-encoded malformed URLs
+        $encodedPattern = '/http:\/\/localhost:10003\/what-we-treat\/http%3A%2F%2Flocalhost%3A10003%2Fwhat-we-treat%2F([^\/\s"\'<>%]+)%2F/';
+        $encodedReplacement = 'http://localhost:10003/what-we-treat/$1/';
+
+        // Pattern for regular malformed URLs
+        $regularPattern = '/http:\/\/localhost:10003\/what-we-treat\/http:\/\/localhost:10003\/what-we-treat\/([^\/\s"\'<>]+)\//';
+        $regularReplacement = 'http://localhost:10003/what-we-treat/$1/';
+
+        $postsFixed = 0;
+        $metaFixed = 0;
+        $urlsFixed = 0;
+
+        // Fix posts content and excerpt
+        $posts = $this->wpdb->get_results(
+            "SELECT ID, post_content, post_excerpt FROM {$this->wpdb->posts}
+            WHERE post_status = 'publish'
+            AND (post_content LIKE '%what-we-treat/http%' OR post_excerpt LIKE '%what-we-treat/http%')"
+        );
+
+        foreach ($posts as $post) {
+            $originalContent = $post->post_content;
+            $originalExcerpt = $post->post_excerpt;
+
+            // Apply both patterns
+            $fixedContent = preg_replace($encodedPattern, $encodedReplacement, $post->post_content);
+            $fixedContent = preg_replace($regularPattern, $regularReplacement, $fixedContent);
+
+            $fixedExcerpt = preg_replace($encodedPattern, $encodedReplacement, $post->post_excerpt);
+            $fixedExcerpt = preg_replace($regularPattern, $regularReplacement, $fixedExcerpt);
+
+            $contentChanged = $fixedContent !== $originalContent;
+            $excerptChanged = $fixedExcerpt !== $originalExcerpt;
+
+            if ($contentChanged || $excerptChanged) {
+                $this->wpdb->update(
+                    $this->wpdb->posts,
+                    [
+                        'post_content' => $fixedContent,
+                        'post_excerpt' => $fixedExcerpt
+                    ],
+                    ['ID' => $post->ID]
+                );
+                $postsFixed++;
+
+                // Count individual URL fixes in content
+                $urlsFixed += preg_match_all($encodedPattern, $originalContent);
+                $urlsFixed += preg_match_all($regularPattern, $originalContent);
+                $urlsFixed += preg_match_all($encodedPattern, $originalExcerpt);
+                $urlsFixed += preg_match_all($regularPattern, $originalExcerpt);
+            }
+        }
+
+        // Fix postmeta
+        $metas = $this->wpdb->get_results(
+            "SELECT meta_id, meta_value FROM {$this->wpdb->postmeta}
+            WHERE meta_value LIKE '%what-we-treat/http%'"
+        );
+
+        foreach ($metas as $meta) {
+            $originalValue = $meta->meta_value;
+
+            // Apply both patterns
+            $fixedValue = preg_replace($encodedPattern, $encodedReplacement, $meta->meta_value);
+            $fixedValue = preg_replace($regularPattern, $regularReplacement, $fixedValue);
+
+            if ($fixedValue !== $originalValue) {
+                $this->wpdb->update(
+                    $this->wpdb->postmeta,
+                    ['meta_value' => $fixedValue],
+                    ['meta_id' => $meta->meta_id]
+                );
+                $metaFixed++;
+                $urlsFixed += preg_match_all($encodedPattern, $originalValue);
+                $urlsFixed += preg_match_all($regularPattern, $originalValue);
+            }
+        }
+
+        // Store repair job record
+        $this->storeJobRecord(
+            ['repair' => 'malformed_urls'],
+            [
+                'posts_fixed' => $postsFixed,
+                'meta_fixed' => $metaFixed,
+                'urls_fixed' => $urlsFixed
+            ]
+        );
+
+        return [
+            'success' => true,
+            'message' => sprintf(
+                __('Fixed %d malformed URLs in %d posts and %d meta fields', 'amfm-tools'),
+                $urlsFixed,
+                $postsFixed,
+                $metaFixed
+            ),
+            'results' => [
+                'posts_fixed' => $postsFixed,
+                'meta_fixed' => $metaFixed,
+                'urls_fixed' => $urlsFixed
+            ]
+        ];
+    }
+
+    /**
+     * Clear all data
+     */
+    public function clearAllData(): bool
+    {
+        $options = $this->wpdb->get_results($this->wpdb->prepare(
+            "SELECT option_name FROM {$this->wpdb->options}
+            WHERE option_name LIKE %s",
+            self::OPTION_PREFIX . '%'
+        ));
+
+        foreach ($options as $option) {
+            delete_option($option->option_name);
+        }
+
+        // Clean up uploaded files
+        $files = glob($this->uploadDir . '/*.csv');
+        foreach ($files as $file) {
+            @unlink($file);
+        }
+
+        return true;
+    }
+
+    /**
+     * Get upload error message
+     */
+    private function getUploadErrorMessage(int $error): string
+    {
+        $messages = [
+            UPLOAD_ERR_INI_SIZE => 'File exceeds maximum upload size',
+            UPLOAD_ERR_FORM_SIZE => 'File exceeds form maximum size',
+            UPLOAD_ERR_PARTIAL => 'File was only partially uploaded',
+            UPLOAD_ERR_NO_FILE => 'No file was uploaded',
+            UPLOAD_ERR_NO_TMP_DIR => 'Missing temporary folder',
+            UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk',
+            UPLOAD_ERR_EXTENSION => 'Upload stopped by extension'
+        ];
+
+        return $messages[$error] ?? 'Unknown upload error';
+    }
+}

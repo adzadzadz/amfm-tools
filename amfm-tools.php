@@ -137,6 +137,7 @@ add_action('plugins_loaded', function() {
     new \App\Controllers\Admin\UtilitiesController();
     new \App\Controllers\Admin\ACFController();
     new \App\Controllers\Admin\ImportExportController();
+    new \App\Controllers\Admin\RedirectionCleanupController();
     new \App\Controllers\Admin\AjaxController();
 
     // Feature Controllers (check their own config for enabling/disabling features)

@@ -6,6 +6,12 @@ $vendorDir = dirname(__DIR__);
 $baseDir = dirname($vendorDir);
 
 return array(
+    'Tests\\' => array($baseDir . '/tests'),
+    'PhpParser\\' => array($vendorDir . '/nikic/php-parser/lib/PhpParser'),
+    'Mockery\\' => array($vendorDir . '/mockery/mockery/library/Mockery'),
+    'Doctrine\\Instantiator\\' => array($vendorDir . '/doctrine/instantiator/src/Doctrine/Instantiator'),
+    'DeepCopy\\' => array($vendorDir . '/myclabs/deep-copy/src/DeepCopy'),
+    'Brain\\Monkey\\' => array($vendorDir . '/brain/monkey/src'),
     'App\\' => array($baseDir . '/src'),
     'AdzWP\\' => array($vendorDir . '/adzadzadz/wp-plugin-framework/src'),
 );

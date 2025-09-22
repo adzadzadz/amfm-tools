@@ -14,6 +14,15 @@
             $('#process-replacements').on('click', this.processReplacements.bind(this));
             $('#clear-data').on('click', this.clearData.bind(this));
             $('#fix-malformed-urls').on('click', this.fixMalformedUrls.bind(this));
+
+            // Handle "All Database Tables" checkbox
+            $('#all_tables_checkbox').on('change', function() {
+                if ($(this).is(':checked')) {
+                    $('.standard-content-type').prop('checked', false).prop('disabled', true);
+                } else {
+                    $('.standard-content-type').prop('disabled', false).prop('checked', true);
+                }
+            });
         },
 
         analyzeContent: function(e) {

@@ -283,28 +283,37 @@ class RedirectionCleanupService
 
         $options = wp_parse_args($options, [
             'dry_run' => true,
-            'content_types' => ['posts', 'postmeta'],
+            'content_types' => ['posts', 'postmeta', 'all_tables'],
             'batch_size' => 50
         ]);
 
         $results = [
             'posts_updated' => 0,
             'meta_updated' => 0,
+            'options_updated' => 0,
+            'other_tables_updated' => 0,
             'urls_replaced' => 0
         ];
 
-        // Process posts if requested
-        if (in_array('posts', $options['content_types'])) {
-            $postResults = $this->processPosts($mappings, $options);
-            $results['posts_updated'] = $postResults['updated'];
-            $results['urls_replaced'] += $postResults['replacements'];
-        }
+        // Process all tables if requested (comprehensive mode)
+        if (in_array('all_tables', $options['content_types'])) {
+            // For comprehensive mode, focus on key tables that commonly contain URLs
+            $allTablesResults = $this->processKeyTables($mappings, $options);
+            $results = array_merge($results, $allTablesResults);
+        } else {
+            // Process posts if requested
+            if (in_array('posts', $options['content_types'])) {
+                $postResults = $this->processPosts($mappings, $options);
+                $results['posts_updated'] = $postResults['updated'];
+                $results['urls_replaced'] += $postResults['replacements'];
+            }
 
-        // Process meta if requested
-        if (in_array('postmeta', $options['content_types'])) {
-            $metaResults = $this->processPostMeta($mappings, $options);
-            $results['meta_updated'] = $metaResults['updated'];
-            $results['urls_replaced'] += $metaResults['replacements'];
+            // Process meta if requested
+            if (in_array('postmeta', $options['content_types'])) {
+                $metaResults = $this->processPostMeta($mappings, $options);
+                $results['meta_updated'] = $metaResults['updated'];
+                $results['urls_replaced'] += $metaResults['replacements'];
+            }
         }
 
         // Store job record
@@ -347,25 +356,58 @@ class RedirectionCleanupService
                 foreach ($mappings as $originalUrl => $mapping) {
                     $finalUrl = $mapping['final_url'];
 
-                    if (strpos($content, $originalUrl) !== false) {
-                        // Count occurrences to avoid infinite replacement loops
-                        $originalCount = substr_count($content, $originalUrl);
-                        $finalCount = substr_count($content, $finalUrl);
+                    // Create protocol variants (http/https) and slash variants for comprehensive matching
+                    $urlVariants = [$originalUrl];
 
-                        // Only replace if we haven't already replaced more than the original mappings suggested
-                        if ($originalCount > 0) {
-                            $content = str_replace($originalUrl, $finalUrl, $content);
-                            $contentChanged = true;
-                            $replacements += $originalCount;
+                    // Add protocol variants
+                    if (strpos($originalUrl, 'http://') === 0) {
+                        $urlVariants[] = str_replace('http://', 'https://', $originalUrl);
+                    } elseif (strpos($originalUrl, 'https://') === 0) {
+                        $urlVariants[] = str_replace('https://', 'http://', $originalUrl);
+                    }
+
+                    // Add slash variants for each protocol variant
+                    $allVariants = [];
+                    foreach ($urlVariants as $variant) {
+                        $allVariants[] = $variant;
+
+                        // Add version with trailing slash if it doesn't have one
+                        if (substr($variant, -1) !== '/') {
+                            $allVariants[] = $variant . '/';
+                        }
+
+                        // Add version without trailing slash if it has one
+                        if (substr($variant, -1) === '/') {
+                            $allVariants[] = rtrim($variant, '/');
                         }
                     }
 
-                    if (strpos($excerpt, $originalUrl) !== false) {
-                        $originalCount = substr_count($excerpt, $originalUrl);
-                        if ($originalCount > 0) {
-                            $excerpt = str_replace($originalUrl, $finalUrl, $excerpt);
-                            $excerptChanged = true;
-                            $replacements += $originalCount;
+                    $urlVariants = array_unique($allVariants);
+
+                    foreach ($urlVariants as $urlToReplace) {
+                        if (strpos($content, $urlToReplace) !== false) {
+                            // Count occurrences to avoid infinite replacement loops
+                            $originalCount = substr_count($content, $urlToReplace);
+
+                            // Only replace if we haven't already replaced more than the original mappings suggested
+                            if ($originalCount > 0) {
+                                // Smart replacement: handle trailing slashes properly
+                                $smartFinalUrl = $this->normalizeUrlSlashes($urlToReplace, $finalUrl);
+                                $content = str_replace($urlToReplace, $smartFinalUrl, $content);
+                                $contentChanged = true;
+                                $replacements += $originalCount;
+                            }
+                        }
+
+                        if (strpos($excerpt, $urlToReplace) !== false) {
+                            $originalCount = substr_count($excerpt, $urlToReplace);
+                            if ($originalCount > 0) {
+                                // Smart replacement: handle trailing slashes properly
+                                $smartFinalUrl = $this->normalizeUrlSlashes($urlToReplace, $finalUrl);
+                                $excerpt = str_replace($urlToReplace, $smartFinalUrl, $excerpt);
+                                $excerptChanged = true;
+                                $replacements += $originalCount;
+                            }
                         }
                     }
                 }
@@ -417,12 +459,44 @@ class RedirectionCleanupService
                 foreach ($mappings as $originalUrl => $mapping) {
                     $finalUrl = $mapping['final_url'];
 
-                    if (strpos($value, $originalUrl) !== false) {
-                        $originalCount = substr_count($value, $originalUrl);
-                        if ($originalCount > 0) {
-                            $value = str_replace($originalUrl, $finalUrl, $value);
-                            $valueChanged = true;
-                            $replacements += $originalCount;
+                    // Create protocol variants (http/https) and slash variants for comprehensive matching
+                    $urlVariants = [$originalUrl];
+
+                    // Add protocol variants
+                    if (strpos($originalUrl, 'http://') === 0) {
+                        $urlVariants[] = str_replace('http://', 'https://', $originalUrl);
+                    } elseif (strpos($originalUrl, 'https://') === 0) {
+                        $urlVariants[] = str_replace('https://', 'http://', $originalUrl);
+                    }
+
+                    // Add slash variants for each protocol variant
+                    $allVariants = [];
+                    foreach ($urlVariants as $variant) {
+                        $allVariants[] = $variant;
+
+                        // Add version with trailing slash if it doesn't have one
+                        if (substr($variant, -1) !== '/') {
+                            $allVariants[] = $variant . '/';
+                        }
+
+                        // Add version without trailing slash if it has one
+                        if (substr($variant, -1) === '/') {
+                            $allVariants[] = rtrim($variant, '/');
+                        }
+                    }
+
+                    $urlVariants = array_unique($allVariants);
+
+                    foreach ($urlVariants as $urlToReplace) {
+                        if (strpos($value, $urlToReplace) !== false) {
+                            $originalCount = substr_count($value, $urlToReplace);
+                            if ($originalCount > 0) {
+                                // Smart replacement: handle trailing slashes properly
+                                $smartFinalUrl = $this->normalizeUrlSlashes($urlToReplace, $finalUrl);
+                                $value = str_replace($urlToReplace, $smartFinalUrl, $value);
+                                $valueChanged = true;
+                                $replacements += $originalCount;
+                            }
                         }
                     }
                 }
@@ -660,5 +734,190 @@ class RedirectionCleanupService
         ];
 
         return $messages[$error] ?? 'Unknown upload error';
+    }
+
+    /**
+     * Process key tables where URLs are commonly stored
+     * Targets: posts, postmeta (includes Elementor), options (widgets), menus, etc.
+     */
+    private function processKeyTables(array $mappings, array $options): array
+    {
+        $results = [
+            'posts_updated' => 0,
+            'meta_updated' => 0,
+            'options_updated' => 0,
+            'other_tables_updated' => 0,
+            'urls_replaced' => 0,
+            'tables_processed' => []
+        ];
+
+        // Define key tables that typically contain URLs
+        $keyTables = [
+            $this->wpdb->posts => ['post_content', 'post_excerpt', 'guid'],
+            $this->wpdb->postmeta => ['meta_value'], // Includes Elementor data, ACF, etc.
+            $this->wpdb->options => ['option_value'], // Widgets, theme options, etc.
+            $this->wpdb->termmeta => ['meta_value'], // Category/tag meta
+            $this->wpdb->commentmeta => ['meta_value'], // Comment meta
+        ];
+
+        // Add any custom tables that might contain URLs
+        $allTables = $this->wpdb->get_col("SHOW TABLES");
+        foreach ($allTables as $table) {
+            // Add Elementor tables
+            if (strpos($table, 'elementor') !== false) {
+                $keyTables[$table] = $this->getTextColumns($table);
+            }
+            // Add menu/navigation tables
+            elseif (strpos($table, 'menu') !== false || strpos($table, 'nav') !== false) {
+                $keyTables[$table] = $this->getTextColumns($table);
+            }
+            // Skip already added tables and excluded tables
+            elseif (isset($keyTables[$table]) ||
+                    strpos($table, 'rank_math') !== false ||
+                    strpos($table, 'rankmath') !== false ||
+                    strpos($table, '_cache') !== false ||
+                    strpos($table, '_transient') !== false ||
+                    strpos($table, '_log') !== false ||
+                    strpos($table, 'actionscheduler') !== false) {
+                continue;
+            }
+        }
+
+        // Process each URL mapping on key tables only
+        foreach ($mappings as $originalUrl => $mapping) {
+            $finalUrl = $mapping['final_url'];
+
+            // Generate URL variants
+            $urlVariants = $this->generateUrlVariants($originalUrl);
+
+            foreach ($urlVariants as $searchUrl) {
+                $replaceUrl = $this->normalizeUrlSlashes($searchUrl, $finalUrl);
+
+                // Process each key table
+                foreach ($keyTables as $table => $columns) {
+                    foreach ($columns as $column) {
+
+                    if ($options['dry_run']) {
+                        // Use simpler counting query for dry run
+                        $query = "SELECT 1 FROM `$table` WHERE `$column` LIKE '%" . $this->wpdb->esc_like($searchUrl) . "%' LIMIT 1";
+                        $hasMatch = $this->wpdb->get_var($query);
+
+                        if ($hasMatch) {
+                            // Count actual occurrences using string counting
+                            $contentQuery = "SELECT `$column` FROM `$table` WHERE `$column` LIKE '%" . $this->wpdb->esc_like($searchUrl) . "%'";
+                            $contents = $this->wpdb->get_col($contentQuery);
+
+                            foreach ($contents as $content) {
+                                $results['urls_replaced'] += substr_count($content, $searchUrl);
+                            }
+
+                            if (!in_array($table, $results['tables_processed'])) {
+                                $results['tables_processed'][] = $table;
+                            }
+                        }
+                    } else {
+                        // Perform actual replacement
+                        $updated = $this->wpdb->query($this->wpdb->prepare(
+                            "UPDATE `$table` SET `$column` = REPLACE(`$column`, %s, %s) WHERE `$column` LIKE %s",
+                            $searchUrl,
+                            $replaceUrl,
+                            '%' . $this->wpdb->esc_like($searchUrl) . '%'
+                        ));
+
+                        if ($updated > 0) {
+                            $results['urls_replaced'] += $updated;
+
+                            // Track which type of table was updated
+                            if (strpos($table, 'posts') !== false) {
+                                $results['posts_updated'] += $updated;
+                            } elseif (strpos($table, 'postmeta') !== false) {
+                                $results['meta_updated'] += $updated;
+                            } elseif (strpos($table, 'options') !== false) {
+                                $results['options_updated'] += $updated;
+                            } else {
+                                $results['other_tables_updated'] += $updated;
+                            }
+
+                            if (!in_array($table, $results['tables_processed'])) {
+                                $results['tables_processed'][] = $table;
+                            }
+                        }
+                    }
+                    } // Close foreach ($columns as $column)
+                } // Close foreach ($keyTables as $table => $columns)
+            } // Close foreach ($urlVariants as $searchUrl)
+        } // Close foreach ($mappings as $originalUrl => $mapping)
+
+        return $results;
+    }
+
+    /**
+     * Get text columns from a table
+     */
+    private function getTextColumns(string $table): array
+    {
+        $columns = [];
+        $tableColumns = $this->wpdb->get_results("SHOW COLUMNS FROM `$table`");
+
+        foreach ($tableColumns as $column) {
+            if (preg_match('/text|varchar/i', $column->Type)) {
+                $columns[] = $column->Field;
+            }
+        }
+
+        return $columns;
+    }
+
+    /**
+     * Generate all URL variants (protocol and slash combinations)
+     */
+    private function generateUrlVariants(string $url): array
+    {
+        $variants = [$url];
+
+        // Add protocol variants
+        if (strpos($url, 'http://') === 0) {
+            $variants[] = str_replace('http://', 'https://', $url);
+        } elseif (strpos($url, 'https://') === 0) {
+            $variants[] = str_replace('https://', 'http://', $url);
+        }
+
+        // Add slash variants for each protocol variant
+        $allVariants = [];
+        foreach ($variants as $variant) {
+            $allVariants[] = $variant;
+
+            // Add version with trailing slash if it doesn't have one
+            if (substr($variant, -1) !== '/') {
+                $allVariants[] = $variant . '/';
+            }
+
+            // Add version without trailing slash if it has one
+            if (substr($variant, -1) === '/') {
+                $allVariants[] = rtrim($variant, '/');
+            }
+        }
+
+        return array_unique($allVariants);
+    }
+
+    /**
+     * Normalize URL slashes to prevent double slashes when replacing URLs
+     *
+     * @param string $originalUrl The URL being replaced
+     * @param string $finalUrl The replacement URL
+     * @return string The normalized final URL
+     */
+    private function normalizeUrlSlashes(string $originalUrl, string $finalUrl): string
+    {
+        // If the original URL ends with a slash and the final URL also ends with a slash,
+        // remove the trailing slash from the final URL to prevent double slashes
+        if (substr($originalUrl, -1) === '/' && substr($finalUrl, -1) === '/') {
+            return rtrim($finalUrl, '/');
+        }
+
+        // If the original URL doesn't end with a slash but the final URL does,
+        // keep the final URL as is
+        return $finalUrl;
     }
 }

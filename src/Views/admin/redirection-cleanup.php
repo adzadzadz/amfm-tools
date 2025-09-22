@@ -152,12 +152,17 @@ $notice = $data['notice'] ?? '';
 
                                     <div class="form-group">
                                         <label><?php esc_html_e('Content Types:', 'amfm-tools'); ?></label>
-                                        <label>
-                                            <input type="checkbox" name="content_types[]" value="posts" checked>
+                                        <label style="display: block; margin-bottom: 8px;">
+                                            <input type="checkbox" name="content_types[]" value="all_tables" id="all_tables_checkbox">
+                                            <strong><?php esc_html_e('Comprehensive Mode', 'amfm-tools'); ?></strong>
+                                            <small><?php esc_html_e('(Includes: Posts, Meta, Elementor, Widgets, Menus, Options)', 'amfm-tools'); ?></small>
+                                        </label>
+                                        <label style="display: block; margin-left: 20px;">
+                                            <input type="checkbox" name="content_types[]" value="posts" checked class="standard-content-type">
                                             <?php esc_html_e('Posts & Pages', 'amfm-tools'); ?>
                                         </label>
-                                        <label>
-                                            <input type="checkbox" name="content_types[]" value="postmeta" checked>
+                                        <label style="display: block; margin-left: 20px;">
+                                            <input type="checkbox" name="content_types[]" value="postmeta" checked class="standard-content-type">
                                             <?php esc_html_e('Post Meta', 'amfm-tools'); ?>
                                         </label>
                                     </div>

@@ -64,6 +64,7 @@ class PluginZipBuilder {
             /^\.git/,
             /^\.vscode/,
             /^\.idea/,
+            /\.claude/,                      // Exclude all .claude directories
             /^node_modules/,
             /^vendor\/.*\/tests/,
             /^vendor\/.*\/test/,
@@ -78,16 +79,22 @@ class PluginZipBuilder {
             /\.tmp$/,
             /\.DS_Store$/,
             /Thumbs\.db$/,
+            /^\.phpunit\.result\.cache$/,   // Exclude PHPUnit cache
             /^package\.json$/,
             /^package-lock\.json$/,
             /^yarn\.lock$/,
+            /^composer\.json$/,              // Exclude composer.json
             /^composer\.lock$/,
+            /^patchwork\.json$/,             // Exclude patchwork.json
+            /^adz$/,                         // Exclude adz CLI tool
             /^\.env/,
             /^\.gitignore$/,
             /^\.gitattributes$/,
             /^phpunit\.xml$/,
             /^webpack\.config\.js$/,
-            /^gulpfile\.js$/
+            /^gulpfile\.js$/,
+            /^CLAUDE.*\.md$/,                // Exclude CLAUDE.md files
+            /^README\.md$/                   // Exclude README
         ];
 
         return !excludePatterns.some(pattern => pattern.test(relativePath));

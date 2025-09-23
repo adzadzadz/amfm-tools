@@ -148,6 +148,29 @@ class RedirectionCleanupController extends Controller
     }
 
     /**
+     * AJAX: Process replacements in batches
+     */
+    public function actionWpAjaxProcessReplacementsBatch()
+    {
+        check_ajax_referer('amfm_redirection_cleanup', 'nonce');
+        if (!current_user_can('manage_options')) {
+            wp_die(__('Insufficient permissions', 'amfm-tools'));
+        }
+
+        $options = [
+            'dry_run' => isset($_POST['dry_run']) && $_POST['dry_run'] === 'true',
+            'content_types' => isset($_POST['content_types']) ? (array) $_POST['content_types'] : ['posts', 'postmeta'],
+            'batch_size' => 50,
+            'batch_processing' => true,
+            'batch_start' => isset($_POST['batch_start']) ? (int) $_POST['batch_start'] : 0,
+            'batch_limit' => isset($_POST['batch_limit']) ? (int) $_POST['batch_limit'] : 10
+        ];
+
+        $result = $this->cleanupService->processReplacements($options);
+        wp_send_json($result);
+    }
+
+    /**
      * AJAX: Clear all data
      */
     public function actionWpAjaxClearRedirectionData()

@@ -150,14 +150,20 @@ class RedirectionCleanupService
                 continue;
             }
 
-            if (!isset($mappings[$redirectedUrl])) {
-                $mappings[$redirectedUrl] = [
-                    'final_url' => $finalUrl,
+            // Transform URLs to match current site domain
+            $normalizedRedirectedUrl = $this->normalizeUrlToDomain($redirectedUrl);
+            $normalizedFinalUrl = $this->normalizeUrlToDomain($finalUrl);
+
+            if (!isset($mappings[$normalizedRedirectedUrl])) {
+                $mappings[$normalizedRedirectedUrl] = [
+                    'final_url' => $normalizedFinalUrl,
+                    'original_redirected_url' => $redirectedUrl,
+                    'original_final_url' => $finalUrl,
                     'occurrences' => 0
                 ];
             }
 
-            $mappings[$redirectedUrl]['occurrences']++;
+            $mappings[$normalizedRedirectedUrl]['occurrences']++;
             $totalOccurrences++;
         }
 
@@ -436,6 +442,39 @@ class RedirectionCleanupService
                             }
                         }
                     }
+
+                    // FALLBACK: If mapping has original_redirected_url, also try that for backward compatibility
+                    if (isset($mapping['original_redirected_url'])) {
+                        $originalSourceUrl = $mapping['original_redirected_url'];
+                        $urlVariantsOriginal = [$originalSourceUrl];
+
+                        // Add protocol variants for original URL
+                        if (strpos($originalSourceUrl, 'http://') === 0) {
+                            $urlVariantsOriginal[] = str_replace('http://', 'https://', $originalSourceUrl);
+                        } elseif (strpos($originalSourceUrl, 'https://') === 0) {
+                            $urlVariantsOriginal[] = str_replace('https://', 'http://', $originalSourceUrl);
+                        }
+
+                        foreach ($urlVariantsOriginal as $fallbackUrl) {
+                            if (strpos($content, $fallbackUrl) !== false) {
+                                $originalCount = substr_count($content, $fallbackUrl);
+                                if ($originalCount > 0) {
+                                    $content = str_replace($fallbackUrl, $finalUrl, $content);
+                                    $contentChanged = true;
+                                    $replacements += $originalCount;
+                                }
+                            }
+
+                            if (strpos($excerpt, $fallbackUrl) !== false) {
+                                $originalCount = substr_count($excerpt, $fallbackUrl);
+                                if ($originalCount > 0) {
+                                    $excerpt = str_replace($fallbackUrl, $finalUrl, $excerpt);
+                                    $excerptChanged = true;
+                                    $replacements += $originalCount;
+                                }
+                            }
+                        }
+                    }
                 }
 
                 if (($contentChanged || $excerptChanged) && !$options['dry_run']) {
@@ -522,6 +561,30 @@ class RedirectionCleanupService
                                 $value = str_replace($urlToReplace, $smartFinalUrl, $value);
                                 $valueChanged = true;
                                 $replacements += $originalCount;
+                            }
+                        }
+                    }
+
+                    // FALLBACK: If mapping has original_redirected_url, also try that for backward compatibility
+                    if (isset($mapping['original_redirected_url'])) {
+                        $originalSourceUrl = $mapping['original_redirected_url'];
+                        $urlVariantsOriginal = [$originalSourceUrl];
+
+                        // Add protocol variants for original URL
+                        if (strpos($originalSourceUrl, 'http://') === 0) {
+                            $urlVariantsOriginal[] = str_replace('http://', 'https://', $originalSourceUrl);
+                        } elseif (strpos($originalSourceUrl, 'https://') === 0) {
+                            $urlVariantsOriginal[] = str_replace('https://', 'http://', $originalSourceUrl);
+                        }
+
+                        foreach ($urlVariantsOriginal as $fallbackUrl) {
+                            if (strpos($value, $fallbackUrl) !== false) {
+                                $originalCount = substr_count($value, $fallbackUrl);
+                                if ($originalCount > 0) {
+                                    $value = str_replace($fallbackUrl, $finalUrl, $value);
+                                    $valueChanged = true;
+                                    $replacements += $originalCount;
+                                }
                             }
                         }
                     }
@@ -945,5 +1008,47 @@ class RedirectionCleanupService
         // If the original URL doesn't end with a slash but the final URL does,
         // keep the final URL as is
         return $finalUrl;
+    }
+
+    /**
+     * Normalize URL to current site domain
+     *
+     * @param string $url The URL to normalize
+     * @return string The normalized URL with current site domain
+     */
+    private function normalizeUrlToDomain(string $url): string
+    {
+        $parsedUrl = parse_url($url);
+        $currentSiteUrl = parse_url(home_url());
+
+        if (!$parsedUrl || !isset($parsedUrl['path'])) {
+            return $url;
+        }
+
+        // Build normalized URL with current site domain
+        $normalizedUrl = $currentSiteUrl['scheme'] . '://';
+
+        if (isset($currentSiteUrl['host'])) {
+            $normalizedUrl .= $currentSiteUrl['host'];
+        }
+
+        if (isset($currentSiteUrl['port'])) {
+            $normalizedUrl .= ':' . $currentSiteUrl['port'];
+        }
+
+        // Add the path from original URL
+        $normalizedUrl .= $parsedUrl['path'];
+
+        // Add query string if present
+        if (isset($parsedUrl['query'])) {
+            $normalizedUrl .= '?' . $parsedUrl['query'];
+        }
+
+        // Add fragment if present
+        if (isset($parsedUrl['fragment'])) {
+            $normalizedUrl .= '#' . $parsedUrl['fragment'];
+        }
+
+        return $normalizedUrl;
     }
 }

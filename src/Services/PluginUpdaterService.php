@@ -9,6 +9,8 @@ use AdzWP\Core\Service;
  *
  * Integrates with WordPress's native update system to provide seamless updates
  * from GitHub releases without requiring git commands on the server
+ *
+ * Version 3.9.3 - Update test with directory fix
  */
 class PluginUpdaterService extends Service
 {

@@ -64,10 +64,10 @@ class PluginZipBuilder {
             /^\.git/,
             /^\.vscode/,
             /^\.idea/,
-            /\.claude/,                      // Exclude all .claude directories
+            /\.claude\//,                    // Exclude all .claude directories
             /^node_modules/,
-            /^vendor\/.*\/tests/,
-            /^vendor\/.*\/test/,
+            /^vendor\/.*\/tests\//,
+            /^vendor\/.*\/test\//,
             /^vendor\/.*\/\.git/,
             /^tests/,
             /^build/,
@@ -79,11 +79,11 @@ class PluginZipBuilder {
             /\.tmp$/,
             /\.DS_Store$/,
             /Thumbs\.db$/,
-            /^\.phpunit\.result\.cache$/,   // Exclude PHPUnit cache
+            /\.phpunit\.result\.cache$/,    // Exclude all PHPUnit cache files
             /^package\.json$/,
             /^package-lock\.json$/,
             /^yarn\.lock$/,
-            /^composer\.json$/,              // Exclude composer.json
+            /^composer\.json$/,              // Exclude root composer.json only
             /^composer\.lock$/,
             /^patchwork\.json$/,             // Exclude patchwork.json
             /^adz$/,                         // Exclude adz CLI tool

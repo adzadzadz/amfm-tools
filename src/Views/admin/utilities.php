@@ -120,11 +120,7 @@ $enabled_utilities = $enabled_utilities ?? [];
 </div>
 
 <script>
-// Localize AJAX data
-const amfm_ajax = {
-    ajax_url: '<?php echo admin_url('admin-ajax.php'); ?>',
-    utility_nonce: '<?php echo wp_create_nonce('amfm_component_settings_nonce'); ?>'
-};
+// AJAX data is provided by UtilitiesController via wp_localize_script
 
 // Utility documentation data
 const utilityData = {
@@ -392,7 +388,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const isEnabled = this.checked;
             const card = this.closest('.card');
             const statusBadge = card.querySelector('.badge');
-            const nonceValue = amfm_ajax.utility_nonce;
+            const nonceValue = amfm_ajax.component_nonce;
             
             console.log('Toggle changed:', utilityKey, 'to', isEnabled ? 'enabled' : 'disabled');
             console.log('Using nonce:', nonceValue);

@@ -150,9 +150,32 @@ class DashboardController extends Controller
     }
 
     /**
-     * AssetManager handles script enqueuing and localization automatically
-     * This method is no longer needed but kept for reference
+     * Enqueue scripts for all AMFM Tools admin pages - framework auto-hook
      */
+    public function actionAdminEnqueueScripts($hook)
+    {
+        // Only load on AMFM Tools admin pages
+        if (strpos($hook, 'amfm-tools') === false) {
+            return;
+        }
+
+        // Enqueue the script with localized AJAX data
+        wp_enqueue_script(
+            'amfm-admin-script',
+            AMFM_TOOLS_URL . 'assets/js/admin-script.js',
+            ['jquery'],
+            AMFM_TOOLS_VERSION,
+            true
+        );
+
+        // Localize the script with comprehensive AJAX data for all pages
+        wp_localize_script('amfm-admin-script', 'amfm_ajax', [
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'export_nonce' => $this->createNonce('amfm_export_nonce'),
+            'update_channel_nonce' => $this->createNonce('amfm_update_channel_nonce'),
+            'component_nonce' => $this->createNonce('amfm_component_settings_nonce')
+        ]);
+    }
 
     /**
      * AJAX: Get post type taxonomies - framework auto-hook

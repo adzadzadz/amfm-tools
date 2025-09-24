@@ -123,31 +123,6 @@ class UtilitiesController extends Controller
         ]);
     }
 
-    /**
-     * Enqueue scripts for utilities page - framework auto-hook
-     */
-    public function actionAdminEnqueueScripts($hook)
-    {
-        // Only load on utilities page
-        if ($hook !== 'amfm-tools_page_amfm-tools-utilities') {
-            return;
-        }
-
-        // Enqueue the script with localized AJAX data
-        wp_enqueue_script(
-            'amfm-utilities-script',
-            AMFM_TOOLS_URL . 'assets/js/admin-script.js',
-            ['jquery'],
-            AMFM_TOOLS_VERSION,
-            true
-        );
-
-        // Localize the script with utilities-specific data
-        wp_localize_script('amfm-utilities-script', 'amfm_ajax', [
-            'ajax_url' => admin_url('admin-ajax.php'),
-            'component_nonce' => $this->createNonce('amfm_component_settings_nonce')
-        ]);
-    }
 
     /**
      * AJAX: Update component settings - framework auto-hook

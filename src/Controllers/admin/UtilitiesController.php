@@ -62,6 +62,12 @@ class UtilitiesController extends Controller
                 'description' => 'Gravity Forms optimization and performance enhancements for faster page loading.',
                 'icon' => 'fas fa-tachometer-alt',
                 'status' => 'Available'
+            ],
+            'upload_limit' => [
+                'name' => 'Image Upload Limit',
+                'description' => 'Restricts image uploads to 200KB maximum file size. Other file types remain unrestricted.',
+                'icon' => 'fas fa-image',
+                'status' => 'Available'
             ]
         ];
         

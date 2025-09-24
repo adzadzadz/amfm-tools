@@ -58,18 +58,34 @@ class SettingsService extends Service
      */
     public function getEnabledComponents(): array
     {
-        $default_enabled = ['acf_helper', 'import_export', 'text_utilities', 'optimization', 'dkv_shortcode', 'limit_words'];
+        $all_components = ['acf_helper', 'import_export', 'text_utilities', 'optimization', 'dkv_shortcode', 'limit_words', 'upload_limit'];
         $core_components = ['acf_helper', 'import_export'];
-        $components = get_option('amfm_enabled_components');
-        
-        // If option doesn't exist, initialize it with all components enabled
-        if ($components === false) {
-            update_option('amfm_enabled_components', $default_enabled);
-            $components = $default_enabled;
+        $enabled_components = [];
+
+        // Check each component's individual option
+        foreach ($all_components as $component) {
+            // Core components are always enabled
+            if (in_array($component, $core_components)) {
+                $enabled_components[] = $component;
+                continue;
+            }
+
+            // Check component-specific option with default enabled for new installations
+            $option_name = "amfm_components_{$component}";
+            $is_enabled = get_option($option_name);
+
+            // If option doesn't exist, set default to true and enable it
+            if ($is_enabled === false) {
+                update_option($option_name, true);
+                $is_enabled = true;
+            }
+
+            if ($is_enabled) {
+                $enabled_components[] = $component;
+            }
         }
-        
-        // Ensure core components are always included
-        return array_unique(array_merge($components, $core_components));
+
+        return $enabled_components;
     }
 
     /**
@@ -93,7 +109,7 @@ class SettingsService extends Service
      */
     public function getToggleableComponents(): array
     {
-        $all_components = ['acf_helper', 'import_export', 'text_utilities', 'optimization', 'dkv_shortcode', 'limit_words'];
+        $all_components = ['acf_helper', 'import_export', 'text_utilities', 'optimization', 'dkv_shortcode', 'limit_words', 'upload_limit'];
         $core_components = ['acf_helper', 'import_export'];
         return array_diff($all_components, $core_components);
     }
@@ -320,6 +336,11 @@ class SettingsService extends Service
         } else {
             $config->set("components.{$componentKey}", $enabled);
             update_option("amfm_components_{$componentKey}", $enabled);
+
+            // Handle special component-specific logic
+            if ($componentKey === 'upload_limit') {
+                update_option('amfm_image_upload_limit_enabled', $enabled);
+            }
         }
 
         // Trigger shortcode re-registration if needed

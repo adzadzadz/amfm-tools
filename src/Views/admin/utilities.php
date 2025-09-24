@@ -381,7 +381,13 @@ function loadUtilityContent(utilityKey, mode = 'documentation') {
 // Individual utility toggle functionality using dedicated AJAX endpoint
 document.addEventListener('DOMContentLoaded', function() {
     const toggles = document.querySelectorAll('.utility-toggle');
-    
+
+    // Check if amfm_ajax is available
+    if (typeof amfm_ajax === 'undefined') {
+        console.error('AMFM Tools: amfm_ajax is not defined. AJAX functionality will not work.');
+        return;
+    }
+
     toggles.forEach(toggle => {
         toggle.addEventListener('change', function(e) {
             const utilityKey = this.value;

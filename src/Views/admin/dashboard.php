@@ -245,6 +245,24 @@ $field_groups_count = function_exists('acf_get_field_groups') ? count(acf_get_fi
                     </small>
                 </div>
 
+                <hr class="my-2">
+
+                <!-- Database Cleanup -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span style="font-size: 0.85rem; font-weight: 600;">Database Maintenance</span>
+                        <span class="badge bg-info text-white" style="font-size: 0.7rem;" id="cleanup-badge">
+                            <i class="fas fa-broom me-1"></i> Ready
+                        </span>
+                    </div>
+                    <button type="button" class="btn btn-outline-danger btn-sm w-100" id="cleanup-options-btn" style="font-size: 0.75rem;">
+                        <i class="fas fa-trash-alt me-1"></i> Cleanup Old Options
+                    </button>
+                    <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">
+                        Remove deprecated and unused plugin options
+                    </small>
+                </div>
+
                 <div class="text-center">
                     <a href="https://adzbyte.com/" target="_blank" rel="noopener" class="btn btn-outline-primary btn-sm" style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">
                         <i class="fas fa-external-link-alt me-1" style="font-size: 0.7rem;"></i>

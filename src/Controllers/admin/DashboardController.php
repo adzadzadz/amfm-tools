@@ -179,7 +179,8 @@ class DashboardController extends Controller
             'shortcode_content_nonce' => $this->createNonce('amfm_shortcode_content'),
             'dkv_config_nonce' => $this->createNonce('amfm_dkv_config_update'),
             'elementor_nonce' => $this->createNonce('amfm_elementor_widgets_nonce'),
-            'elementor_widgets_nonce' => $this->createNonce('amfm_elementor_widgets_nonce') // Added for consistency
+            'elementor_widgets_nonce' => $this->createNonce('amfm_elementor_widgets_nonce'), // Added for consistency
+            'cleanup_nonce' => $this->createNonce('amfm_cleanup_nonce')
         ]);
     }
 
@@ -246,5 +247,14 @@ class DashboardController extends Controller
         } else {
             wp_send_json_error('Failed to update channel');
         }
+    }
+
+    /**
+     * AJAX: Cleanup old options - framework auto-hook
+     */
+    public function actionWpAjaxAmfmCleanupOptions()
+    {
+        $cleanupService = new \App\Services\OptionsCleanupService();
+        $cleanupService->ajaxCleanupOptions();
     }
 }

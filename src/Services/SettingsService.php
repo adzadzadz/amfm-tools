@@ -70,22 +70,26 @@ class SettingsService extends Service
                 continue;
             }
 
-            // Check component-specific option with default enabled for new installations
+            // Check component-specific option
             $option_name = "amfm_components_{$component}";
-            $is_enabled = get_option($option_name, null);
+            $stored_value = get_option($option_name, 'not_set');
 
-            // If option doesn't exist (null), set default to true for new installations
-            // But if it's explicitly false, keep it false
-            if ($is_enabled === null) {
-                add_option($option_name, true);
+            // Only set default for truly non-existent options
+            if ($stored_value === 'not_set') {
+                add_option($option_name, 1);  // Store as integer
                 $is_enabled = true;
-            }
-
-            // Convert string boolean to proper boolean (critical for live site compatibility)
-            if (is_string($is_enabled)) {
-                $is_enabled = $is_enabled === 'true' || $is_enabled === '1';
             } else {
-                $is_enabled = (bool) $is_enabled;
+                // Handle all possible stored values (repair broken data)
+                if ($stored_value === '' || $stored_value === false || $stored_value === '0' || $stored_value === 0) {
+                    $is_enabled = false;
+                } elseif ($stored_value === true || $stored_value === 'true' || $stored_value === '1' || $stored_value === 1) {
+                    $is_enabled = true;
+                } else {
+                    // Default to true for any unexpected values
+                    $is_enabled = true;
+                    // Repair the broken data
+                    update_option($option_name, 1);
+                }
             }
 
             if ($is_enabled) {
@@ -325,12 +329,10 @@ class SettingsService extends Service
         }
 
         $componentKey = sanitize_text_field($_POST['component'] ?? '');
-        $enabled = filter_var($_POST['enabled'] ?? false, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
 
-        // Handle edge case where filter_var might not work as expected
-        if ($enabled === null) {
-            $enabled = ($_POST['enabled'] ?? '') === 'true' || ($_POST['enabled'] ?? '') === '1';
-        }
+        // Convert to integer (0 or 1) for consistent storage
+        $enabled_string = $_POST['enabled'] ?? '0';
+        $enabled = ($enabled_string === '1' || $enabled_string === 'true') ? 1 : 0;
         
         if (empty($componentKey)) {
             wp_send_json_error('Invalid component');
@@ -350,19 +352,10 @@ class SettingsService extends Service
         } else {
             $config->set("components.{$componentKey}", $enabled);
             $option_name = "amfm_components_{$componentKey}";
-
-            // Handle special component-specific logic
-            if ($componentKey === 'upload_limit') {
-                // Force update by deleting first to ensure it's saved properly
-                delete_option('amfm_image_upload_limit_enabled');
-                update_option('amfm_image_upload_limit_enabled', $enabled, 'no');
-            }
         }
 
-        // Force update by deleting and re-adding the option
-        // Use update_option after delete to ensure the value is saved
-        delete_option($option_name);
-        $update_success = update_option($option_name, $enabled, 'no');
+        // Update option without deleting (store as integer)
+        $update_success = update_option($option_name, $enabled);
 
         // Trigger shortcode re-registration if needed
         if (in_array($componentKey, ['dkv', 'limit_words', 'text_util'])) {

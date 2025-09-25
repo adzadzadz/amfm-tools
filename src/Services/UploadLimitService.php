@@ -149,24 +149,15 @@ class UploadLimitService extends Service
      */
     public static function isEnabled()
     {
-        $option = get_option('amfm_image_upload_limit_enabled', false);
+        // Use the standard option name that matches what SettingsService uses
+        $option = get_option('amfm_components_upload_limit', 1);
 
-        // Handle string boolean values
-        if (is_string($option)) {
-            return $option === 'true' || $option === '1';
+        // Handle all possible stored values
+        if ($option === '' || $option === false || $option === '0' || $option === 0) {
+            return false;
         }
 
-        return (bool) $option;
+        return true;
     }
 
-    /**
-     * Enable or disable the image upload limit
-     *
-     * @param bool $enabled Whether to enable the limit
-     * @return bool Success status
-     */
-    public static function setEnabled($enabled)
-    {
-        return update_option('amfm_image_upload_limit_enabled', (bool) $enabled);
-    }
 }

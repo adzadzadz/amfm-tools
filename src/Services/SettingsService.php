@@ -339,22 +339,29 @@ class SettingsService extends Service
         $config = \Adz::config();
         
         // Determine config path and WordPress option name based on component type
-        $update_success = false;
+        $option_name = '';
         if (in_array($componentKey, ['dkv', 'limit_words', 'text_util'])) {
             $config->set("shortcodes.{$componentKey}", $enabled);
-            $update_success = update_option("amfm_shortcodes_{$componentKey}", $enabled);
+            $option_name = "amfm_shortcodes_{$componentKey}";
         } elseif (strpos($componentKey, '_widget') !== false) {
             $config->set("elementor.widgets.{$componentKey}", $enabled);
-            $update_success = update_option("amfm_elementor_widgets_{$componentKey}", $enabled);
+            $option_name = "amfm_elementor_widgets_{$componentKey}";
         } else {
             $config->set("components.{$componentKey}", $enabled);
-            $update_success = update_option("amfm_components_{$componentKey}", $enabled);
+            $option_name = "amfm_components_{$componentKey}";
 
             // Handle special component-specific logic
             if ($componentKey === 'upload_limit') {
-                update_option('amfm_image_upload_limit_enabled', $enabled);
+                // Force update by deleting first to ensure it's saved properly
+                delete_option('amfm_image_upload_limit_enabled');
+                add_option('amfm_image_upload_limit_enabled', $enabled);
             }
         }
+
+        // Force update by deleting and re-adding the option
+        // This ensures the value is saved even if WordPress thinks it's unchanged
+        delete_option($option_name);
+        $update_success = add_option($option_name, $enabled);
 
         // Trigger shortcode re-registration if needed
         if (in_array($componentKey, ['dkv', 'limit_words', 'text_util'])) {

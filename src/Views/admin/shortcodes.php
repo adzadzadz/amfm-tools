@@ -135,13 +135,10 @@ $currentCacheDuration = $settingsService->getDkvCacheDuration();
 </div>
 
 <script>
-// Localize AJAX data
-const amfm_ajax = {
-    ajax_url: '<?php echo admin_url('admin-ajax.php'); ?>',
-    shortcode_nonce: '<?php echo wp_create_nonce('amfm_component_settings_nonce'); ?>',
-    shortcode_content_nonce: '<?php echo wp_create_nonce('amfm_shortcode_content'); ?>',
-    dkv_config_nonce: '<?php echo wp_create_nonce('amfm_dkv_config_update'); ?>'
-};
+// Check if amfm_ajax is available from wp_localize_script
+if (typeof amfm_ajax === 'undefined') {
+    console.error('AMFM Tools: amfm_ajax is not defined. AJAX functionality will not work.');
+}
 
 // PHP data for JavaScript
 const amfmPhpData = {

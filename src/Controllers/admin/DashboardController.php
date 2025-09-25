@@ -173,7 +173,11 @@ class DashboardController extends Controller
             'ajax_url' => admin_url('admin-ajax.php'),
             'export_nonce' => $this->createNonce('amfm_export_nonce'),
             'update_channel_nonce' => $this->createNonce('amfm_update_channel_nonce'),
-            'component_nonce' => $this->createNonce('amfm_component_settings_nonce')
+            'component_nonce' => $this->createNonce('amfm_component_settings_nonce'),
+            'shortcode_nonce' => $this->createNonce('amfm_component_settings_nonce'),
+            'shortcode_content_nonce' => $this->createNonce('amfm_shortcode_content'),
+            'dkv_config_nonce' => $this->createNonce('amfm_dkv_config_update'),
+            'elementor_nonce' => $this->createNonce('amfm_elementor_widgets_nonce')
         ]);
     }
 

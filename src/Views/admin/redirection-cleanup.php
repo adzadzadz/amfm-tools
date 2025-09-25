@@ -1,405 +1,302 @@
 <?php
 /**
  * Redirection Cleanup Admin View
- * 
+ *
  * @var array $data View data passed from controller
  */
 
-$analysis = $data['analysis'] ?? [];
-$can_process = $data['can_process'] ?? false;
-$processing_options = $data['processing_options'] ?? [];
+$current_data = $data['current_data'] ?? [];
 $recent_jobs = $data['recent_jobs'] ?? [];
+$has_csv = $data['has_csv'] ?? false;
+$notice = $data['notice'] ?? '';
 ?>
 
 <div class="wrap amfm-redirection-cleanup">
     <div id="amfm-redirection-cleanup-app" class="amfm-admin-container">
-        
+
         <!-- Header Section -->
         <div class="amfm-header-section">
             <div class="amfm-header-content">
                 <h1><?php echo esc_html($data['title']); ?></h1>
                 <p class="description">
-                    <?php esc_html_e('Eliminate internal redirections by updating URLs throughout your WordPress site to point directly to their final destinations.', 'amfm-tools'); ?>
+                    <?php esc_html_e('Import crawl report CSV files to find and replace redirected URLs with their final destinations.', 'amfm-tools'); ?>
                 </p>
             </div>
-            
-            <div class="amfm-header-actions">
-                <button type="button" class="button button-secondary" id="refresh-analysis">
-                    <span class="dashicons dashicons-update"></span>
-                    <?php esc_html_e('Refresh Analysis', 'amfm-tools'); ?>
-                </button>
-                
-                <?php if ($can_process): ?>
-                    <button type="button" class="button button-primary" id="start-cleanup" <?php echo $can_process ? '' : 'disabled'; ?>>
-                        <span class="dashicons dashicons-admin-tools"></span>
-                        <?php esc_html_e('Start Cleanup Process', 'amfm-tools'); ?>
-                    </button>
-                <?php endif; ?>
-            </div>
         </div>
 
-        <!-- Status/Progress Section -->
-        <div id="cleanup-progress-section" class="amfm-card" style="display: none;">
-            <div class="amfm-card-header">
-                <h3><?php esc_html_e('Cleanup Progress', 'amfm-tools'); ?></h3>
-                <button type="button" class="button button-link" id="cancel-cleanup">
-                    <?php esc_html_e('Cancel', 'amfm-tools'); ?>
-                </button>
-            </div>
-            <div class="amfm-card-body">
-                <div class="progress-container">
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: 0%"></div>
-                    </div>
-                    <div class="progress-info">
-                        <span class="current-step"><?php esc_html_e('Initializing...', 'amfm-tools'); ?></span>
-                        <span class="progress-stats">0 / 0 items processed</span>
-                    </div>
-                </div>
-                <div class="live-log">
-                    <div class="log-entries"></div>
-                </div>
-            </div>
-        </div>
+        <?php echo $notice; ?>
 
-        <!-- Results Section (Hidden by default) -->
-        <div id="cleanup-results-section" class="amfm-card" style="display: none;">
-            <div class="amfm-card-header">
-                <h3><?php esc_html_e('Cleanup Results', 'amfm-tools'); ?></h3>
-                <button type="button" class="button button-link" id="close-results">
-                    <span class="dashicons dashicons-no"></span>
-                </button>
-            </div>
-            <div class="amfm-card-body">
-                <div id="results-content">
-                    <!-- Results will be populated by JavaScript -->
-                </div>
-            </div>
-        </div>
-
-        <!-- Analysis Overview -->
         <div class="amfm-row">
-            <div class="amfm-col-8">
-                <div class="amfm-card">
-                    <div class="amfm-card-header">
-                        <h3><?php esc_html_e('Redirection Analysis', 'amfm-tools'); ?></h3>
-                        <span class="last-updated">
-                            <?php if (!empty($analysis['last_analyzed'])): ?>
-                                <?php printf(
-                                    esc_html__('Last analyzed: %s', 'amfm-tools'),
-                                    esc_html(wp_date(get_option('date_format') . ' ' . get_option('time_format'), strtotime($analysis['last_analyzed'])))
-                                ); ?>
-                            <?php endif; ?>
-                        </span>
-                    </div>
-                    <div class="amfm-card-body">
-                        <?php if (empty($analysis) || $analysis['total_redirections'] === 0): ?>
-                            <div class="amfm-notice amfm-notice-info">
-                                <p><?php esc_html_e('No active redirections found in RankMath. Click "Refresh Analysis" to scan for redirections.', 'amfm-tools'); ?></p>
-                            </div>
-                        <?php else: ?>
-                            <div class="analysis-overview">
-                                <div class="stat-grid">
-                                    <div class="stat-item">
-                                        <div class="stat-number"><?php echo esc_html(number_format($analysis['total_redirections'])); ?></div>
-                                        <div class="stat-label"><?php esc_html_e('Total Redirections', 'amfm-tools'); ?></div>
-                                    </div>
-                                    <div class="stat-item">
-                                        <div class="stat-number"><?php echo esc_html(number_format($analysis['active_redirections'])); ?></div>
-                                        <div class="stat-label"><?php esc_html_e('Active Redirections', 'amfm-tools'); ?></div>
-                                    </div>
-                                    <div class="stat-item">
-                                        <div class="stat-number"><?php echo esc_html(number_format($analysis['redirect_chains'])); ?></div>
-                                        <div class="stat-label"><?php esc_html_e('Redirect Chains', 'amfm-tools'); ?></div>
-                                    </div>
-                                    <div class="stat-item">
-                                        <div class="stat-number"><?php echo esc_html(number_format($analysis['estimated_content_items'])); ?></div>
-                                        <div class="stat-label"><?php esc_html_e('Content Items', 'amfm-tools'); ?></div>
-                                    </div>
-                                </div>
-
-                                <!-- Top Redirected URLs -->
-                                <?php if (!empty($analysis['top_redirected_sources'])): ?>
-                                    <div class="top-redirections">
-                                        <h4><?php esc_html_e('Most Used Redirections', 'amfm-tools'); ?></h4>
-                                        <table class="wp-list-table widefat striped">
-                                            <thead>
-                                                <tr>
-                                                    <th><?php esc_html_e('Source Pattern', 'amfm-tools'); ?></th>
-                                                    <th><?php esc_html_e('Destination', 'amfm-tools'); ?></th>
-                                                    <th><?php esc_html_e('Hits', 'amfm-tools'); ?></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <?php foreach (array_slice($analysis['top_redirected_sources'], 0, 5) as $redirect): ?>
-                                                    <?php 
-                                                    $sources = maybe_unserialize($redirect['sources']);
-                                                    $pattern = is_array($sources) && !empty($sources[0]['pattern']) 
-                                                        ? $sources[0]['pattern'] 
-                                                        : 'Unknown';
-                                                    ?>
-                                                    <tr>
-                                                        <td><code><?php echo esc_html($pattern); ?></code></td>
-                                                        <td><code><?php echo esc_html($redirect['url_to']); ?></code></td>
-                                                        <td><?php echo esc_html(number_format($redirect['hits'])); ?></td>
-                                                    </tr>
-                                                <?php endforeach; ?>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-
-            <div class="amfm-col-4">
-                <!-- CSV Import Section -->
+            <!-- CSV Upload Section -->
+            <div class="amfm-col-6">
                 <div class="amfm-card">
                     <div class="amfm-card-header">
                         <h3><?php esc_html_e('CSV Import', 'amfm-tools'); ?></h3>
                     </div>
                     <div class="amfm-card-body">
-                        <p><?php esc_html_e('Import redirections from a CSV file containing link analysis data.', 'amfm-tools'); ?></p>
+                        <form method="post" enctype="multipart/form-data">
+                            <?php wp_nonce_field('amfm_upload_csv', 'amfm_csv_nonce'); ?>
 
-                        <form id="csv-import-form" enctype="multipart/form-data">
-                            <div class="csv-upload-area">
-                                <input type="file" id="csv-file-input" name="csv_file" accept=".csv" style="display: none;">
-                                <button type="button" class="button button-primary" id="csv-upload-button">
-                                    <span class="dashicons dashicons-upload"></span>
-                                    <?php esc_html_e('Choose CSV File', 'amfm-tools'); ?>
-                                </button>
-                                <div id="csv-file-info" style="margin-top: 10px; display: none;">
-                                    <strong><?php esc_html_e('Selected:', 'amfm-tools'); ?></strong>
-                                    <span id="csv-file-name"></span>
+                            <div class="form-group">
+                                <label for="amfm-csv-file" style="display: block; margin-bottom: 8px; font-weight: 600;">
+                                    <?php esc_html_e('Select Crawl Report CSV', 'amfm-tools'); ?>
+                                </label>
+                                <div class="amfm-file-upload-wrapper">
+                                    <input type="file" name="csv_file" id="amfm-csv-file" accept=".csv" class="amfm-file-input" required>
+                                    <label for="amfm-csv-file" class="amfm-file-upload-display">
+                                        <div class="amfm-file-upload-icon">📎</div>
+                                        <div class="amfm-file-upload-text">
+                                            <span class="amfm-file-placeholder"><?php esc_html_e('Choose CSV file or drag & drop here', 'amfm-tools'); ?></span>
+                                        </div>
+                                    </label>
+                                    <div class="amfm-file-selection-status" style="display: none;">
+                                        <div class="amfm-file-info">
+                                            <strong class="amfm-file-name"></strong>
+                                            <span class="amfm-file-size"></span>
+                                        </div>
+                                        <button type="button" class="amfm-remove-file" title="<?php esc_attr_e('Remove file', 'amfm-tools'); ?>">✕</button>
+                                    </div>
                                 </div>
+                                <small class="form-text text-muted" style="margin-top: 8px; display: block; color: #666;">
+                                    <?php esc_html_e('Upload a CSV file with "Redirected URL" and "Final URL" columns', 'amfm-tools'); ?>
+                                </small>
                             </div>
 
-                            <div class="csv-requirements" style="margin-top: 15px;">
-                                <h4><?php esc_html_e('CSV Requirements:', 'amfm-tools'); ?></h4>
-                                <ul style="font-size: 12px; margin-left: 20px;">
-                                    <li><?php esc_html_e('Must contain "Source" and "Final URL" columns', 'amfm-tools'); ?></li>
-                                    <li><?php esc_html_e('Optional columns: Type, Status Code, Anchor, Path', 'amfm-tools'); ?></li>
-                                    <li><?php esc_html_e('Max file size: 10MB', 'amfm-tools'); ?></li>
-                                </ul>
-                            </div>
+                            <button type="submit" class="button button-primary">
+                                <span class="dashicons dashicons-admin-tools"></span>
+                                <?php esc_html_e('Process CSV', 'amfm-tools'); ?>
+                            </button>
 
-                            <div style="margin-top: 15px;">
-                                <button type="submit" class="button button-primary" id="csv-import-button" disabled>
-                                    <?php esc_html_e('Import & Validate', 'amfm-tools'); ?>
+                            <?php if ($has_csv): ?>
+                                <button type="button" class="button button-secondary" id="clear-data">
+                                    <span class="dashicons dashicons-trash"></span>
+                                    <?php esc_html_e('Clear Data', 'amfm-tools'); ?>
                                 </button>
-                            </div>
+                                <button type="button" class="button button-primary" id="fix-malformed-urls" style="background-color: #d63384; border-color: #d63384;">
+                                    <span class="dashicons dashicons-admin-tools"></span>
+                                    <?php esc_html_e('Fix Malformed URLs', 'amfm-tools'); ?>
+                                </button>
+                            <?php endif; ?>
                         </form>
 
-                        <div id="csv-import-results" style="display: none; margin-top: 15px;">
-                            <!-- Import results will be displayed here -->
-                        </div>
+                        <?php if ($has_csv && !empty($current_data['stats'])): ?>
+                            <div class="csv-stats">
+                                <h4><?php esc_html_e('Current CSV Data', 'amfm-tools'); ?></h4>
+                                <ul>
+                                    <li><?php esc_html_e('File:', 'amfm-tools'); ?> <strong><?php echo esc_html($current_data['csv_file']); ?></strong></li>
+                                    <li><?php esc_html_e('Unique URLs:', 'amfm-tools'); ?> <strong><?php echo esc_html($current_data['stats']['unique_urls'] ?? 0); ?></strong></li>
+                                    <li><?php esc_html_e('Total Occurrences:', 'amfm-tools'); ?> <strong><?php echo esc_html($current_data['stats']['total_occurrences'] ?? 0); ?></strong></li>
+                                    <li><?php esc_html_e('Imported:', 'amfm-tools'); ?> <strong><?php echo esc_html($current_data['last_import'] ?? 'Unknown'); ?></strong></li>
+                                </ul>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
 
-                <!-- Cleanup Options -->
-                <?php if ($can_process): ?>
+                <?php if ($has_csv && !empty($current_data['stats']['top_redirections'])): ?>
                     <div class="amfm-card">
                         <div class="amfm-card-header">
-                            <h3><?php esc_html_e('Cleanup Options', 'amfm-tools'); ?></h3>
+                            <h3><?php esc_html_e('Top Redirections', 'amfm-tools'); ?></h3>
                         </div>
                         <div class="amfm-card-body">
-                            <form id="cleanup-options-form">
-                                <!-- Content Types -->
-                                <fieldset class="option-group">
-                                    <legend><?php esc_html_e('Content Types to Process', 'amfm-tools'); ?></legend>
-                                    <?php foreach ($processing_options['content_types'] as $key => $option): ?>
-                                        <label class="checkbox-label">
-                                            <input type="checkbox" name="content_types[]" value="<?php echo esc_attr($key); ?>" 
-                                                   <?php checked($option['default']); ?>>
-                                            <span class="checkbox-text">
-                                                <strong><?php echo esc_html($option['label']); ?></strong>
-                                                <small><?php echo esc_html($option['description']); ?></small>
-                                            </span>
-                                        </label>
+                            <table class="wp-list-table widefat striped">
+                                <thead>
+                                    <tr>
+                                        <th><?php esc_html_e('Redirected URL', 'amfm-tools'); ?></th>
+                                        <th><?php esc_html_e('Count', 'amfm-tools'); ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($current_data['stats']['top_redirections'] as $item): ?>
+                                        <tr>
+                                            <td>
+                                                <code><?php echo esc_html($item['url']); ?></code>
+                                                <br>
+                                                <small>→ <?php echo esc_html($item['final_url']); ?></small>
+                                            </td>
+                                            <td><?php echo esc_html($item['occurrences']); ?></td>
+                                        </tr>
                                     <?php endforeach; ?>
-                                </fieldset>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                <?php endif; ?>
+            </div>
 
-                                <!-- Processing Options -->
-                                <fieldset class="option-group">
-                                    <legend><?php esc_html_e('Processing Settings', 'amfm-tools'); ?></legend>
-                                    
-                                    <label class="input-label">
-                                        <span><?php echo esc_html($processing_options['processing']['batch_size']['label']); ?></span>
-                                        <input type="number" name="batch_size" 
-                                               value="<?php echo esc_attr($processing_options['processing']['batch_size']['default']); ?>"
-                                               min="<?php echo esc_attr($processing_options['processing']['batch_size']['min']); ?>"
-                                               max="<?php echo esc_attr($processing_options['processing']['batch_size']['max']); ?>">
-                                        <small><?php echo esc_html($processing_options['processing']['batch_size']['description']); ?></small>
-                                    </label>
+            <!-- Processing Section -->
+            <div class="amfm-col-6">
+                <?php if ($has_csv): ?>
+                    <div class="amfm-card">
+                        <div class="amfm-card-header">
+                            <h3><?php esc_html_e('Process Replacements', 'amfm-tools'); ?></h3>
+                        </div>
+                        <div class="amfm-card-body">
+                            <!-- Analysis Section -->
+                            <div class="analysis-section">
+                                <button type="button" class="button button-secondary" id="analyze-content">
+                                    <span class="dashicons dashicons-search"></span>
+                                    <?php esc_html_e('Analyze Content', 'amfm-tools'); ?>
+                                </button>
 
-                                    <?php foreach (['dry_run', 'create_backup'] as $key): ?>
-                                        <?php $option = $processing_options['processing'][$key]; ?>
-                                        <label class="checkbox-label <?php echo !empty($option['disabled']) ? 'disabled' : ''; ?>">
-                                            <input type="checkbox" name="<?php echo esc_attr($key); ?>" value="1"
-                                                   <?php checked($option['default']); ?>
-                                                   <?php disabled(!empty($option['disabled'])); ?>>
-                                            <span class="checkbox-text">
-                                                <strong><?php echo esc_html($option['label']); ?></strong>
-                                                <small><?php echo esc_html($option['description']); ?></small>
-                                            </span>
+                                <?php if (!empty($current_data['analysis'])): ?>
+                                    <div class="analysis-results">
+                                        <h4><?php esc_html_e('Analysis Results', 'amfm-tools'); ?></h4>
+                                        <ul>
+                                            <li><?php esc_html_e('Posts with URLs:', 'amfm-tools'); ?> <strong><?php echo esc_html($current_data['analysis']['posts'] ?? 0); ?></strong></li>
+                                            <li><?php esc_html_e('Meta fields with URLs:', 'amfm-tools'); ?> <strong><?php echo esc_html($current_data['analysis']['postmeta'] ?? 0); ?></strong></li>
+                                            <li><?php esc_html_e('Total items:', 'amfm-tools'); ?> <strong><?php echo esc_html($current_data['analysis']['total'] ?? 0); ?></strong></li>
+                                        </ul>
+                                        <small><?php esc_html_e('Last analysis:', 'amfm-tools'); ?> <?php echo esc_html($current_data['last_analysis'] ?? 'Unknown'); ?></small>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+
+                            <!-- Processing Options -->
+                            <div class="processing-section">
+                                <h4><?php esc_html_e('Processing Options', 'amfm-tools'); ?></h4>
+
+                                <form id="processing-form">
+                                    <div class="form-group">
+                                        <label>
+                                            <input type="checkbox" name="dry_run" id="dry_run" checked>
+                                            <strong><?php esc_html_e('Dry Run', 'amfm-tools'); ?></strong>
+                                            <small><?php esc_html_e('Preview changes without making actual updates', 'amfm-tools'); ?></small>
                                         </label>
-                                    <?php endforeach; ?>
-                                </fieldset>
+                                    </div>
 
-                                <!-- URL Handling Options -->
-                                <fieldset class="option-group">
-                                    <legend><?php esc_html_e('URL Handling', 'amfm-tools'); ?></legend>
-                                    <?php foreach ($processing_options['url_handling'] as $key => $option): ?>
-                                        <label class="checkbox-label">
-                                            <input type="checkbox" name="<?php echo esc_attr($key); ?>" value="1"
-                                                   <?php checked($option['default']); ?>>
-                                            <span class="checkbox-text">
-                                                <strong><?php echo esc_html($option['label']); ?></strong>
-                                                <small><?php echo esc_html($option['description']); ?></small>
-                                            </span>
+                                    <div class="form-group">
+                                        <label><?php esc_html_e('Content Types:', 'amfm-tools'); ?></label>
+                                        <label style="display: block; margin-bottom: 8px;">
+                                            <input type="checkbox" name="content_types[]" value="all_tables" id="all_tables_checkbox">
+                                            <strong><?php esc_html_e('Comprehensive Mode', 'amfm-tools'); ?></strong>
+                                            <small><?php esc_html_e('(Includes: Posts, Meta, Elementor, Widgets, Menus, Options)', 'amfm-tools'); ?></small>
                                         </label>
-                                    <?php endforeach; ?>
-                                </fieldset>
-                            </form>
+                                        <label style="display: block; margin-left: 20px;">
+                                            <input type="checkbox" name="content_types[]" value="posts" checked class="standard-content-type">
+                                            <?php esc_html_e('Posts & Pages', 'amfm-tools'); ?>
+                                        </label>
+                                        <label style="display: block; margin-left: 20px;">
+                                            <input type="checkbox" name="content_types[]" value="postmeta" checked class="standard-content-type">
+                                            <?php esc_html_e('Post Meta', 'amfm-tools'); ?>
+                                        </label>
+                                    </div>
+
+                                    <button type="button" class="button button-primary" id="process-replacements">
+                                        <span class="dashicons dashicons-admin-tools"></span>
+                                        <?php esc_html_e('Process Replacements', 'amfm-tools'); ?>
+                                    </button>
+
+                                    <button type="button" class="button button-secondary" id="process-replacements-batch" style="margin-left: 10px;">
+                                        <span class="dashicons dashicons-update"></span>
+                                        <?php esc_html_e('Batch Process (10 at a time)', 'amfm-tools'); ?>
+                                    </button>
+                                </form>
+                            </div>
+
+                            <!-- Progress Section -->
+                            <div id="progress-section" style="display: none;">
+                                <h4><?php esc_html_e('Processing...', 'amfm-tools'); ?></h4>
+                                <div class="progress-bar">
+                                    <div class="progress-fill"></div>
+                                </div>
+                                <div id="progress-message"></div>
+                                <div id="progress-stats" style="margin-top: 10px; font-size: 14px; color: #666;">
+                                    <span id="posts-progress">Posts: 0</span> |
+                                    <span id="meta-progress">Meta: 0</span> |
+                                    <span id="urls-progress">URLs: 0</span>
+                                </div>
+                            </div>
+
+                            <!-- Batch Progress Section -->
+                            <div id="batch-progress-section" style="display: none; margin-top: 20px;">
+                                <h4><?php esc_html_e('Batch Processing Progress', 'amfm-tools'); ?></h4>
+                                <div id="batch-progress-bar" style="background: #f1f1f1; height: 20px; border-radius: 10px; margin: 10px 0;">
+                                    <div id="batch-progress-fill" style="background: #0073aa; height: 100%; border-radius: 10px; width: 0%; transition: width 0.3s;"></div>
+                                </div>
+                                <div id="batch-progress-info" style="margin-bottom: 15px; font-size: 14px;"></div>
+
+                                <table class="wp-list-table widefat fixed striped" id="batch-progress-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 60px;"><?php esc_html_e('Batch', 'amfm-tools'); ?></th>
+                                            <th><?php esc_html_e('URLs Processed', 'amfm-tools'); ?></th>
+                                            <th style="width: 80px;"><?php esc_html_e('Posts', 'amfm-tools'); ?></th>
+                                            <th style="width: 80px;"><?php esc_html_e('Meta', 'amfm-tools'); ?></th>
+                                            <th style="width: 80px;"><?php esc_html_e('Options', 'amfm-tools'); ?></th>
+                                            <th style="width: 100px;"><?php esc_html_e('URLs Replaced', 'amfm-tools'); ?></th>
+                                            <th style="width: 80px;"><?php esc_html_e('Status', 'amfm-tools'); ?></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="batch-progress-tbody">
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Results Section -->
+                            <div id="results-section" style="display: none;">
+                                <h4><?php esc_html_e('Results', 'amfm-tools'); ?></h4>
+                                <div id="results-content"></div>
+                            </div>
+                        </div>
+                    </div>
+                <?php else: ?>
+                    <div class="amfm-card">
+                        <div class="amfm-card-body">
+                            <div class="notice notice-info inline">
+                                <p><?php esc_html_e('Please process a CSV file to begin analyzing and replacing redirections.', 'amfm-tools'); ?></p>
+                            </div>
                         </div>
                     </div>
                 <?php endif; ?>
 
                 <!-- Recent Jobs -->
                 <?php if (!empty($recent_jobs)): ?>
-                <div class="amfm-card">
-                    <div class="amfm-card-header">
-                        <h3><?php esc_html_e('Recent Jobs', 'amfm-tools'); ?></h3>
-                    </div>
-                    <div class="amfm-card-body">
-                        <div class="recent-jobs">
-                            <ul class="job-list">
-                                <?php foreach (array_slice($recent_jobs, 0, 3) as $job): ?>
-                                    <li class="job-item status-<?php echo esc_attr($job['status']); ?>">
-                                        <div class="job-info">
-                                            <span class="job-date"><?php echo esc_html(wp_date('M j, Y H:i', strtotime($job['started_at']))); ?></span>
-                                            <span class="job-status status-<?php echo esc_attr($job['status']); ?>">
-                                                <?php echo esc_html(ucfirst($job['status'])); ?>
-                                            </span>
-                                        </div>
-                                        <div class="job-actions">
-                                            <button type="button" class="button button-small view-job-details" 
-                                                    data-job-id="<?php echo esc_attr($job['id']); ?>">
-                                                <?php esc_html_e('Details', 'amfm-tools'); ?>
-                                            </button>
-                                            <?php if ($job['status'] === 'completed' && !empty($job['results'])): ?>
-                                                <button type="button" class="button button-small rollback-job" 
-                                                        data-job-id="<?php echo esc_attr($job['id']); ?>">
-                                                    <?php esc_html_e('Rollback', 'amfm-tools'); ?>
-                                                </button>
-                                            <?php endif; ?>
-                                        </div>
-                                    </li>
-                                <?php endforeach; ?>
-                            </ul>
+                    <div class="amfm-card">
+                        <div class="amfm-card-header">
+                            <h3><?php esc_html_e('Recent Jobs', 'amfm-tools'); ?></h3>
+                        </div>
+                        <div class="amfm-card-body">
+                            <table class="wp-list-table widefat striped">
+                                <thead>
+                                    <tr>
+                                        <th><?php esc_html_e('Date', 'amfm-tools'); ?></th>
+                                        <th><?php esc_html_e('Type', 'amfm-tools'); ?></th>
+                                        <th><?php esc_html_e('Results', 'amfm-tools'); ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($recent_jobs as $job): ?>
+                                        <tr>
+                                            <td>
+                                                <?php
+                                                if (isset($job['timestamp']) && $job['timestamp'] !== 'Unknown') {
+                                                    echo esc_html(wp_date(get_option('date_format') . ' ' . get_option('time_format'), strtotime($job['timestamp'])));
+                                                } else {
+                                                    echo esc_html__('Unknown', 'amfm-tools');
+                                                }
+                                                ?>
+                                            </td>
+                                            <td>
+                                                <?php echo isset($job['options']['dry_run']) && $job['options']['dry_run'] ?
+                                                    '<span class="dashicons dashicons-visibility"></span> ' . esc_html__('Dry Run', 'amfm-tools') :
+                                                    '<span class="dashicons dashicons-yes"></span> ' . esc_html__('Live', 'amfm-tools'); ?>
+                                            </td>
+                                            <td>
+                                                <?php echo esc_html(sprintf(
+                                                    __('%d posts, %d URLs', 'amfm-tools'),
+                                                    $job['results']['posts_updated'] ?? 0,
+                                                    $job['results']['urls_replaced'] ?? 0
+                                                )); ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                </div>
                 <?php endif; ?>
             </div>
         </div>
-
     </div>
 </div>
-
-<!-- Modal for Job Details -->
-<div id="job-details-modal" class="amfm-modal" style="display: none;">
-    <div class="amfm-modal-content">
-        <div class="amfm-modal-header">
-            <h3><?php esc_html_e('Job Details', 'amfm-tools'); ?></h3>
-            <button type="button" class="amfm-modal-close">
-                <span class="dashicons dashicons-no"></span>
-            </button>
-        </div>
-        <div class="amfm-modal-body">
-            <div id="job-details-content">
-                <!-- Content loaded via AJAX -->
-            </div>
-        </div>
-    </div>
-    <div class="amfm-modal-backdrop"></div>
-</div>
-
-<!-- JavaScript Templates -->
-<script type="text/template" id="progress-log-template">
-    <div class="log-entry log-<%= level %>">
-        <span class="log-time"><%= timestamp %></span>
-        <span class="log-message"><%= message %></span>
-    </div>
-</script>
-
-<script type="text/template" id="results-template">
-    <div class="results-summary">
-        <div class="result-stats">
-            <div class="result-stat">
-                <div class="stat-number"><%= posts_updated %></div>
-                <div class="stat-label"><?php esc_html_e('Posts Updated', 'amfm-tools'); ?></div>
-            </div>
-            <div class="result-stat">
-                <div class="stat-number"><%= custom_fields_updated %></div>
-                <div class="stat-label"><?php esc_html_e('Custom Fields Updated', 'amfm-tools'); ?></div>
-            </div>
-            <div class="result-stat">
-                <div class="stat-number"><%= menus_updated %></div>
-                <div class="stat-label"><?php esc_html_e('Menus Updated', 'amfm-tools'); ?></div>
-            </div>
-            <div class="result-stat">
-                <div class="stat-number"><%= total_url_replacements %></div>
-                <div class="stat-label"><?php esc_html_e('URLs Replaced', 'amfm-tools'); ?></div>
-            </div>
-        </div>
-
-        <% if (dry_run) { %>
-            <div class="dry-run-badge">
-                <span class="dashicons dashicons-info"></span>
-                <?php esc_html_e('Dry Run - No Changes Made', 'amfm-tools'); ?>
-            </div>
-        <% } else { %>
-            <div class="live-processing-badge">
-                <span class="dashicons dashicons-yes-alt"></span>
-                <?php esc_html_e('Live Processing - Changes Applied', 'amfm-tools'); ?>
-            </div>
-        <% } %>
-        
-        <div class="results-details">
-            <h4><?php esc_html_e('Updated Pages & Content', 'amfm-tools'); ?></h4>
-            <div class="results-table-container">
-                <table class="results-table">
-                    <thead>
-                        <tr>
-                            <th><?php esc_html_e('Page/Content', 'amfm-tools'); ?></th>
-                            <th><?php esc_html_e('Type', 'amfm-tools'); ?></th>
-                            <th><?php esc_html_e('URL Changes', 'amfm-tools'); ?></th>
-                            <th><?php esc_html_e('Status', 'amfm-tools'); ?></th>
-                        </tr>
-                    </thead>
-                    <tbody id="results-table-body">
-                        <!-- Table content will be populated by JavaScript -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        
-        <div class="results-actions">
-            <% if (status === 'completed' && !dry_run) { %>
-                <button type="button" class="button button-secondary" id="rollback-changes" data-job-id="<%= job_id %>">
-                    <span class="dashicons dashicons-undo"></span>
-                    <?php esc_html_e('Rollback Changes', 'amfm-tools'); ?>
-                </button>
-            <% } %>
-            
-            <button type="button" class="button button-secondary" id="download-results">
-                <span class="dashicons dashicons-download"></span>
-                <?php esc_html_e('Download Report', 'amfm-tools'); ?>
-            </button>
-        </div>
-    </div>
-</script>
-

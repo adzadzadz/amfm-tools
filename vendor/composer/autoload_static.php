@@ -78,6 +78,7 @@ class ComposerStaticInit8d9843f8e42927546e166c2c7e635c03
         'App\\Services\\PluginUpdaterService' => __DIR__ . '/../..' . '/src/Services/PluginUpdaterService.php',
         'App\\Services\\RedirectionCleanupService' => __DIR__ . '/../..' . '/src/Services/RedirectionCleanupService.php',
         'App\\Services\\SettingsService' => __DIR__ . '/../..' . '/src/Services/SettingsService.php',
+        'App\\Services\\UploadLimitService' => __DIR__ . '/../..' . '/src/Services/UploadLimitService.php',
         'App\\Shortcodes\\AmfmAcfObjectShortcode' => __DIR__ . '/../..' . '/src/Shortcodes/AmfmAcfObjectShortcode.php',
         'App\\Shortcodes\\AmfmAcfShortcode' => __DIR__ . '/../..' . '/src/Shortcodes/AmfmAcfShortcode.php',
         'App\\Shortcodes\\AmfmAuthorUrlShortcode' => __DIR__ . '/../..' . '/src/Shortcodes/AmfmAuthorUrlShortcode.php',

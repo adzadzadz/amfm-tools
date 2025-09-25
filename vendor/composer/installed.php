@@ -3,7 +3,7 @@
         'name' => 'adzadzadz/amfm-tools',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => 'e56945f158775d12bbbcb705c5e4d303304d34bd',
+        'reference' => '4d2e947c92ba552c642b8958273d7476fdbcd243',
         'type' => 'wordpress-plugin',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -13,7 +13,7 @@
         'adzadzadz/amfm-tools' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => 'e56945f158775d12bbbcb705c5e4d303304d34bd',
+            'reference' => '4d2e947c92ba552c642b8958273d7476fdbcd243',
             'type' => 'wordpress-plugin',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

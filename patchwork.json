@@ -1,0 +1,3 @@
+{
+    "redefinable-internals": ["filter_var", "count", "str_ends_with", "str_contains", "file_exists", "move_uploaded_file", "fopen", "glob"]
+}

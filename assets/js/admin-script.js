@@ -553,4 +553,105 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
+
+    // Database Cleanup functionality
+    const cleanupBtn = document.getElementById('cleanup-options-btn');
+    const cleanupBadge = document.getElementById('cleanup-badge');
+
+    if (cleanupBtn && typeof amfm_ajax !== 'undefined') {
+        cleanupBtn.addEventListener('click', function() {
+            if (!confirm('This will scan for deprecated options. Preview results first?')) {
+                return;
+            }
+
+            // Update UI to show processing
+            cleanupBtn.disabled = true;
+            cleanupBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Scanning...';
+            cleanupBadge.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Scanning';
+            cleanupBadge.className = 'badge bg-warning text-white';
+
+            // First, get preview of what will be cleaned
+            const formData = new FormData();
+            formData.append('action', 'amfm_cleanup_options');
+            formData.append('cleanup_action', 'preview');
+            formData.append('nonce', amfm_ajax.cleanup_nonce);
+
+            fetch(amfm_ajax.ajax_url, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const stats = data.data.stats;
+                    let message = `Found ${stats.deprecated_count} deprecated option(s) to clean.\n\n`;
+
+                    if (stats.deprecated_count > 0) {
+                        message += 'Deprecated options:\n';
+                        stats.deprecated_options.forEach(opt => {
+                            message += `• ${opt}\n`;
+                        });
+                        message += '\nProceed with cleanup?';
+
+                        if (confirm(message)) {
+                            // Execute cleanup
+                            executeCleanup();
+                        } else {
+                            resetCleanupButton();
+                        }
+                    } else {
+                        alert('No deprecated options found. Database is clean!');
+                        resetCleanupButton();
+                    }
+                } else {
+                    alert('Failed to scan options: ' + (data.data || 'Unknown error'));
+                    resetCleanupButton();
+                }
+            })
+            .catch(error => {
+                alert('Error scanning options: ' + error.message);
+                resetCleanupButton();
+            });
+        });
+
+        function executeCleanup() {
+            cleanupBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Cleaning...';
+            cleanupBadge.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Cleaning';
+
+            const formData = new FormData();
+            formData.append('action', 'amfm_cleanup_options');
+            formData.append('cleanup_action', 'execute');
+            formData.append('nonce', amfm_ajax.cleanup_nonce);
+
+            fetch(amfm_ajax.ajax_url, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    cleanupBadge.innerHTML = '<i class="fas fa-check me-1"></i> Cleaned';
+                    cleanupBadge.className = 'badge bg-success text-white';
+                    alert(`Cleanup complete! Removed ${data.data.cleaned_count} option(s).`);
+
+                    // Reset after 3 seconds
+                    setTimeout(resetCleanupButton, 3000);
+                } else {
+                    alert('Cleanup failed: ' + (data.data || 'Unknown error'));
+                    resetCleanupButton();
+                }
+            })
+            .catch(error => {
+                alert('Cleanup error: ' + error.message);
+                resetCleanupButton();
+            });
+        }
+
+        function resetCleanupButton() {
+            cleanupBtn.disabled = false;
+            cleanupBtn.innerHTML = '<i class="fas fa-trash-alt me-1"></i> Cleanup Old Options';
+            cleanupBadge.innerHTML = '<i class="fas fa-broom me-1"></i> Ready';
+            cleanupBadge.className = 'badge bg-info text-white';
+        }
+    }
 });

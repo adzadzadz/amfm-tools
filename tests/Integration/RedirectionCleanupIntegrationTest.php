@@ -2,540 +2,259 @@
 
 namespace Tests\Integration;
 
-use Tests\Helpers\WordPressTestCase;
+use PHPUnit\Framework\TestCase;
 use App\Services\RedirectionCleanupService;
 use App\Controllers\Admin\RedirectionCleanupController;
+use Brain\Monkey\Functions;
+use Brain\Monkey\Actions;
+use Mockery;
 
-/**
- * Integration tests for the Redirection Cleanup System
- *
- * These tests validate the full workflow of the redirection cleanup system
- * including analysis, processing, and rollback functionality.
- */
-class RedirectionCleanupIntegrationTest extends WordPressTestCase
+class RedirectionCleanupIntegrationTest extends TestCase
 {
-    private $service;
-    private $controller;
-    private $testJobId;
-    private $testPosts = [];
-    private $testRedirections = [];
+    private RedirectionCleanupService $service;
+    private RedirectionCleanupController $controller;
+    private $wpdbMock;
 
     protected function setUp(): void
     {
         parent::setUp();
+        \Brain\Monkey\setUp();
+
+        // Define constants
+        if (!defined('AMFM_TOOLS_URL')) {
+            define('AMFM_TOOLS_URL', 'http://example.com/wp-content/plugins/amfm-tools/');
+        }
+        if (!defined('AMFM_TOOLS_VERSION')) {
+            define('AMFM_TOOLS_VERSION', '1.0.0');
+        }
+
+        // Mock global $wpdb
+        $this->wpdbMock = Mockery::mock('\wpdb');
+        $this->wpdbMock->posts = 'wp_posts';
+        $this->wpdbMock->postmeta = 'wp_postmeta';
+        $this->wpdbMock->options = 'wp_options';
+
+        global $wpdb;
+        $wpdb = $this->wpdbMock;
+
+        // Mock WordPress functions
+        Functions\when('wp_upload_dir')->justReturn([
+            'basedir' => '/tmp/uploads',
+            'baseurl' => 'http://example.com/uploads'
+        ]);
+        Functions\when('wp_mkdir_p')->justReturn(true);
+        Functions\when('current_time')->justReturn('2023-01-01 12:00:00');
+        Functions\when('wp_generate_uuid4')->justReturn('test-uuid-123');
+        Functions\when('update_option')->justReturn(true);
+        Functions\when('maybe_unserialize')->returnArg(1);
+        Functions\when('wp_parse_args')->alias(function($args, $defaults) {
+            return array_merge($defaults, $args);
+        });
+        Functions\when('add_submenu_page')->justReturn('hook');
+        Functions\when('wp_enqueue_script')->justReturn(true);
+        Functions\when('wp_enqueue_style')->justReturn(true);
+        Functions\when('wp_localize_script')->justReturn(true);
+        Functions\when('admin_url')->justReturn('http://example.com/wp-admin/admin-ajax.php');
+        Functions\when('wp_create_nonce')->justReturn('test-nonce');
+        Functions\when('__')->returnArg(1);
+        Functions\when('esc_html__')->returnArg(1);
+        Functions\when('current_user_can')->justReturn(true);
+        Functions\when('check_ajax_referer')->justReturn(true);
+        Functions\when('wp_send_json')->justReturn(null);
+        Functions\when('filter_var')->alias(function($value, $filter) {
+            if ($filter === FILTER_VALIDATE_URL) {
+                return filter_var($value, FILTER_VALIDATE_URL);
+            }
+            return $value;
+        });
+        Functions\when('str_ends_with')->alias(function($haystack, $needle) {
+            return str_ends_with($haystack, $needle);
+        });
+        Functions\when('str_contains')->alias(function($haystack, $needle) {
+            return str_contains($haystack, $needle);
+        });
 
         $this->service = new RedirectionCleanupService();
         $this->controller = new RedirectionCleanupController();
-
-        // Set up test data
-        $this->setupTestData();
     }
 
     protected function tearDown(): void
     {
-        // Clean up test data
-        $this->cleanupTestData();
-
+        \Brain\Monkey\tearDown();
+        Mockery::close();
         parent::tearDown();
     }
 
     /**
-     * Test full cleanup workflow from analysis to completion
+     * Test AJAX endpoints integration
      */
-    public function testFullCleanupWorkflow()
+    public function testAjaxEndpointsIntegration()
     {
-        // Step 1: Check RankMath is active
-        $isActive = $this->service->isRankMathActive();
+        $_POST['nonce'] = 'test-nonce';
 
-        if (!$isActive) {
-            $this->markTestSkipped('RankMath is not active, skipping integration test');
-        }
-
-        // Step 2: Run analysis
-        $analysis = $this->service->analyzeRedirections();
-
-        $this->assertArrayHasKey('total_redirections', $analysis);
-        $this->assertArrayHasKey('url_mapping', $analysis);
-        $this->assertArrayHasKey('content_analysis', $analysis);
-
-        // Step 3: Start cleanup process (dry run first)
-        $options = [
-            'content_types' => ['posts', 'custom_fields', 'menus'],
-            'batch_size' => 10,
-            'dry_run' => true,
-            'create_backup' => false
-        ];
-
-        $jobId = $this->service->startCleanupProcess($options);
-        $this->assertNotEmpty($jobId);
-
-        // Step 4: Process the job
-        $this->service->processCleanupJob($jobId);
-
-        // Step 5: Check job completion
-        $progress = $this->service->getJobProgress($jobId);
-        $this->assertEquals('completed', $progress['status']);
-
-        // Step 6: Verify results
-        $details = $this->service->getJobDetails($jobId);
-        $this->assertArrayHasKey('job', $details);
-        $this->assertArrayHasKey('logs', $details);
-
-        // Verify dry run didn't actually update anything
-        if (isset($progress['results']['posts_updated'])) {
-            $this->assertEquals(0, $this->getActualPostUpdates());
-        }
-    }
-
-    /**
-     * Test analysis caching mechanism
-     */
-    public function testAnalysisCaching()
-    {
-        // First call should generate fresh data
-        $start = microtime(true);
-        $data1 = $this->service->getAnalysisData();
-        $time1 = microtime(true) - $start;
-
-        // Second call within 5 minutes should use cache
-        $start = microtime(true);
-        $data2 = $this->service->getAnalysisData();
-        $time2 = microtime(true) - $start;
-
-        // Cached call should be significantly faster
-        $this->assertLessThan($time1, $time2);
-        $this->assertEquals($data1, $data2);
-
-        // Clear cache and verify fresh data is generated
-        delete_option('amfm_redirection_cleanup_analysis_cache');
-
-        $data3 = $this->service->getAnalysisData();
-        $this->assertArrayHasKey('total_redirections', $data3);
-    }
-
-    /**
-     * Test redirect chain resolution
-     */
-    public function testRedirectChainResolution()
-    {
-        // Create a redirect chain in test data
-        $this->createRedirectChain();
-
-        $analysis = $this->service->analyzeRedirections();
-
-        $this->assertArrayHasKey('redirect_chains_resolved', $analysis);
-        $this->assertGreaterThan(0, $analysis['redirect_chains_resolved']);
-
-        // Verify URL mapping resolves to final destination
-        if (!empty($analysis['url_mapping'])) {
-            $mapping = $analysis['url_mapping'];
-
-            // Check if chain is properly resolved
-            foreach ($mapping as $source => $destination) {
-                // Destination should not be another source URL
-                $this->assertArrayNotHasKey($destination, $mapping);
+        // Mock service data
+        Functions\when('get_option')->alias(function($option, $default = null) {
+            if ($option === 'amfm_redirection_cleanup_url_mappings') {
+                return [
+                    'http://example.com/test' => [
+                        'final_url' => 'http://example.com/new-test',
+                        'occurrences' => 1
+                    ]
+                ];
             }
-        }
+            return $default;
+        });
+
+        // Mock database queries
+        $this->wpdbMock->shouldReceive('esc_like')->andReturn('http://example.com/test');
+        $this->wpdbMock->shouldReceive('prepare')->andReturn('SELECT COUNT query');
+        $this->wpdbMock->shouldReceive('get_var')->andReturn(2);
+
+        // Test analyze content endpoint
+        $capturedData = null;
+        Functions\when('wp_send_json')->alias(function($data) use (&$capturedData) {
+            $capturedData = $data;
+        });
+
+        $this->controller->actionWpAjaxAnalyzeContent();
+
+        $this->assertNotNull($capturedData);
+        $this->assertTrue($capturedData['success']);
+        $this->assertArrayHasKey('stats', $capturedData);
     }
 
     /**
-     * Test content URL replacement
+     * Test error handling throughout the workflow
      */
-    public function testContentUrlReplacement()
+    public function testErrorHandling()
     {
-        // Create test post with URLs
-        $postId = $this->createTestPostWithUrls();
-
-        // Run analysis to build URL mapping
-        $analysis = $this->service->analyzeRedirections();
-
-        if (empty($analysis['url_mapping'])) {
-            $this->markTestSkipped('No URL mappings found for testing');
-        }
-
-        // Start cleanup in live mode
-        $options = [
-            'content_types' => ['posts'],
-            'batch_size' => 10,
-            'dry_run' => false,
-            'create_backup' => false
+        // Test invalid CSV file
+        $file = [
+            'error' => UPLOAD_ERR_NO_FILE,
+            'name' => '',
+            'tmp_name' => ''
         ];
 
-        $jobId = $this->service->startCleanupProcess($options);
-        $this->service->processCleanupJob($jobId);
+        $result = $this->service->processUploadedCsv($file);
+        $this->assertFalse($result['success']);
 
-        // Verify URLs were replaced
-        $updatedPost = get_post($postId);
-        $mapping = $analysis['url_mapping'];
+        // Test analysis with no data
+        Functions\when('get_option')->justReturn([]);
+        $result = $this->service->analyzeContent();
+        $this->assertFalse($result['success']);
 
-        foreach ($mapping as $oldUrl => $newUrl) {
-            if (strpos($updatedPost->post_content, $oldUrl) !== false) {
-                $this->fail("Old URL still present: $oldUrl");
+        // Test processing with no data
+        $result = $this->service->processReplacements();
+        $this->assertFalse($result['success']);
+    }
+
+    /**
+     * Test data persistence and retrieval
+     */
+    public function testDataPersistence()
+    {
+        $testData = [
+            'csv_file' => 'test.csv',
+            'stats' => ['unique_urls' => 5],
+            'analysis' => ['posts' => 10],
+            'last_import' => '2023-01-01 12:00:00',
+            'last_analysis' => '2023-01-01 12:30:00',
+            'url_mappings' => ['url1' => [], 'url2' => [], 'url3' => []]
+        ];
+
+        Functions\when('get_option')->alias(function($option, $default = null) use ($testData) {
+            switch ($option) {
+                case 'amfm_redirection_cleanup_current_csv':
+                    return $testData['csv_file'];
+                case 'amfm_redirection_cleanup_csv_stats':
+                    return $testData['stats'];
+                case 'amfm_redirection_cleanup_analysis':
+                    return $testData['analysis'];
+                case 'amfm_redirection_cleanup_last_import':
+                    return $testData['last_import'];
+                case 'amfm_redirection_cleanup_last_analysis':
+                    return $testData['last_analysis'];
+                case 'amfm_redirection_cleanup_url_mappings':
+                    return $testData['url_mappings'];
+                default:
+                    return $default;
             }
-        }
+        });
+
+        Functions\when('count')->alias(function($array) {
+            return count($array);
+        });
+
+        $currentData = $this->service->getCurrentData();
+
+        $this->assertEquals($testData['csv_file'], $currentData['csv_file']);
+        $this->assertEquals($testData['stats'], $currentData['stats']);
+        $this->assertEquals($testData['analysis'], $currentData['analysis']);
+        $this->assertEquals($testData['last_import'], $currentData['last_import']);
+        $this->assertEquals($testData['last_analysis'], $currentData['last_analysis']);
+        $this->assertEquals(3, $currentData['mappings_count']);
     }
 
     /**
-     * Test backup and rollback functionality
+     * Test complete service workflow
      */
-    public function testBackupAndRollback()
+    public function testCompleteServiceWorkflow()
     {
-        $this->markTestSkipped('Backup functionality is temporarily disabled');
-
-        // Create test content
-        $postId = $this->createTestPostWithUrls();
-        $originalContent = get_post($postId)->post_content;
-
-        // Run cleanup with backup
-        $options = [
-            'content_types' => ['posts'],
-            'batch_size' => 10,
-            'dry_run' => false,
-            'create_backup' => true
-        ];
-
-        $jobId = $this->service->startCleanupProcess($options);
-        $this->service->processCleanupJob($jobId);
-
-        // Verify content was changed
-        $modifiedContent = get_post($postId)->post_content;
-        $this->assertNotEquals($originalContent, $modifiedContent);
-
-        // Rollback changes
-        $result = $this->service->rollbackChanges($jobId);
-        $this->assertTrue($result['success']);
-
-        // Verify content was restored
-        $restoredContent = get_post($postId)->post_content;
-        $this->assertEquals($originalContent, $restoredContent);
-    }
-
-    /**
-     * Test concurrent job handling
-     */
-    public function testConcurrentJobHandling()
-    {
-        $options = [
-            'content_types' => ['posts'],
-            'batch_size' => 10,
-            'dry_run' => true,
-            'create_backup' => false
-        ];
-
-        // Start multiple jobs
-        $jobId1 = $this->service->startCleanupProcess($options);
-        $jobId2 = $this->service->startCleanupProcess($options);
-
-        $this->assertNotEquals($jobId1, $jobId2);
-
-        // Verify both jobs can be tracked independently
-        $progress1 = $this->service->getJobProgress($jobId1);
-        $progress2 = $this->service->getJobProgress($jobId2);
-
-        $this->assertEquals($jobId1, $progress1['id']);
-        $this->assertEquals($jobId2, $progress2['id']);
-    }
-
-    /**
-     * Test error handling in cleanup process
-     */
-    public function testErrorHandlingInCleanup()
-    {
-        // Start cleanup without analysis data
-        delete_option('amfm_redirection_cleanup_full_analysis');
-
-        try {
-            $this->service->startCleanupProcess([]);
-            $this->fail('Expected exception was not thrown');
-        } catch (\Exception $e) {
-            $this->assertStringContainsString('No analysis data found', $e->getMessage());
-        }
-    }
-
-    /**
-     * Test job listing and filtering
-     */
-    public function testJobListingAndFiltering()
-    {
-        // Create several test jobs
-        $jobIds = [];
-        for ($i = 0; $i < 5; $i++) {
-            $options = [
-                'content_types' => ['posts'],
-                'batch_size' => 10,
-                'dry_run' => true,
-                'create_backup' => false
-            ];
-
-            $jobIds[] = $this->service->startCleanupProcess($options);
-            sleep(1); // Ensure different timestamps
-        }
-
-        // Get recent jobs
-        $recentJobs = $this->service->getRecentJobs(3);
-
-        $this->assertCount(3, $recentJobs);
-
-        // Verify jobs are sorted by most recent first
-        $timestamps = array_column($recentJobs, 'started_at');
-        $sortedTimestamps = $timestamps;
-        rsort($sortedTimestamps);
-
-        $this->assertEquals($sortedTimestamps, $timestamps);
-    }
-
-    /**
-     * Test URL normalization and mapping
-     */
-    public function testUrlNormalizationAndMapping()
-    {
-        global $wpdb;
-
-        // Create test redirections with various URL formats
-        $testUrls = [
-            '/relative-url' => '/new-relative',
-            'https://example.com/absolute-url' => 'https://example.com/new-absolute',
-            '/trailing-slash/' => '/new-trailing/',
-            '//double-slash' => '/single-slash'
-        ];
-
-        foreach ($testUrls as $source => $destination) {
-            $this->createTestRedirection($source, $destination);
-        }
-
-        $analysis = $this->service->analyzeRedirections();
-        $urlMapping = $analysis['url_mapping'];
-
-        // Verify URLs are properly normalized
-        foreach ($urlMapping as $oldUrl => $newUrl) {
-            // No double slashes except in protocol
-            $this->assertNotRegExp('#(?<!:)//+#', $newUrl);
-        }
-    }
-
-    /**
-     * Helper method to set up test data
-     */
-    private function setupTestData()
-    {
-        // Create test redirections if table exists
-        if ($this->redirectionsTableExists()) {
-            $this->createTestRedirections();
-        }
-
-        // Create test posts
-        $this->createTestPosts();
-    }
-
-    /**
-     * Helper method to clean up test data
-     */
-    private function cleanupTestData()
-    {
-        // Remove test posts
-        foreach ($this->testPosts as $postId) {
-            wp_delete_post($postId, true);
-        }
-
-        // Remove test redirections
-        if ($this->redirectionsTableExists()) {
-            $this->removeTestRedirections();
-        }
-
-        // Clean up test options
-        $this->cleanupTestOptions();
-    }
-
-    /**
-     * Helper to check if redirections table exists
-     */
-    private function redirectionsTableExists()
-    {
-        global $wpdb;
-        $table = $wpdb->prefix . 'rank_math_redirections';
-        return $wpdb->get_var("SHOW TABLES LIKE '$table'") === $table;
-    }
-
-    /**
-     * Helper to create test redirections
-     */
-    private function createTestRedirections()
-    {
-        global $wpdb;
-        $table = $wpdb->prefix . 'rank_math_redirections';
-
-        $redirections = [
-            [
-                'sources' => serialize([
-                    ['pattern' => '/test-old-page', 'comparison' => 'exact']
-                ]),
-                'url_to' => '/test-new-page',
-                'header_code' => '301',
-                'hits' => 10,
-                'status' => 'active'
+        // Test with valid mappings
+        $mappings = [
+            'http://example.com/old-page' => [
+                'final_url' => 'http://example.com/new-page',
+                'occurrences' => 1
             ],
-            [
-                'sources' => serialize([
-                    ['pattern' => '/test-old-product', 'comparison' => 'exact']
-                ]),
-                'url_to' => '/test-new-product',
-                'header_code' => '301',
-                'hits' => 5,
-                'status' => 'active'
+            'http://example.com/another-old' => [
+                'final_url' => 'http://example.com/another-new',
+                'occurrences' => 1
             ]
         ];
 
-        foreach ($redirections as $redirection) {
-            $wpdb->insert($table, $redirection);
-            $this->testRedirections[] = $wpdb->insert_id;
-        }
-    }
-
-    /**
-     * Helper to create test posts
-     */
-    private function createTestPosts()
-    {
-        $posts = [
-            [
-                'post_title' => 'Test Post with Redirected URLs',
-                'post_content' => 'Visit our <a href="/test-old-page">old page</a> and <a href="/test-old-product">old product</a>.',
-                'post_status' => 'publish',
-                'post_type' => 'post'
-            ],
-            [
-                'post_title' => 'Another Test Post',
-                'post_content' => 'Check out the <a href="/test-old-page">previous content</a> here.',
-                'post_status' => 'publish',
-                'post_type' => 'page'
-            ]
-        ];
-
-        foreach ($posts as $post) {
-            $postId = wp_insert_post($post);
-            if ($postId) {
-                $this->testPosts[] = $postId;
+        Functions\when('get_option')->alias(function($option, $default = null) use ($mappings) {
+            if ($option === 'amfm_redirection_cleanup_url_mappings') {
+                return $mappings;
             }
-        }
-    }
+            return $default;
+        });
 
-    /**
-     * Helper to create a redirect chain
-     */
-    private function createRedirectChain()
-    {
-        global $wpdb;
+        // Test content analysis
+        $this->wpdbMock->shouldReceive('esc_like')->andReturnUsing(function($arg) {
+            return addcslashes($arg, '%_\\');
+        });
+        $this->wpdbMock->shouldReceive('prepare')->andReturn('SELECT COUNT query');
+        $this->wpdbMock->shouldReceive('get_var')->andReturn(3);
 
-        if (!$this->redirectionsTableExists()) {
-            return;
-        }
+        $analysisResult = $this->service->analyzeContent();
 
-        $table = $wpdb->prefix . 'rank_math_redirections';
+        $this->assertTrue($analysisResult['success']);
+        $this->assertArrayHasKey('stats', $analysisResult);
+        $this->assertEquals(6, $analysisResult['stats']['posts']); // 3 posts * 2 URLs
 
-        $chain = [
-            [
-                'sources' => serialize([
-                    ['pattern' => '/chain-start', 'comparison' => 'exact']
-                ]),
-                'url_to' => '/chain-middle',
-                'header_code' => '301',
-                'status' => 'active'
+        // Test URL replacement processing (dry run)
+        $this->wpdbMock->shouldReceive('get_results')->andReturn([
+            (object) [
+                'ID' => 1,
+                'post_content' => 'Check out this link: http://example.com/old-page for more info',
+                'post_excerpt' => ''
             ],
-            [
-                'sources' => serialize([
-                    ['pattern' => '/chain-middle', 'comparison' => 'exact']
-                ]),
-                'url_to' => '/chain-end',
-                'header_code' => '301',
-                'status' => 'active'
+            (object) [
+                'ID' => 2,
+                'post_content' => 'Visit http://example.com/another-old for details',
+                'post_excerpt' => ''
             ]
-        ];
-
-        foreach ($chain as $link) {
-            $wpdb->insert($table, $link);
-            $this->testRedirections[] = $wpdb->insert_id;
-        }
-    }
-
-    /**
-     * Helper to create test post with URLs
-     */
-    private function createTestPostWithUrls()
-    {
-        $content = 'Test content with <a href="/test-old-page">old link</a> and <a href="/test-old-product">another old link</a>.';
-
-        $postId = wp_insert_post([
-            'post_title' => 'URL Replacement Test Post',
-            'post_content' => $content,
-            'post_status' => 'publish',
-            'post_type' => 'post'
         ]);
 
-        if ($postId) {
-            $this->testPosts[] = $postId;
-        }
-
-        return $postId;
-    }
-
-    /**
-     * Helper to create test redirection
-     */
-    private function createTestRedirection($source, $destination)
-    {
-        global $wpdb;
-
-        if (!$this->redirectionsTableExists()) {
-            return;
-        }
-
-        $table = $wpdb->prefix . 'rank_math_redirections';
-
-        $wpdb->insert($table, [
-            'sources' => serialize([
-                ['pattern' => $source, 'comparison' => 'exact']
-            ]),
-            'url_to' => $destination,
-            'header_code' => '301',
-            'status' => 'active'
+        $processingResult = $this->service->processReplacements([
+            'dry_run' => true,
+            'content_types' => ['posts'],
+            'batch_size' => 50
         ]);
 
-        $this->testRedirections[] = $wpdb->insert_id;
-    }
-
-    /**
-     * Helper to remove test redirections
-     */
-    private function removeTestRedirections()
-    {
-        global $wpdb;
-        $table = $wpdb->prefix . 'rank_math_redirections';
-
-        foreach ($this->testRedirections as $id) {
-            $wpdb->delete($table, ['id' => $id]);
-        }
-    }
-
-    /**
-     * Helper to clean up test options
-     */
-    private function cleanupTestOptions()
-    {
-        global $wpdb;
-
-        // Remove all test job options
-        $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE 'amfm_redirection_cleanup_job_%'");
-        $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE 'amfm_redirection_cleanup_logs_%'");
-        $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE 'amfm_redirection_cleanup_backup_%'");
-    }
-
-    /**
-     * Helper to get actual post update count
-     */
-    private function getActualPostUpdates()
-    {
-        // In dry run mode, posts shouldn't actually be updated
-        // This would check the database for actual changes
-        return 0;
+        $this->assertTrue($processingResult['success']);
+        $this->assertTrue($processingResult['dry_run']);
+        $this->assertArrayHasKey('results', $processingResult);
+        $this->assertGreaterThan(0, $processingResult['results']['posts_updated']);
     }
 }

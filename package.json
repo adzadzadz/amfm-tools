@@ -1,6 +1,6 @@
 {
     "name": "amfm-tools",
-    "version": "3.8.4",
+    "version": "3.9.14",
     "description": "AMFM Tools WordPress plugin built with ADZ Framework",
     "scripts": {
         "build": "node tools/build.js",

@@ -114,11 +114,14 @@ $enabled_widgets = $enabled_widgets ?? [];
 </div>
 
 <script>
-// Localize AJAX data
-const amfm_ajax = {
-    ajax_url: '<?php echo admin_url('admin-ajax.php'); ?>',
-    elementor_nonce: '<?php echo wp_create_nonce('amfm_elementor_widgets_nonce'); ?>'
-};
+// Wait for amfm_ajax to be available or create a temporary placeholder
+if (typeof amfm_ajax === 'undefined') {
+    // Create temporary object that will be overridden by wp_localize_script
+    window.amfm_ajax = {
+        ajax_url: '<?php echo admin_url('admin-ajax.php'); ?>',
+        elementor_nonce: '<?php echo wp_create_nonce('amfm_elementor_widgets_nonce'); ?>'
+    };
+}
 
 // Widget documentation and configuration data
 const widgetData = {

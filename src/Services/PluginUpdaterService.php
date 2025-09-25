@@ -9,6 +9,8 @@ use AdzWP\Core\Service;
  *
  * Integrates with WordPress's native update system to provide seamless updates
  * from GitHub releases without requiring git commands on the server
+ *
+ * Version 3.9.3 - Update test with directory fix
  */
 class PluginUpdaterService extends Service
 {
@@ -49,7 +51,7 @@ class PluginUpdaterService extends Service
         add_filter('pre_set_site_transient_update_plugins', [$this, 'checkForUpdate']);
         add_filter('plugins_api', [$this, 'pluginInfo'], 20, 3);
         add_filter('upgrader_pre_download', [$this, 'downloadPackage'], 10, 3);
-        // No need for source directory fixing with proper built packages
+        add_filter('upgrader_source_selection', [$this, 'fixSourceDirectory'], 10, 4);
     }
 
     /**
@@ -136,6 +138,57 @@ class PluginUpdaterService extends Service
 
         // Let WordPress handle the download normally
         return $result;
+    }
+
+    /**
+     * Fix the source directory name during plugin updates
+     *
+     * This ensures the plugin is installed in the correct directory name
+     * regardless of how GitHub or the build process names the extracted folder
+     */
+    public function fixSourceDirectory($source, $remote_source, $upgrader, $args = [])
+    {
+        global $wp_filesystem;
+
+        // Only process our plugin updates
+        if (!isset($args['plugin']) || $args['plugin'] !== $this->plugin_file) {
+            return $source;
+        }
+
+        // The correct plugin directory name
+        $correct_dir_name = 'amfm-tools';
+        $corrected_source = trailingslashit($remote_source) . $correct_dir_name . '/';
+
+        // If the source is already correct, return it
+        if ($source === $corrected_source) {
+            return $source;
+        }
+
+        // Check if the source directory exists and might need renaming
+        if ($wp_filesystem->exists($source)) {
+            // The directory exists but has the wrong name, rename it
+            if ($wp_filesystem->move($source, $corrected_source)) {
+                return $corrected_source;
+            }
+        }
+
+        // Try to find any directory that starts with our plugin name
+        $source_files = $wp_filesystem->dirlist($remote_source);
+        if ($source_files) {
+            foreach ($source_files as $file => $file_info) {
+                if ($file_info['type'] === 'd') {
+                    $old_source = trailingslashit($remote_source) . $file;
+
+                    // Move the directory to the correct name
+                    if ($wp_filesystem->move($old_source, $corrected_source)) {
+                        return $corrected_source;
+                    }
+                }
+            }
+        }
+
+        // If we couldn't fix it, return the original source
+        return $source;
     }
 
 

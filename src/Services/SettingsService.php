@@ -58,18 +58,46 @@ class SettingsService extends Service
      */
     public function getEnabledComponents(): array
     {
-        $default_enabled = ['acf_helper', 'import_export', 'text_utilities', 'optimization', 'dkv_shortcode', 'limit_words'];
+        $all_components = ['acf_helper', 'import_export', 'text_utilities', 'optimization', 'dkv_shortcode', 'limit_words', 'upload_limit'];
         $core_components = ['acf_helper', 'import_export'];
-        $components = get_option('amfm_enabled_components');
-        
-        // If option doesn't exist, initialize it with all components enabled
-        if ($components === false) {
-            update_option('amfm_enabled_components', $default_enabled);
-            $components = $default_enabled;
+        $enabled_components = [];
+
+        // Check each component's individual option
+        foreach ($all_components as $component) {
+            // Core components are always enabled
+            if (in_array($component, $core_components)) {
+                $enabled_components[] = $component;
+                continue;
+            }
+
+            // Check component-specific option
+            $option_name = "amfm_components_{$component}";
+            $stored_value = get_option($option_name, 'not_set');
+
+            // Only set default for truly non-existent options
+            if ($stored_value === 'not_set') {
+                add_option($option_name, 1);  // Store as integer
+                $is_enabled = true;
+            } else {
+                // Handle all possible stored values (repair broken data)
+                if ($stored_value === '' || $stored_value === false || $stored_value === '0' || $stored_value === 0) {
+                    $is_enabled = false;
+                } elseif ($stored_value === true || $stored_value === 'true' || $stored_value === '1' || $stored_value === 1) {
+                    $is_enabled = true;
+                } else {
+                    // Default to true for any unexpected values
+                    $is_enabled = true;
+                    // Repair the broken data
+                    update_option($option_name, 1);
+                }
+            }
+
+            if ($is_enabled) {
+                $enabled_components[] = $component;
+            }
         }
-        
-        // Ensure core components are always included
-        return array_unique(array_merge($components, $core_components));
+
+        return $enabled_components;
     }
 
     /**
@@ -93,7 +121,7 @@ class SettingsService extends Service
      */
     public function getToggleableComponents(): array
     {
-        $all_components = ['acf_helper', 'import_export', 'text_utilities', 'optimization', 'dkv_shortcode', 'limit_words'];
+        $all_components = ['acf_helper', 'import_export', 'text_utilities', 'optimization', 'dkv_shortcode', 'limit_words', 'upload_limit'];
         $core_components = ['acf_helper', 'import_export'];
         return array_diff($all_components, $core_components);
     }
@@ -301,7 +329,10 @@ class SettingsService extends Service
         }
 
         $componentKey = sanitize_text_field($_POST['component'] ?? '');
-        $enabled = filter_var($_POST['enabled'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+        // Convert to integer (0 or 1) for consistent storage
+        $enabled_string = $_POST['enabled'] ?? '0';
+        $enabled = ($enabled_string === '1' || $enabled_string === 'true') ? 1 : 0;
         
         if (empty($componentKey)) {
             wp_send_json_error('Invalid component');
@@ -311,23 +342,44 @@ class SettingsService extends Service
         $config = \Adz::config();
         
         // Determine config path and WordPress option name based on component type
+        $option_name = '';
         if (in_array($componentKey, ['dkv', 'limit_words', 'text_util'])) {
             $config->set("shortcodes.{$componentKey}", $enabled);
-            update_option("amfm_shortcodes_{$componentKey}", $enabled);
+            $option_name = "amfm_shortcodes_{$componentKey}";
         } elseif (strpos($componentKey, '_widget') !== false) {
             $config->set("elementor.widgets.{$componentKey}", $enabled);
-            update_option("amfm_elementor_widgets_{$componentKey}", $enabled);
+            $option_name = "amfm_elementor_widgets_{$componentKey}";
         } else {
             $config->set("components.{$componentKey}", $enabled);
-            update_option("amfm_components_{$componentKey}", $enabled);
+            $option_name = "amfm_components_{$componentKey}";
         }
+
+        // Update option without deleting (store as integer)
+        $update_success = update_option($option_name, $enabled);
 
         // Trigger shortcode re-registration if needed
         if (in_array($componentKey, ['dkv', 'limit_words', 'text_util'])) {
             do_action('amfm_shortcodes_changed');
         }
 
-        wp_send_json_success('Component status updated');
+        // Verify the option was actually saved and return debug info
+        $option_name = "amfm_components_{$componentKey}";
+        if (in_array($componentKey, ['dkv', 'limit_words', 'text_util'])) {
+            $option_name = "amfm_shortcodes_{$componentKey}";
+        } elseif (strpos($componentKey, '_widget') !== false) {
+            $option_name = "amfm_elementor_widgets_{$componentKey}";
+        }
+
+        $stored_value = get_option($option_name);
+
+        wp_send_json_success([
+            'message' => 'Component status updated',
+            'component' => $componentKey,
+            'requested_state' => $enabled,
+            'stored_value' => $stored_value,
+            'update_success' => $update_success,
+            'option_name' => $option_name
+        ]);
     }
 
     /**

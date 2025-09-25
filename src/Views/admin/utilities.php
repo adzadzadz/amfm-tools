@@ -120,11 +120,7 @@ $enabled_utilities = $enabled_utilities ?? [];
 </div>
 
 <script>
-// Localize AJAX data
-const amfm_ajax = {
-    ajax_url: '<?php echo admin_url('admin-ajax.php'); ?>',
-    utility_nonce: '<?php echo wp_create_nonce('amfm_component_settings_nonce'); ?>'
-};
+// AJAX data is provided by UtilitiesController via wp_localize_script
 
 // Utility documentation data
 const utilityData = {
@@ -269,6 +265,103 @@ const utilityData = {
                 </div>
             </div>
         `
+    },
+    'upload_limit': {
+        name: 'Image Upload Limit',
+        description: 'Restricts image uploads to 200KB maximum file size. Other file types remain unrestricted.',
+        content: `
+            <div class="amfm-shortcode-docs">
+                <div class="amfm-shortcode-usage">
+                    <h3>Overview:</h3>
+                    <p>The Image Upload Limit utility restricts image file uploads to a maximum size of 200KB while leaving other file types unrestricted. This helps maintain site performance and manage storage usage.</p>
+                </div>
+
+                <div class="amfm-shortcode-attributes">
+                    <h3>Key Features:</h3>
+                    <div class="amfm-attributes-list">
+                        <div class="amfm-attribute">
+                            <strong>200KB Limit</strong> - Restricts image uploads to maximum 200KB file size
+                        </div>
+                        <div class="amfm-attribute">
+                            <strong>Image Files Only</strong> - Only applies to image file types (JPEG, PNG, GIF, WebP, SVG, BMP, TIFF)
+                        </div>
+                        <div class="amfm-attribute">
+                            <strong>Other Files Unrestricted</strong> - Documents, videos, and other file types remain unrestricted
+                        </div>
+                        <div class="amfm-attribute">
+                            <strong>Clear Error Messages</strong> - Users receive helpful error messages when uploads exceed the limit
+                        </div>
+                        <div class="amfm-attribute">
+                            <strong>WordPress Integration</strong> - Works with all WordPress upload interfaces (media library, post editor, etc.)
+                        </div>
+                    </div>
+                </div>
+
+                <div class="amfm-shortcode-examples">
+                    <h3>Supported Image Types:</h3>
+
+                    <div class="amfm-example">
+                        <div class="amfm-example-code">
+                            <strong>JPEG/JPG Files</strong>
+                        </div>
+                        <div class="amfm-example-result">
+                            → Maximum 200KB for .jpg and .jpeg files
+                        </div>
+                    </div>
+
+                    <div class="amfm-example">
+                        <div class="amfm-example-code">
+                            <strong>PNG Files</strong>
+                        </div>
+                        <div class="amfm-example-result">
+                            → Maximum 200KB for .png files
+                        </div>
+                    </div>
+
+                    <div class="amfm-example">
+                        <div class="amfm-example-code">
+                            <strong>WebP, GIF, SVG, BMP, TIFF</strong>
+                        </div>
+                        <div class="amfm-example-result">
+                            → Maximum 200KB for all other image formats
+                        </div>
+                    </div>
+                </div>
+
+                <div class="amfm-shortcode-note">
+                    <h3>When to Enable:</h3>
+                    <ul>
+                        <li>Sites with limited storage space or bandwidth</li>
+                        <li>Performance-focused websites that need optimized images</li>
+                        <li>Sites where users frequently upload large, unoptimized images</li>
+                        <li>Multi-user sites where you need to control upload sizes</li>
+                        <li>Sites that want to enforce image optimization practices</li>
+                    </ul>
+                </div>
+
+                <div class="amfm-usage-tips">
+                    <h3>Best Practices:</h3>
+                    <ul>
+                        <li><strong>Image Compression:</strong> Educate users to compress images before uploading</li>
+                        <li><strong>Alternative Solutions:</strong> Consider image optimization plugins for automatic compression</li>
+                        <li><strong>File Type Guidelines:</strong> Provide users with guidelines on appropriate image formats</li>
+                        <li><strong>Testing:</strong> Test with various image types to ensure proper functionality</li>
+                        <li><strong>User Communication:</strong> Inform users about the upload limit before they encounter errors</li>
+                    </ul>
+                </div>
+
+                <div class="amfm-shortcode-note">
+                    <h3>Technical Details:</h3>
+                    <ul>
+                        <li><strong>Limit:</strong> 200KB (204,800 bytes) maximum file size for images</li>
+                        <li><strong>Implementation:</strong> Uses WordPress wp_handle_upload_prefilter hook</li>
+                        <li><strong>Error Handling:</strong> Provides clear, user-friendly error messages</li>
+                        <li><strong>Performance:</strong> Minimal impact on site performance</li>
+                        <li><strong>Compatibility:</strong> Works with all WordPress upload methods</li>
+                    </ul>
+                </div>
+            </div>
+        `
     }
 };
 
@@ -288,14 +381,20 @@ function loadUtilityContent(utilityKey, mode = 'documentation') {
 // Individual utility toggle functionality using dedicated AJAX endpoint
 document.addEventListener('DOMContentLoaded', function() {
     const toggles = document.querySelectorAll('.utility-toggle');
-    
+
+    // Check if amfm_ajax is available
+    if (typeof amfm_ajax === 'undefined') {
+        console.error('AMFM Tools: amfm_ajax is not defined. AJAX functionality will not work.');
+        return;
+    }
+
     toggles.forEach(toggle => {
         toggle.addEventListener('change', function(e) {
             const utilityKey = this.value;
             const isEnabled = this.checked;
             const card = this.closest('.card');
             const statusBadge = card.querySelector('.badge');
-            const nonceValue = amfm_ajax.utility_nonce;
+            const nonceValue = amfm_ajax.component_nonce;
             
             console.log('Toggle changed:', utilityKey, 'to', isEnabled ? 'enabled' : 'disabled');
             console.log('Using nonce:', nonceValue);

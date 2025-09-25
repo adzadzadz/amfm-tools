@@ -146,25 +146,20 @@ class DashboardController extends Controller
             ]
         ]);
 
-        // Ensure amfm_ajax is properly localized (fallback for AssetManager)
-        \wp_localize_script('amfm-admin-script', 'amfm_ajax', [
-            'ajax_url' => \admin_url('admin-ajax.php'),
-            'export_nonce' => $this->createNonce('amfm_export_nonce'),
-            'update_channel_nonce' => $this->createNonce('amfm_update_channel_nonce')
-        ]);
+        // AssetManager handles localization via the 'localize' parameter above
     }
 
     /**
-     * Enqueue admin scripts - framework auto-hook
+     * Enqueue scripts for all AMFM Tools admin pages - framework auto-hook
      */
     public function actionAdminEnqueueScripts($hook)
     {
-        // Only load on our admin pages
+        // Only load on AMFM Tools admin pages
         if (strpos($hook, 'amfm-tools') === false) {
             return;
         }
 
-        // Enqueue the script directly
+        // Enqueue the script with localized AJAX data
         wp_enqueue_script(
             'amfm-admin-script',
             AMFM_TOOLS_URL . 'assets/js/admin-script.js',
@@ -173,11 +168,19 @@ class DashboardController extends Controller
             true
         );
 
-        // Localize the script
+        // Localize the script with comprehensive AJAX data for all pages
+        // This will override any temporary amfm_ajax object created by inline scripts
         wp_localize_script('amfm-admin-script', 'amfm_ajax', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'export_nonce' => $this->createNonce('amfm_export_nonce'),
-            'update_channel_nonce' => $this->createNonce('amfm_update_channel_nonce')
+            'update_channel_nonce' => $this->createNonce('amfm_update_channel_nonce'),
+            'component_nonce' => $this->createNonce('amfm_component_settings_nonce'),
+            'shortcode_nonce' => $this->createNonce('amfm_component_settings_nonce'),
+            'shortcode_content_nonce' => $this->createNonce('amfm_shortcode_content'),
+            'dkv_config_nonce' => $this->createNonce('amfm_dkv_config_update'),
+            'elementor_nonce' => $this->createNonce('amfm_elementor_widgets_nonce'),
+            'elementor_widgets_nonce' => $this->createNonce('amfm_elementor_widgets_nonce'), // Added for consistency
+            'cleanup_nonce' => $this->createNonce('amfm_cleanup_nonce')
         ]);
     }
 
@@ -244,5 +247,14 @@ class DashboardController extends Controller
         } else {
             wp_send_json_error('Failed to update channel');
         }
+    }
+
+    /**
+     * AJAX: Cleanup old options - framework auto-hook
+     */
+    public function actionWpAjaxAmfmCleanupOptions()
+    {
+        $cleanupService = new \App\Services\OptionsCleanupService();
+        $cleanupService->ajaxCleanupOptions();
     }
 }

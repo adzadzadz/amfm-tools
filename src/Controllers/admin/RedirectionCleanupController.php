@@ -8,10 +8,8 @@ use App\Services\RedirectionCleanupService;
 
 /**
  * Redirection Cleanup Admin Controller
- * 
- * Handles the admin interface for cleaning up internal redirections
- * by updating URLs throughout the WordPress site to point directly
- * to their final destinations.
+ *
+ * Handles CSV upload and URL replacement interface
  */
 class RedirectionCleanupController extends Controller
 {
@@ -66,12 +64,13 @@ class RedirectionCleanupController extends Controller
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('amfm_redirection_cleanup'),
             'strings' => [
-                'analyzing' => __('Analyzing redirections...', 'amfm-tools'),
-                'processing' => __('Processing content...', 'amfm-tools'),
+                'uploading' => __('Processing CSV...', 'amfm-tools'),
+                'analyzing' => __('Analyzing content...', 'amfm-tools'),
+                'processing' => __('Processing replacements...', 'amfm-tools'),
                 'complete' => __('Process complete!', 'amfm-tools'),
                 'error' => __('An error occurred', 'amfm-tools'),
-                'confirm_start' => __('This will update URLs throughout your site. Continue?', 'amfm-tools'),
-                'confirm_rollback' => __('This will revert all changes. Are you sure?', 'amfm-tools')
+                'confirm_process' => __('This will replace URLs in your content. Continue?', 'amfm-tools'),
+                'confirm_clear' => __('This will remove all imported data. Are you sure?', 'amfm-tools')
             ]
         ]);
     }
@@ -81,28 +80,30 @@ class RedirectionCleanupController extends Controller
      */
     public function renderAdminPage()
     {
-        // Check if RankMath is active
-        if (!$this->cleanupService->isRankMathActive()) {
-            $view_data = [
-                'title' => 'Redirection Cleanup',
-                'error' => 'RankMath plugin is required but not active.',
-                'plugin_url' => AMFM_TOOLS_URL,
-                'plugin_version' => AMFM_TOOLS_VERSION
-            ];
-            echo View::render('admin/redirection-cleanup-error', $view_data, true, 'layouts/main');
-            return;
+        $notice = '';
+
+        // Handle CSV upload
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
+            check_admin_referer('amfm_upload_csv', 'amfm_csv_nonce');
+
+            $result = $this->cleanupService->processUploadedCsv($_FILES['csv_file']);
+
+            if ($result['success']) {
+                $notice = '<div class="notice notice-success"><p>' . esc_html($result['message']) . '</p></div>';
+            } else {
+                $notice = '<div class="notice notice-error"><p>' . esc_html($result['message']) . '</p></div>';
+            }
         }
 
-        // Get current analysis data
-        $analysisData = $this->cleanupService->getAnalysisData();
-        
+        $currentData = $this->cleanupService->getCurrentData();
+        $recentJobs = $this->cleanupService->getRecentJobs();
+
         $view_data = [
             'title' => 'Redirection Cleanup',
-            'active_tab' => 'redirection-cleanup',
-            'analysis' => $analysisData,
-            'can_process' => $analysisData['total_redirections'] > 0,
-            'processing_options' => $this->getProcessingOptions(),
-            'recent_jobs' => $this->cleanupService->getRecentJobs(),
+            'notice' => $notice,
+            'current_data' => $currentData,
+            'recent_jobs' => $recentJobs,
+            'has_csv' => !empty($currentData['csv_file']),
             'plugin_url' => AMFM_TOOLS_URL,
             'plugin_version' => AMFM_TOOLS_VERSION
         ];
@@ -111,107 +112,9 @@ class RedirectionCleanupController extends Controller
     }
 
     /**
-     * AJAX: Analyze redirections
+     * AJAX: Analyze content
      */
-    public function actionWpAjaxAnalyzeRedirections()
-    {
-        check_ajax_referer('amfm_redirection_cleanup', 'nonce');
-        
-        if (!current_user_can('manage_options')) {
-            wp_die(__('Insufficient permissions', 'amfm-tools'));
-        }
-
-        try {
-            $analysis = $this->cleanupService->analyzeRedirections();
-            wp_send_json_success($analysis);
-        } catch (\Exception $e) {
-            wp_send_json_error([
-                'message' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * AJAX: Start cleanup process
-     */
-    public function actionWpAjaxStartCleanup()
-    {
-        check_ajax_referer('amfm_redirection_cleanup', 'nonce');
-        
-        if (!current_user_can('manage_options')) {
-            wp_die(__('Insufficient permissions', 'amfm-tools'));
-        }
-
-        $options = wp_unslash($_POST['options'] ?? []);
-        
-        try {
-            $jobId = $this->cleanupService->startCleanupProcess($options);
-            wp_send_json_success(['job_id' => $jobId]);
-        } catch (\Exception $e) {
-            wp_send_json_error([
-                'message' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * AJAX: Get cleanup progress
-     */
-    public function actionWpAjaxGetCleanupProgress()
-    {
-        check_ajax_referer('amfm_redirection_cleanup', 'nonce');
-        
-        if (!current_user_can('manage_options')) {
-            wp_die(__('Insufficient permissions', 'amfm-tools'));
-        }
-
-        $jobId = sanitize_text_field($_POST['job_id'] ?? '');
-        
-        if (empty($jobId)) {
-            wp_send_json_error(['message' => 'Invalid job ID']);
-        }
-
-        try {
-            $progress = $this->cleanupService->getJobProgress($jobId);
-            wp_send_json_success($progress);
-        } catch (\Exception $e) {
-            wp_send_json_error([
-                'message' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * AJAX: Rollback changes
-     */
-    public function actionWpAjaxRollbackCleanup()
-    {
-        check_ajax_referer('amfm_redirection_cleanup', 'nonce');
-        
-        if (!current_user_can('manage_options')) {
-            wp_die(__('Insufficient permissions', 'amfm-tools'));
-        }
-
-        $jobId = sanitize_text_field($_POST['job_id'] ?? '');
-        
-        if (empty($jobId)) {
-            wp_send_json_error(['message' => 'Invalid job ID']);
-        }
-
-        try {
-            $result = $this->cleanupService->rollbackChanges($jobId);
-            wp_send_json_success($result);
-        } catch (\Exception $e) {
-            wp_send_json_error([
-                'message' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * AJAX: Get job details
-     */
-    public function actionWpAjaxGetJobDetails()
+    public function actionWpAjaxAnalyzeContent()
     {
         check_ajax_referer('amfm_redirection_cleanup', 'nonce');
 
@@ -219,61 +122,14 @@ class RedirectionCleanupController extends Controller
             wp_die(__('Insufficient permissions', 'amfm-tools'));
         }
 
-        $jobId = sanitize_text_field($_POST['job_id'] ?? '');
-
-        if (empty($jobId)) {
-            wp_send_json_error(['message' => 'Invalid job ID']);
-        }
-
-        try {
-            $details = $this->cleanupService->getJobDetails($jobId);
-            wp_send_json_success($details);
-        } catch (\Exception $e) {
-            wp_send_json_error([
-                'message' => $e->getMessage()
-            ]);
-        }
+        $result = $this->cleanupService->analyzeContent();
+        wp_send_json($result);
     }
 
     /**
-     * AJAX: Import CSV file
+     * AJAX: Process replacements
      */
-    public function actionWpAjaxImportCsvRedirections()
-    {
-        check_ajax_referer('amfm_redirection_cleanup', 'nonce');
-
-        if (!current_user_can('manage_options')) {
-            wp_die(__('Insufficient permissions', 'amfm-tools'));
-        }
-
-        if (!isset($_FILES['csv_file']) || $_FILES['csv_file']['error'] !== UPLOAD_ERR_OK) {
-            wp_send_json_error(['message' => __('No file uploaded or upload error occurred', 'amfm-tools')]);
-            return;
-        }
-
-        $uploadedFile = $_FILES['csv_file'];
-
-        // Validate file type
-        $mimeType = mime_content_type($uploadedFile['tmp_name']);
-        if (!in_array($mimeType, ['text/csv', 'text/plain', 'application/csv'])) {
-            wp_send_json_error(['message' => __('Invalid file type. Please upload a CSV file.', 'amfm-tools')]);
-            return;
-        }
-
-        try {
-            $result = $this->cleanupService->importCsvRedirections($uploadedFile['tmp_name']);
-            wp_send_json_success($result);
-        } catch (\Exception $e) {
-            wp_send_json_error([
-                'message' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * AJAX: Process imported CSV redirections
-     */
-    public function actionWpAjaxProcessCsvRedirections()
+    public function actionWpAjaxProcessReplacements()
     {
         check_ajax_referer('amfm_redirection_cleanup', 'nonce');
 
@@ -282,85 +138,87 @@ class RedirectionCleanupController extends Controller
         }
 
         $options = [
-            'dry_run' => filter_var($_POST['dry_run'] ?? 'true', FILTER_VALIDATE_BOOLEAN),
-            'batch_size' => intval($_POST['batch_size'] ?? 50),
-            'content_types' => $_POST['content_types'] ?? ['posts', 'custom_fields', 'menus', 'widgets'],
-            'fix_redirections' => filter_var($_POST['fix_redirections'] ?? 'true', FILTER_VALIDATE_BOOLEAN)
+            'dry_run' => isset($_POST['dry_run']) && $_POST['dry_run'] === 'true',
+            'content_types' => isset($_POST['content_types']) ? (array) $_POST['content_types'] : ['posts', 'postmeta'],
+            'batch_size' => 50
         ];
 
-        try {
-            $jobId = $this->cleanupService->processCsvRedirections($options);
-            wp_send_json_success([
-                'job_id' => $jobId,
-                'message' => __('CSV processing started', 'amfm-tools')
-            ]);
-        } catch (\Exception $e) {
-            wp_send_json_error([
-                'message' => $e->getMessage()
-            ]);
-        }
+        $result = $this->cleanupService->processReplacements($options);
+        wp_send_json($result);
     }
 
     /**
-     * Get processing options for the UI
+     * AJAX: Process replacements in batches
      */
-    private function getProcessingOptions(): array
+    public function actionWpAjaxProcessReplacementsBatch()
     {
-        return [
-            'content_types' => [
-                'posts' => [
-                    'label' => __('Posts & Pages Content', 'amfm-tools'),
-                    'description' => __('Update URLs in post/page content and excerpts', 'amfm-tools'),
-                    'default' => true
-                ],
-                'custom_fields' => [
-                    'label' => __('Custom Fields & Meta Data', 'amfm-tools'),
-                    'description' => __('Update URLs in ACF fields and post meta', 'amfm-tools'),
-                    'default' => true
-                ],
-                'menus' => [
-                    'label' => __('Navigation Menus', 'amfm-tools'),
-                    'description' => __('Update menu item URLs', 'amfm-tools'),
-                    'default' => true
-                ],
-                'widgets' => [
-                    'label' => __('Widgets & Customizer', 'amfm-tools'),
-                    'description' => __('Update URLs in widget content and theme settings', 'amfm-tools'),
-                    'default' => false
-                ]
-            ],
-            'processing' => [
-                'batch_size' => [
-                    'label' => __('Batch Size', 'amfm-tools'),
-                    'description' => __('Number of items to process per batch', 'amfm-tools'),
-                    'default' => 50,
-                    'min' => 10,
-                    'max' => 200
-                ],
-                'dry_run' => [
-                    'label' => __('Dry Run Mode', 'amfm-tools'),
-                    'description' => __('Analyze what would be changed without making actual updates', 'amfm-tools'),
-                    'default' => true
-                ],
-                'create_backup' => [
-                    'label' => __('Create Backup', 'amfm-tools'),
-                    'description' => __('Create database backup before processing (temporarily disabled)', 'amfm-tools'),
-                    'default' => false,
-                    'disabled' => true
-                ]
-            ],
-            'url_handling' => [
-                'include_relative' => [
-                    'label' => __('Include Relative URLs', 'amfm-tools'),
-                    'description' => __('Process relative URLs (/page) in addition to absolute URLs', 'amfm-tools'),
-                    'default' => true
-                ],
-                'handle_query_params' => [
-                    'label' => __('Handle Query Parameters', 'amfm-tools'),
-                    'description' => __('Process URLs with query strings (?param=value)', 'amfm-tools'),
-                    'default' => false
-                ]
-            ]
+        check_ajax_referer('amfm_redirection_cleanup', 'nonce');
+        if (!current_user_can('manage_options')) {
+            wp_die(__('Insufficient permissions', 'amfm-tools'));
+        }
+
+        $options = [
+            'dry_run' => isset($_POST['dry_run']) && $_POST['dry_run'] === 'true',
+            'content_types' => isset($_POST['content_types']) ? (array) $_POST['content_types'] : ['posts', 'postmeta'],
+            'batch_size' => 50,
+            'batch_processing' => true,
+            'batch_start' => isset($_POST['batch_start']) ? (int) $_POST['batch_start'] : 0,
+            'batch_limit' => isset($_POST['batch_limit']) ? (int) $_POST['batch_limit'] : 10
         ];
+
+        $result = $this->cleanupService->processReplacements($options);
+        wp_send_json($result);
+    }
+
+    /**
+     * AJAX: Clear all data
+     */
+    public function actionWpAjaxClearRedirectionData()
+    {
+        check_ajax_referer('amfm_redirection_cleanup', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_die(__('Insufficient permissions', 'amfm-tools'));
+        }
+
+        $success = $this->cleanupService->clearAllData();
+
+        wp_send_json([
+            'success' => $success,
+            'message' => $success ? 'All data cleared successfully' : 'Failed to clear data'
+        ]);
+    }
+
+    /**
+     * AJAX: Fix malformed URLs
+     */
+    public function actionWpAjaxFixMalformedUrls()
+    {
+        check_ajax_referer('amfm_redirection_cleanup', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_die(__('Insufficient permissions', 'amfm-tools'));
+        }
+
+        $result = $this->cleanupService->fixMalformedUrls();
+        wp_send_json($result);
+    }
+
+    /**
+     * AJAX: Get current CSV stats
+     */
+    public function actionWpAjaxGetCsvStats()
+    {
+        check_ajax_referer('amfm_redirection_cleanup', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_die(__('Insufficient permissions', 'amfm-tools'));
+        }
+
+        $data = $this->cleanupService->getCurrentData();
+        wp_send_json([
+            'success' => true,
+            'data' => $data
+        ]);
     }
 }

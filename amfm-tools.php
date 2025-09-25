@@ -3,7 +3,7 @@
  * Plugin Name: AMFM Tools
  * Plugin URI: https://adzbyte.com/
  * Description: A plugin for AMFM custom functionalities.
- * Version: 3.8.4
+ * Version: 3.9.14
  * Author: Adrian T. Saycon
  * Author URI: https://adzbyte.com/adz
  * License: GPL2
@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Plugin constants
-define('AMFM_TOOLS_VERSION', '3.8.4');
+define('AMFM_TOOLS_VERSION', '3.9.14');
 define('AMFM_TOOLS_PATH', plugin_dir_path(__FILE__));
 define('AMFM_TOOLS_URL', plugin_dir_url(__FILE__));
 
@@ -127,6 +127,7 @@ add_action('plugins_loaded', function() {
     new \App\Services\CsvImportService();
     new \App\Services\SettingsService();
     new \App\Services\PluginUpdaterService();
+    new \App\Services\UploadLimitService();
 
     // Initialize Controllers
     // Admin Controllers
@@ -147,22 +148,7 @@ add_action('plugins_loaded', function() {
     new \App\Controllers\ShortcodeController();
     new \App\Controllers\ElementorController();
     // new \App\Controllers\PublicBylinesController();
-    
-    // Set up redirection cleanup cron hook
-    add_action('amfm_process_redirection_cleanup', function($jobId) {
-        if (class_exists('\App\Services\RedirectionCleanupService')) {
-            $service = new \App\Services\RedirectionCleanupService();
-            $service->processCleanupJob($jobId);
-        }
-    });
 
-    // Set up CSV redirection cleanup cron hook
-    add_action('amfm_process_csv_redirection_cleanup', function($jobId) {
-        if (class_exists('\App\Services\RedirectionCleanupService')) {
-            $service = new \App\Services\RedirectionCleanupService();
-            $service->processCsvRedirectionCleanup($jobId);
-        }
-    });
 
     // Initialize AMFM Bylines addon if it exists
     $bylines_addon_path = AMFM_TOOLS_PATH . 'addon/amfm-bylines/amfm-bylines.php';

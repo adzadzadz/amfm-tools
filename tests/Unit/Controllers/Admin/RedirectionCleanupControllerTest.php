@@ -2,369 +2,432 @@
 
 namespace Tests\Unit\Controllers\Admin;
 
-use Tests\Helpers\TestCase;
+use PHPUnit\Framework\TestCase;
+use App\Controllers\Admin\RedirectionCleanupController;
+use App\Services\RedirectionCleanupService;
+use Brain\Monkey\Functions;
+use Brain\Monkey\Actions;
+use Brain\Monkey\Filters;
+use Mockery;
 
-/**
- * Unit tests for RedirectionCleanupController
- *
- * Simplified tests focusing on testing processing options structure
- * and data validation without complex WordPress dependencies.
- */
 class RedirectionCleanupControllerTest extends TestCase
 {
-    /**
-     * Test processing options structure
-     */
-    public function testProcessingOptionsStructure()
+    private RedirectionCleanupController $controller;
+    private $serviceMock;
+    private $wpdbMock;
+
+    protected function setUp(): void
     {
-        $options = $this->getProcessingOptions();
+        parent::setUp();
+        \Brain\Monkey\setUp();
 
-        // Verify main sections exist
-        $this->assertArrayHasKey('content_types', $options);
-        $this->assertArrayHasKey('processing', $options);
-        $this->assertArrayHasKey('url_handling', $options);
-
-        // Verify content types
-        $contentTypes = $options['content_types'];
-        $this->assertArrayHasKey('posts', $contentTypes);
-        $this->assertArrayHasKey('custom_fields', $contentTypes);
-        $this->assertArrayHasKey('menus', $contentTypes);
-        $this->assertArrayHasKey('widgets', $contentTypes);
-
-        // Verify each content type has required properties
-        foreach ($contentTypes as $type => $config) {
-            $this->assertArrayHasKey('label', $config);
-            $this->assertArrayHasKey('description', $config);
-            $this->assertArrayHasKey('default', $config);
-            $this->assertIsBool($config['default']);
+        // Define constants first
+        if (!defined('AMFM_TOOLS_URL')) {
+            define('AMFM_TOOLS_URL', 'http://example.com/wp-content/plugins/amfm-tools/');
         }
+        if (!defined('AMFM_TOOLS_VERSION')) {
+            define('AMFM_TOOLS_VERSION', '1.0.0');
+        }
+
+        // Mock global $wpdb
+        $this->wpdbMock = Mockery::mock('\wpdb');
+        global $wpdb;
+        $wpdb = $this->wpdbMock;
+
+        // Mock WordPress functions needed for service constructor
+        Functions\when('wp_upload_dir')->justReturn([
+            'basedir' => '/tmp/uploads',
+            'baseurl' => 'http://example.com/uploads'
+        ]);
+        Functions\when('wp_mkdir_p')->justReturn(true);
+        Functions\when('current_time')->justReturn('2023-01-01 12:00:00');
+        Functions\when('wp_generate_uuid4')->justReturn('test-uuid-123');
+        Functions\when('get_option')->justReturn([]);
+        Functions\when('update_option')->justReturn(true);
+        Functions\when('maybe_unserialize')->returnArg(1);
+
+        // Mock basic WordPress functions
+        Functions\when('__')->returnArg(1);
+        Functions\when('esc_html__')->returnArg(1);
+        Functions\when('esc_html')->returnArg(1);
+        Functions\when('esc_html_e')->returnArg(1);
+        Functions\when('wp_nonce_field')->justReturn('');
+        Functions\when('admin_url')->justReturn('http://example.com/wp-admin/admin-ajax.php');
+        Functions\when('wp_create_nonce')->justReturn('test-nonce');
+
+        // Create controller
+        $this->controller = new RedirectionCleanupController();
+
+        // Create service mock and inject
+        $this->serviceMock = Mockery::mock(RedirectionCleanupService::class);
+        $reflection = new \ReflectionClass($this->controller);
+        $property = $reflection->getProperty('cleanupService');
+        $property->setAccessible(true);
+        $property->setValue($this->controller, $this->serviceMock);
     }
 
-    /**
-     * Test processing section options
-     */
-    public function testProcessingSectionOptions()
+    protected function tearDown(): void
     {
-        $options = $this->getProcessingOptions();
-        $processing = $options['processing'];
-
-        $this->assertArrayHasKey('batch_size', $processing);
-        $this->assertArrayHasKey('dry_run', $processing);
-        $this->assertArrayHasKey('create_backup', $processing);
-
-        // Verify batch size options
-        $batchSize = $processing['batch_size'];
-        $this->assertArrayHasKey('default', $batchSize);
-        $this->assertArrayHasKey('min', $batchSize);
-        $this->assertArrayHasKey('max', $batchSize);
-        $this->assertIsInt($batchSize['default']);
-        $this->assertIsInt($batchSize['min']);
-        $this->assertIsInt($batchSize['max']);
-
-        // Verify dry run option
-        $dryRun = $processing['dry_run'];
-        $this->assertArrayHasKey('default', $dryRun);
-        $this->assertIsBool($dryRun['default']);
-
-        // Verify backup option
-        $backup = $processing['create_backup'];
-        $this->assertArrayHasKey('disabled', $backup);
-        $this->assertTrue($backup['disabled']);
+        \Brain\Monkey\tearDown();
+        Mockery::close();
+        parent::tearDown();
     }
 
-    /**
-     * Test URL handling options
-     */
-    public function testUrlHandlingOptions()
+    public function testActionAdminMenuRegistersSubmenu()
     {
-        $options = $this->getProcessingOptions();
-        $urlHandling = $options['url_handling'];
+        Functions\expect('add_submenu_page')
+            ->once()
+            ->with(
+                'amfm-tools',
+                'Redirection Cleanup',
+                'Redirection Cleanup',
+                'manage_options',
+                'amfm-tools-redirection-cleanup',
+                Mockery::type('array')
+            );
 
-        $this->assertArrayHasKey('include_relative', $urlHandling);
-        $this->assertArrayHasKey('handle_query_params', $urlHandling);
-
-        // Verify include relative option
-        $includeRelative = $urlHandling['include_relative'];
-        $this->assertArrayHasKey('default', $includeRelative);
-        $this->assertIsBool($includeRelative['default']);
-
-        // Verify query params option
-        $queryParams = $urlHandling['handle_query_params'];
-        $this->assertArrayHasKey('default', $queryParams);
-        $this->assertIsBool($queryParams['default']);
+        $this->controller->actionAdminMenu();
+        $this->assertTrue(true); // Mock expectations verified
     }
 
-    /**
-     * Test AJAX response structure validation
-     */
-    public function testAjaxResponseStructure()
+    public function testActionAdminEnqueueScriptsOnCorrectHook()
     {
-        $successResponse = [
+        Functions\expect('wp_enqueue_script')
+            ->once()
+            ->with(
+                'amfm-redirection-cleanup',
+                AMFM_TOOLS_URL . 'assets/js/redirection-cleanup.js',
+                ['jquery'],
+                AMFM_TOOLS_VERSION,
+                true
+            );
+
+        Functions\expect('wp_enqueue_style')
+            ->once()
+            ->with(
+                'amfm-redirection-cleanup',
+                AMFM_TOOLS_URL . 'assets/css/redirection-cleanup.css',
+                [],
+                AMFM_TOOLS_VERSION
+            );
+
+        Functions\expect('wp_localize_script')
+            ->once()
+            ->with(
+                'amfm-redirection-cleanup',
+                'amfmRedirectionCleanup',
+                Mockery::type('array')
+            );
+
+        $this->controller->actionAdminEnqueueScripts('amfm-tools_page_amfm-tools-redirection-cleanup');
+        $this->assertTrue(true); // Mock expectations verified
+    }
+
+    public function testActionAdminEnqueueScriptsSkipsOnWrongHook()
+    {
+        Functions\expect('wp_enqueue_script')->never();
+        Functions\expect('wp_enqueue_style')->never();
+        Functions\expect('wp_localize_script')->never();
+
+        $this->controller->actionAdminEnqueueScripts('wrong-hook');
+        $this->assertTrue(true); // Mock expectations verified
+    }
+
+    public function testActionWpAjaxAnalyzeContentCallsService()
+    {
+        $_POST['nonce'] = 'test-nonce';
+
+        Functions\when('check_ajax_referer')->justReturn(true);
+        Functions\when('current_user_can')->justReturn(true);
+
+        $expectedResult = [
             'success' => true,
-            'data' => [
-                'total_redirections' => 10,
-                'url_mappings' => 5
-            ]
+            'stats' => ['posts' => 10]
         ];
 
-        $errorResponse = [
-            'success' => false,
-            'data' => [
-                'message' => 'Error occurred'
-            ]
-        ];
+        $this->serviceMock->shouldReceive('analyzeContent')
+            ->once()
+            ->andReturn($expectedResult);
 
-        // Validate success response
-        $this->assertArrayHasKey('success', $successResponse);
-        $this->assertArrayHasKey('data', $successResponse);
-        $this->assertTrue($successResponse['success']);
-        $this->assertIsArray($successResponse['data']);
+        Functions\expect('wp_send_json')
+            ->once()
+            ->with($expectedResult);
 
-        // Validate error response
-        $this->assertArrayHasKey('success', $errorResponse);
-        $this->assertArrayHasKey('data', $errorResponse);
-        $this->assertFalse($errorResponse['success']);
-        $this->assertArrayHasKey('message', $errorResponse['data']);
+        $this->controller->actionWpAjaxAnalyzeContent();
+        $this->assertTrue(true); // Mock expectations verified
     }
 
-    /**
-     * Test job progress response structure
-     */
-    public function testJobProgressResponseStructure()
+    public function testActionWpAjaxAnalyzeContentDeniesInsufficientPermissions()
     {
-        $progressResponse = [
-            'id' => 'job-123',
-            'status' => 'processing',
-            'progress' => [
-                'total_items' => 100,
-                'processed_items' => 50,
-                'updated_items' => 25,
-                'current_step' => 'processing_posts',
-                'errors' => []
-            ],
-            'results' => [
-                'posts_updated' => 10,
-                'custom_fields_updated' => 5,
-                'menus_updated' => 2,
-                'widgets_updated' => 0,
-                'total_url_replacements' => 25
-            ],
-            'started_at' => '2024-01-01 10:00:00',
-            'completed_at' => null,
-            'error' => null
-        ];
+        $_POST['nonce'] = 'test-nonce';
 
-        // Validate main structure
-        $this->assertArrayHasKey('id', $progressResponse);
-        $this->assertArrayHasKey('status', $progressResponse);
-        $this->assertArrayHasKey('progress', $progressResponse);
-        $this->assertArrayHasKey('results', $progressResponse);
+        Functions\when('check_ajax_referer')->justReturn(true);
+        Functions\when('current_user_can')->justReturn(false);
 
-        // Validate progress structure
-        $progress = $progressResponse['progress'];
-        $this->assertArrayHasKey('total_items', $progress);
-        $this->assertArrayHasKey('processed_items', $progress);
-        $this->assertArrayHasKey('current_step', $progress);
-        $this->assertArrayHasKey('errors', $progress);
+        Functions\expect('wp_die')
+            ->once()
+            ->with('Insufficient permissions')
+            ->andThrow(new \Exception('wp_die called'));
 
-        // Validate results structure
-        $results = $progressResponse['results'];
-        $this->assertArrayHasKey('posts_updated', $results);
-        $this->assertArrayHasKey('custom_fields_updated', $results);
-        $this->assertArrayHasKey('menus_updated', $results);
-        $this->assertArrayHasKey('widgets_updated', $results);
-        $this->assertArrayHasKey('total_url_replacements', $results);
+        $this->serviceMock->shouldNotReceive('analyzeContent');
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage('wp_die called');
+
+        $this->controller->actionWpAjaxAnalyzeContent();
     }
 
-    /**
-     * Test form option collection simulation
-     */
-    public function testFormOptionCollection()
+    public function testActionWpAjaxProcessReplacementsWithOptions()
     {
-        $formData = [
-            'content_types' => ['posts', 'custom_fields'],
-            'batch_size' => '50',
-            'dry_run' => 'true',
-            'create_backup' => 'false',
-            'include_relative' => 'true',
-            'handle_query_params' => 'false'
+        $_POST['nonce'] = 'test-nonce';
+        $_POST['dry_run'] = 'true';
+        $_POST['content_types'] = ['posts', 'postmeta'];
+
+        Functions\when('check_ajax_referer')->justReturn(true);
+        Functions\when('current_user_can')->justReturn(true);
+
+        $expectedOptions = [
+            'dry_run' => true,
+            'content_types' => ['posts', 'postmeta'],
+            'batch_size' => 50
         ];
 
-        $options = $this->collectFormOptions($formData);
+        $expectedResult = [
+            'success' => true,
+            'results' => ['posts_updated' => 5]
+        ];
 
-        $this->assertEquals(['posts', 'custom_fields'], $options['content_types']);
-        $this->assertEquals(50, $options['batch_size']);
-        $this->assertTrue($options['dry_run']);
-        $this->assertFalse($options['create_backup']);
-        $this->assertTrue($options['include_relative']);
-        $this->assertFalse($options['handle_query_params']);
+        $this->serviceMock->shouldReceive('processReplacements')
+            ->once()
+            ->with($expectedOptions)
+            ->andReturn($expectedResult);
+
+        Functions\expect('wp_send_json')
+            ->once()
+            ->with($expectedResult);
+
+        $this->controller->actionWpAjaxProcessReplacements();
+        $this->assertTrue(true); // Mock expectations verified
     }
 
-    /**
-     * Test admin page view data structure
-     */
-    public function testAdminPageViewDataStructure()
+    public function testActionWpAjaxProcessReplacementsWithDefaults()
     {
-        $viewData = [
-            'title' => 'Redirection Cleanup',
-            'active_tab' => 'redirection-cleanup',
-            'analysis' => [
-                'total_redirections' => 10,
-                'active_redirections' => 8,
-                'redirect_chains' => 2
-            ],
-            'can_process' => true,
-            'processing_options' => $this->getProcessingOptions(),
-            'recent_jobs' => [
-                ['id' => 'job1', 'status' => 'completed'],
-                ['id' => 'job2', 'status' => 'processing']
-            ],
-            'plugin_url' => 'http://example.com/wp-content/plugins/amfm-tools/',
-            'plugin_version' => '1.0.0'
+        // Clear POST data from previous test
+        unset($_POST['dry_run']);
+        unset($_POST['content_types']);
+        $_POST['nonce'] = 'test-nonce';
+
+        Functions\when('check_ajax_referer')->justReturn(true);
+        Functions\when('current_user_can')->justReturn(true);
+
+        $expectedOptions = [
+            'dry_run' => false, // false because $_POST['dry_run'] is not set
+            'content_types' => ['posts', 'postmeta'],
+            'batch_size' => 50
         ];
 
-        // Validate main structure
-        $this->assertArrayHasKey('title', $viewData);
-        $this->assertArrayHasKey('analysis', $viewData);
-        $this->assertArrayHasKey('can_process', $viewData);
-        $this->assertArrayHasKey('processing_options', $viewData);
-        $this->assertArrayHasKey('recent_jobs', $viewData);
+        $expectedResult = [
+            'success' => true,
+            'results' => ['posts_updated' => 3]
+        ];
 
-        // Validate analysis data
-        $analysis = $viewData['analysis'];
-        $this->assertArrayHasKey('total_redirections', $analysis);
-        $this->assertArrayHasKey('active_redirections', $analysis);
-        $this->assertArrayHasKey('redirect_chains', $analysis);
+        $this->serviceMock->shouldReceive('processReplacements')
+            ->once()
+            ->with($expectedOptions)
+            ->andReturn($expectedResult);
 
-        // Validate processing capability
-        $this->assertTrue($viewData['can_process']);
+        Functions\expect('wp_send_json')
+            ->once()
+            ->with($expectedResult);
 
-        // Validate recent jobs
-        $this->assertIsArray($viewData['recent_jobs']);
-        foreach ($viewData['recent_jobs'] as $job) {
-            $this->assertArrayHasKey('id', $job);
-            $this->assertArrayHasKey('status', $job);
-        }
+        $this->controller->actionWpAjaxProcessReplacements();
+        $this->assertTrue(true); // Mock expectations verified
     }
 
-    /**
-     * Test localization data structure
-     */
-    public function testLocalizationDataStructure()
+    public function testActionWpAjaxClearRedirectionData()
     {
-        $localizationData = [
-            'ajaxUrl' => 'http://example.com/wp-admin/admin-ajax.php',
-            'nonce' => 'test-nonce-value',
-            'strings' => [
-                'analyzing' => 'Analyzing redirections...',
-                'processing' => 'Processing content...',
-                'complete' => 'Process complete!',
-                'error' => 'An error occurred',
-                'confirm_start' => 'This will update URLs throughout your site. Continue?',
-                'confirm_rollback' => 'This will revert all changes. Are you sure?'
-            ]
-        ];
+        $_POST['nonce'] = 'test-nonce';
 
-        // Validate main structure
-        $this->assertArrayHasKey('ajaxUrl', $localizationData);
-        $this->assertArrayHasKey('nonce', $localizationData);
-        $this->assertArrayHasKey('strings', $localizationData);
+        Functions\when('check_ajax_referer')->justReturn(true);
+        Functions\when('current_user_can')->justReturn(true);
 
-        // Validate strings
-        $strings = $localizationData['strings'];
-        $expectedStrings = [
-            'analyzing', 'processing', 'complete', 'error',
-            'confirm_start', 'confirm_rollback'
-        ];
+        $this->serviceMock->shouldReceive('clearAllData')
+            ->once()
+            ->andReturn(true);
 
-        foreach ($expectedStrings as $key) {
-            $this->assertArrayHasKey($key, $strings);
-            $this->assertNotEmpty($strings[$key]);
-        }
+        Functions\expect('wp_send_json')
+            ->once()
+            ->with([
+                'success' => true,
+                'message' => 'All data cleared successfully'
+            ]);
+
+        $this->controller->actionWpAjaxClearRedirectionData();
+        $this->assertTrue(true); // Mock expectations verified
     }
 
-    /**
-     * Helper method to simulate getProcessingOptions
-     */
-    private function getProcessingOptions(): array
+    public function testActionWpAjaxClearRedirectionDataFailure()
     {
-        return [
-            'content_types' => [
-                'posts' => [
-                    'label' => 'Posts & Pages Content',
-                    'description' => 'Update URLs in post/page content and excerpts',
-                    'default' => true
-                ],
-                'custom_fields' => [
-                    'label' => 'Custom Fields & Meta Data',
-                    'description' => 'Update URLs in ACF fields and post meta',
-                    'default' => true
-                ],
-                'menus' => [
-                    'label' => 'Navigation Menus',
-                    'description' => 'Update menu item URLs',
-                    'default' => true
-                ],
-                'widgets' => [
-                    'label' => 'Widgets & Customizer',
-                    'description' => 'Update URLs in widget content and theme settings',
-                    'default' => false
-                ]
-            ],
-            'processing' => [
-                'batch_size' => [
-                    'label' => 'Batch Size',
-                    'description' => 'Number of items to process per batch',
-                    'default' => 50,
-                    'min' => 10,
-                    'max' => 200
-                ],
-                'dry_run' => [
-                    'label' => 'Dry Run Mode',
-                    'description' => 'Analyze what would be changed without making actual updates',
-                    'default' => true
-                ],
-                'create_backup' => [
-                    'label' => 'Create Backup',
-                    'description' => 'Create database backup before processing (temporarily disabled)',
-                    'default' => false,
-                    'disabled' => true
-                ]
-            ],
-            'url_handling' => [
-                'include_relative' => [
-                    'label' => 'Include Relative URLs',
-                    'description' => 'Process relative URLs (/page) in addition to absolute URLs',
-                    'default' => true
-                ],
-                'handle_query_params' => [
-                    'label' => 'Handle Query Parameters',
-                    'description' => 'Process URLs with query strings (?param=value)',
-                    'default' => false
-                ]
-            ]
-        ];
+        $_POST['nonce'] = 'test-nonce';
+
+        Functions\when('check_ajax_referer')->justReturn(true);
+        Functions\when('current_user_can')->justReturn(true);
+
+        $this->serviceMock->shouldReceive('clearAllData')
+            ->once()
+            ->andReturn(false);
+
+        Functions\expect('wp_send_json')
+            ->once()
+            ->with([
+                'success' => false,
+                'message' => 'Failed to clear data'
+            ]);
+
+        $this->controller->actionWpAjaxClearRedirectionData();
+        $this->assertTrue(true); // Mock expectations verified
     }
 
-    /**
-     * Helper method to simulate form option collection
-     */
-    private function collectFormOptions(array $formData): array
+    public function testActionWpAjaxGetCsvStats()
     {
-        $options = [];
+        $_POST['nonce'] = 'test-nonce';
 
-        // Content types
-        $options['content_types'] = $formData['content_types'] ?? [];
+        Functions\when('check_ajax_referer')->justReturn(true);
+        Functions\when('current_user_can')->justReturn(true);
 
-        // Processing settings
-        $options['batch_size'] = isset($formData['batch_size']) ? (int)$formData['batch_size'] : 50;
-        $options['dry_run'] = isset($formData['dry_run']) ? $formData['dry_run'] === 'true' : false;
-        $options['create_backup'] = isset($formData['create_backup']) ? $formData['create_backup'] === 'true' : false;
+        $expectedData = [
+            'csv_file' => 'test.csv',
+            'stats' => ['unique_urls' => 10],
+            'mappings_count' => 5
+        ];
 
-        // URL handling
-        $options['include_relative'] = isset($formData['include_relative']) ? $formData['include_relative'] === 'true' : true;
-        $options['handle_query_params'] = isset($formData['handle_query_params']) ? $formData['handle_query_params'] === 'true' : false;
+        $this->serviceMock->shouldReceive('getCurrentData')
+            ->once()
+            ->andReturn($expectedData);
 
-        return $options;
+        Functions\expect('wp_send_json')
+            ->once()
+            ->with([
+                'success' => true,
+                'data' => $expectedData
+            ]);
+
+        $this->controller->actionWpAjaxGetCsvStats();
+        $this->assertTrue(true); // Mock expectations verified
+    }
+
+    public function testRenderAdminPageWithNoData()
+    {
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+
+        $this->serviceMock->shouldReceive('getCurrentData')
+            ->once()
+            ->andReturn([
+                'csv_file' => null,
+                'stats' => [],
+                'analysis' => [],
+                'last_import' => null,
+                'last_analysis' => null,
+                'mappings_count' => 0
+            ]);
+
+        $this->serviceMock->shouldReceive('getRecentJobs')
+            ->once()
+            ->andReturn([]);
+
+        // Mock the static View::render method
+        Mockery::mock('alias:\AdzWP\Core\View')
+            ->shouldReceive('render')
+            ->andReturn('<div>Test View</div>');
+
+        ob_start();
+        $this->controller->renderAdminPage();
+        $output = ob_get_clean();
+
+        $this->assertIsString($output);
+    }
+
+    public function testRenderAdminPageWithCsvUpload()
+    {
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_FILES['csv_file'] = [
+            'name' => 'test.csv',
+            'tmp_name' => '/tmp/test.csv',
+            'error' => UPLOAD_ERR_OK
+        ];
+        $_POST['amfm_csv_nonce'] = 'test-nonce';
+
+        Functions\when('check_admin_referer')->justReturn(true);
+
+        $this->serviceMock->shouldReceive('processUploadedCsv')
+            ->once()
+            ->with($_FILES['csv_file'])
+            ->andReturn([
+                'success' => true,
+                'message' => 'CSV uploaded successfully'
+            ]);
+
+        $this->serviceMock->shouldReceive('getCurrentData')
+            ->once()
+            ->andReturn([]);
+
+        $this->serviceMock->shouldReceive('getRecentJobs')
+            ->once()
+            ->andReturn([]);
+
+        Mockery::mock('alias:\AdzWP\Core\View')
+            ->shouldReceive('render')
+            ->with('admin/redirection-cleanup', Mockery::type('array'), true, 'layouts/main')
+            ->andReturnUsing(function($template, $data) {
+                return '<div>Test View</div>' . $data['notice'];
+            });
+
+        ob_start();
+        $this->controller->renderAdminPage();
+        $output = ob_get_clean();
+
+        $this->assertStringContainsString('notice-success', $output);
+    }
+
+    public function testRenderAdminPageWithCsvUploadError()
+    {
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_FILES['csv_file'] = [
+            'name' => 'test.txt',
+            'tmp_name' => '/tmp/test.txt',
+            'error' => UPLOAD_ERR_OK
+        ];
+        $_POST['amfm_csv_nonce'] = 'test-nonce';
+
+        Functions\when('check_admin_referer')->justReturn(true);
+
+        $this->serviceMock->shouldReceive('processUploadedCsv')
+            ->once()
+            ->with($_FILES['csv_file'])
+            ->andReturn([
+                'success' => false,
+                'message' => 'Invalid file type'
+            ]);
+
+        $this->serviceMock->shouldReceive('getCurrentData')
+            ->once()
+            ->andReturn([]);
+
+        $this->serviceMock->shouldReceive('getRecentJobs')
+            ->once()
+            ->andReturn([]);
+
+        Mockery::mock('alias:\AdzWP\Core\View')
+            ->shouldReceive('render')
+            ->with('admin/redirection-cleanup', Mockery::type('array'), true, 'layouts/main')
+            ->andReturnUsing(function($template, $data) {
+                return '<div>Test View</div>' . $data['notice'];
+            });
+
+        ob_start();
+        $this->controller->renderAdminPage();
+        $output = ob_get_clean();
+
+        $this->assertStringContainsString('notice-error', $output);
     }
 }

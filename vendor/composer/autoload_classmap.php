@@ -58,6 +58,7 @@ return array(
     'App\\Services\\PluginUpdaterService' => $baseDir . '/src/Services/PluginUpdaterService.php',
     'App\\Services\\RedirectionCleanupService' => $baseDir . '/src/Services/RedirectionCleanupService.php',
     'App\\Services\\SettingsService' => $baseDir . '/src/Services/SettingsService.php',
+    'App\\Services\\UploadLimitService' => $baseDir . '/src/Services/UploadLimitService.php',
     'App\\Shortcodes\\AmfmAcfObjectShortcode' => $baseDir . '/src/Shortcodes/AmfmAcfObjectShortcode.php',
     'App\\Shortcodes\\AmfmAcfShortcode' => $baseDir . '/src/Shortcodes/AmfmAcfShortcode.php',
     'App\\Shortcodes\\AmfmAuthorUrlShortcode' => $baseDir . '/src/Shortcodes/AmfmAuthorUrlShortcode.php',

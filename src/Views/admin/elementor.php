@@ -114,9 +114,13 @@ $enabled_widgets = $enabled_widgets ?? [];
 </div>
 
 <script>
-// Check if amfm_ajax is available from wp_localize_script
+// Wait for amfm_ajax to be available or create a temporary placeholder
 if (typeof amfm_ajax === 'undefined') {
-    console.error('AMFM Tools: amfm_ajax is not defined. AJAX functionality will not work.');
+    // Create temporary object that will be overridden by wp_localize_script
+    window.amfm_ajax = {
+        ajax_url: '<?php echo admin_url('admin-ajax.php'); ?>',
+        elementor_nonce: '<?php echo wp_create_nonce('amfm_elementor_widgets_nonce'); ?>'
+    };
 }
 
 // Widget documentation and configuration data

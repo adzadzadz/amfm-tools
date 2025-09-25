@@ -169,6 +169,7 @@ class DashboardController extends Controller
         );
 
         // Localize the script with comprehensive AJAX data for all pages
+        // This will override any temporary amfm_ajax object created by inline scripts
         wp_localize_script('amfm-admin-script', 'amfm_ajax', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'export_nonce' => $this->createNonce('amfm_export_nonce'),
@@ -177,7 +178,8 @@ class DashboardController extends Controller
             'shortcode_nonce' => $this->createNonce('amfm_component_settings_nonce'),
             'shortcode_content_nonce' => $this->createNonce('amfm_shortcode_content'),
             'dkv_config_nonce' => $this->createNonce('amfm_dkv_config_update'),
-            'elementor_nonce' => $this->createNonce('amfm_elementor_widgets_nonce')
+            'elementor_nonce' => $this->createNonce('amfm_elementor_widgets_nonce'),
+            'elementor_widgets_nonce' => $this->createNonce('amfm_elementor_widgets_nonce') // Added for consistency
         ]);
     }
 

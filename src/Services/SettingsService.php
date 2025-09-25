@@ -72,11 +72,12 @@ class SettingsService extends Service
 
             // Check component-specific option with default enabled for new installations
             $option_name = "amfm_components_{$component}";
-            $is_enabled = get_option($option_name);
+            $is_enabled = get_option($option_name, null);
 
-            // If option doesn't exist, set default to true and enable it
-            if ($is_enabled === false) {
-                update_option($option_name, true);
+            // If option doesn't exist (null), set default to true for new installations
+            // But if it's explicitly false, keep it false
+            if ($is_enabled === null) {
+                add_option($option_name, true);
                 $is_enabled = true;
             }
 
@@ -354,14 +355,14 @@ class SettingsService extends Service
             if ($componentKey === 'upload_limit') {
                 // Force update by deleting first to ensure it's saved properly
                 delete_option('amfm_image_upload_limit_enabled');
-                add_option('amfm_image_upload_limit_enabled', $enabled);
+                update_option('amfm_image_upload_limit_enabled', $enabled, 'no');
             }
         }
 
         // Force update by deleting and re-adding the option
-        // This ensures the value is saved even if WordPress thinks it's unchanged
+        // Use update_option after delete to ensure the value is saved
         delete_option($option_name);
-        $update_success = add_option($option_name, $enabled);
+        $update_success = update_option($option_name, $enabled, 'no');
 
         // Trigger shortcode re-registration if needed
         if (in_array($componentKey, ['dkv', 'limit_words', 'text_util'])) {

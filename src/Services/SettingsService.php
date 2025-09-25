@@ -80,6 +80,13 @@ class SettingsService extends Service
                 $is_enabled = true;
             }
 
+            // Convert string boolean to proper boolean (critical for live site compatibility)
+            if (is_string($is_enabled)) {
+                $is_enabled = $is_enabled === 'true' || $is_enabled === '1';
+            } else {
+                $is_enabled = (bool) $is_enabled;
+            }
+
             if ($is_enabled) {
                 $enabled_components[] = $component;
             }
@@ -317,7 +324,12 @@ class SettingsService extends Service
         }
 
         $componentKey = sanitize_text_field($_POST['component'] ?? '');
-        $enabled = filter_var($_POST['enabled'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $enabled = filter_var($_POST['enabled'] ?? false, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+        // Handle edge case where filter_var might not work as expected
+        if ($enabled === null) {
+            $enabled = ($_POST['enabled'] ?? '') === 'true' || ($_POST['enabled'] ?? '') === '1';
+        }
         
         if (empty($componentKey)) {
             wp_send_json_error('Invalid component');
@@ -327,15 +339,16 @@ class SettingsService extends Service
         $config = \Adz::config();
         
         // Determine config path and WordPress option name based on component type
+        $update_success = false;
         if (in_array($componentKey, ['dkv', 'limit_words', 'text_util'])) {
             $config->set("shortcodes.{$componentKey}", $enabled);
-            update_option("amfm_shortcodes_{$componentKey}", $enabled);
+            $update_success = update_option("amfm_shortcodes_{$componentKey}", $enabled);
         } elseif (strpos($componentKey, '_widget') !== false) {
             $config->set("elementor.widgets.{$componentKey}", $enabled);
-            update_option("amfm_elementor_widgets_{$componentKey}", $enabled);
+            $update_success = update_option("amfm_elementor_widgets_{$componentKey}", $enabled);
         } else {
             $config->set("components.{$componentKey}", $enabled);
-            update_option("amfm_components_{$componentKey}", $enabled);
+            $update_success = update_option("amfm_components_{$componentKey}", $enabled);
 
             // Handle special component-specific logic
             if ($componentKey === 'upload_limit') {
@@ -348,7 +361,24 @@ class SettingsService extends Service
             do_action('amfm_shortcodes_changed');
         }
 
-        wp_send_json_success('Component status updated');
+        // Verify the option was actually saved and return debug info
+        $option_name = "amfm_components_{$componentKey}";
+        if (in_array($componentKey, ['dkv', 'limit_words', 'text_util'])) {
+            $option_name = "amfm_shortcodes_{$componentKey}";
+        } elseif (strpos($componentKey, '_widget') !== false) {
+            $option_name = "amfm_elementor_widgets_{$componentKey}";
+        }
+
+        $stored_value = get_option($option_name);
+
+        wp_send_json_success([
+            'message' => 'Component status updated',
+            'component' => $componentKey,
+            'requested_state' => $enabled,
+            'stored_value' => $stored_value,
+            'update_success' => $update_success,
+            'option_name' => $option_name
+        ]);
     }
 
     /**

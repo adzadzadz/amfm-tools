@@ -230,6 +230,9 @@ class RedirectionCleanupService
     public function analyzeContent(): array
     {
         $mappings = get_option(self::OPTION_PREFIX . 'url_mappings', []);
+        if (!is_array($mappings)) {
+            $mappings = [];
+        }
 
         if (empty($mappings)) {
             return [
@@ -279,6 +282,9 @@ class RedirectionCleanupService
     public function processReplacements(array $options = []): array
     {
         $mappings = get_option(self::OPTION_PREFIX . 'url_mappings', []);
+        if (!is_array($mappings)) {
+            $mappings = [];
+        }
 
         if (empty($mappings)) {
             return [
@@ -629,13 +635,18 @@ class RedirectionCleanupService
      */
     public function getCurrentData(): array
     {
+        $mappings = get_option(self::OPTION_PREFIX . 'url_mappings', []);
+        if (!is_array($mappings)) {
+            $mappings = [];
+        }
+
         return [
             'csv_file' => get_option(self::OPTION_PREFIX . 'current_csv'),
             'stats' => get_option(self::OPTION_PREFIX . 'csv_stats', []),
             'analysis' => get_option(self::OPTION_PREFIX . 'analysis', []),
             'last_import' => get_option(self::OPTION_PREFIX . 'last_import'),
             'last_analysis' => get_option(self::OPTION_PREFIX . 'last_analysis'),
-            'mappings_count' => count(get_option(self::OPTION_PREFIX . 'url_mappings', []))
+            'mappings_count' => count($mappings)
         ];
     }
 
